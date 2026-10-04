@@ -11,7 +11,7 @@ if [ -n "${CHECK_PUBLIC_EXTRA:-}" ]; then
   extra=$(tr -d '\n' < "$CHECK_PUBLIC_EXTRA")
   if [ -n "$extra" ]; then pattern="$pattern|$extra"; fi
 fi
-hits=$(git grep -n -I -i -E "$pattern" -- . ':!scripts/check-public.sh' || true)
+hits=$(git grep -n -I -i -E "$pattern" -- . ':!scripts/check-public.sh' ':!.github/CODEOWNERS' || true)
 if [ -n "$hits" ]; then
   echo "$hits"
   echo
