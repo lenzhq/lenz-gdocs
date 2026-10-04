@@ -4,6 +4,10 @@ const LenzView = require('../src/view.js');
 
 const REVIEW = require('./fixtures/reviews/draft-a.review.json');
 const POLLS = require('./fixtures/reviews/draft-a.polls.json');
+// Deep checks that failed, as the API sends them: three that found too few public sources (rows 0 and 1
+// in issues[], row 3 in failures[]), and one too-few-sources failure beside one where search was down.
+const THIN = require('./fixtures/reviews/deep-failed-thin.review.json');
+const MIXED = require('./fixtures/reviews/deep-failed-mixed.review.json');
 
 function review(edit) {
   const body = JSON.parse(JSON.stringify(REVIEW));
@@ -561,4 +565,76 @@ test('two applied occurrences of the same correction both keep their Undo', () =
   const second = { id: '1:x', claimIndex: 1, orig: { start: 600, end: 611 }, origText: 'Buzz Aldrin', replacement: 'Neil Armstrong' };
   const m = LenzView.build(withBlock({ status: 'completed', edits: [ALDRIN_EDIT] }, true), { appliedEdits: [APPLIED, second] });
   assert.deepEqual(entry(m, 'claim:1').edits.map((x) => [x.mode, !!x.earlier]), [['applied', false], ['applied', true]]);
+});
+
+// ── a deep check that failed says why, and offers a retry only when one can help ──
+
+const TOO_FEW_ROW = 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
+const UNAVAILABLE_ROW = 'The deep check could not run because search was unavailable, so this is the quick verdict.';
+const PLAIN_ROW = 'The deep check did not finish, so this is the quick verdict.';
+const RETRY = 'Some checks did not finish. Choose Check this Doc to try them again.';
+
+function rowLines(m, id) {
+  return entry(m, id).lines.map((l) => l.text);
+}
+
+test('failed deep checks: each row says why, by the failure class', () => {
+  const thin = LenzView.build(THIN);
+  ['claim:0', 'claim:1', 'claim:3'].forEach((id) => {
+    assert.ok(rowLines(thin, id).includes(TOO_FEW_ROW), id);
+    assert.equal(entry(thin, id).check, 'Quick check');
+    assert.equal(entry(thin, id).deepRunning, false);
+  });
+  const mixed = LenzView.build(MIXED);
+  assert.ok(rowLines(mixed, 'claim:0').includes(TOO_FEW_ROW));
+  assert.ok(rowLines(mixed, 'claim:1').includes(UNAVAILABLE_ROW));
+});
+
+test('failed deep checks: a failure of another class, or none, keeps the plain line', () => {
+  const other = JSON.parse(JSON.stringify(MIXED));
+  other.claims.find((c) => c.index === 1).verification.failure.failure_class = 'internal';
+  assert.ok(rowLines(LenzView.build(other), 'claim:1').includes(PLAIN_ROW));
+  const none = JSON.parse(JSON.stringify(MIXED));
+  none.claims.find((c) => c.index === 1).verification.failure = null;
+  assert.ok(rowLines(LenzView.build(none), 'claim:1').includes(PLAIN_ROW));
+});
+
+test('failed deep checks: coverage counts the too-few-sources ones apart from the rest', () => {
+  assert.deepEqual(LenzView.build(THIN).coverage.slice(0, 1), ['3 claims had too few public sources for a deep check; they show the quick verdict.']);
+  assert.deepEqual(LenzView.build(MIXED).coverage.slice(0, 2), [
+    '1 claim had too few public sources for a deep check; it shows the quick verdict.',
+    '1 deep check did not finish; that claim shows its quick verdict.',
+  ]);
+  // Counts with no failure blocks behind them keep today's line.
+  const bare = LenzView.build(review((b) => {
+    b.summary.verifications.failed = 2;
+  }));
+  assert.ok(bare.coverage.includes('2 deep checks did not finish; those claims show their quick verdict.'));
+});
+
+test('failed deep checks: no retry advice when every one found too few sources, advice when any can be retried', () => {
+  const thin = LenzView.build(THIN);
+  assert.equal(THIN.outcome, 'incomplete');
+  assert.ok(!thin.coverage.includes(RETRY));
+  assert.equal(LenzView.retryHelps(THIN), false);
+  const mixed = LenzView.build(MIXED);
+  assert.ok(mixed.coverage.includes(RETRY));
+  assert.equal(LenzView.retryHelps(MIXED), true);
+});
+
+test('failed deep checks: a failed claim or citation check, or an unmarked failure, still advises a retry', () => {
+  const claim = JSON.parse(JSON.stringify(THIN));
+  claim.summary.assessments.failed = 1;
+  assert.ok(LenzView.build(claim).coverage.includes(RETRY));
+  const cit = JSON.parse(JSON.stringify(THIN));
+  cit.summary.citation_checks.failed = 1;
+  assert.ok(LenzView.build(cit).coverage.includes(RETRY));
+  const marked = JSON.parse(JSON.stringify(THIN));
+  marked.claims.find((c) => c.index === 0).verification.failure.retryable = true;
+  assert.ok(LenzView.build(marked).coverage.includes(RETRY));
+  const unmarked = JSON.parse(JSON.stringify(THIN));
+  unmarked.claims.find((c) => c.index === 0).verification.failure = null;
+  assert.ok(LenzView.build(unmarked).coverage.includes(RETRY));
+  // Not incomplete: never advice.
+  assert.equal(LenzView.retryHelps(REVIEW), false);
 });

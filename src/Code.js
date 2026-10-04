@@ -637,7 +637,7 @@ function lenzFromPoll_(ctx, rec, poll) {
 function lenzReplyFromBody_(ctx, rec, poll, body, known) {
   var meta = lenzMeta_(ctx, rec);
   var done = body.status === 'completed' || body.status === 'failed';
-  if (body.status === 'completed' && body.outcome === 'incomplete') lenzMarkIncomplete_(ctx, rec.reviewId);
+  if (body.status === 'completed' && LenzView.retryHelps(body)) lenzMarkIncomplete_(ctx, rec.reviewId);
   if (body.status === 'completed' && !(poll && poll.cached)) lenzKeepDoneBody_(rec.reviewId, body);
   var records = lenzApplied_(rec.reviewId);
   var model = LenzView.build(body, {
@@ -1513,8 +1513,9 @@ function lenzMeta_(ctx, rec) {
 
 // { edits: [...], snapshotHash }: the edits applied, each as it was applied,
 // and the hash of the snapshot with all of them made.
-// A completed review whose outcome is `incomplete` (the record does not carry
-// the outcome): the next Check this Doc starts a new review.
+// A completed review whose outcome is `incomplete` and that a rerun can help (the record does not
+// carry the outcome): the next Check this Doc starts a new review. Not one whose only unfinished
+// checks are deep checks that found too few public sources: the same click shows the results.
 function lenzMarkIncomplete_(ctx, reviewId) {
   if (lenzSessionOk_() && lenzIsCurrent_(ctx, reviewId)) lenzUserProps_().setProperty('lenz:incomplete:' + reviewId, '1');
 }

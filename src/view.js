@@ -244,6 +244,50 @@ var LenzView = (function () {
 
 
 
+  var DEEP_FAILURE_TEXT = {
+    insufficient_evidence: 'The deep check found too few public sources to give a verdict, so this is the quick verdict.',
+    upstream_unavailable: 'The deep check could not run because search was unavailable, so this is the quick verdict.',
+  };
+
+  // Why a row's deep check failed, by the failure's class; a failure without one keeps the plain line.
+  function deepFailureClass(verification) {
+    var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
+    return str(f.failure_class);
+  }
+
+  function deepFailureText(verification) {
+    return DEEP_FAILURE_TEXT[deepFailureClass(verification)] || 'The deep check did not finish, so this is the quick verdict.';
+  }
+
+  // The failed deep checks no rerun can change: too few public sources, and not marked retryable.
+  function tooFewSources(verification) {
+    var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
+    return isObj(verification) && verification.status === 'failed' && f.failure_class === 'insufficient_evidence' && f.retryable !== true;
+  }
+
+  function countTooFewSources(body) {
+    var n = 0;
+    if (Array.isArray(body.claims)) {
+      body.claims.forEach(function (r) {
+        if (isObj(r) && tooFewSources(r.verification)) n++;
+      });
+    }
+    return n;
+  }
+
+  // Whether choosing Check this Doc again can help an incomplete review: false only when every check
+  // that did not finish is a deep check that found too few sources. Anything unknown counts as retryable.
+  function retryHelps(body) {
+    body = isObj(body) ? body : {};
+    if (body.outcome !== 'incomplete') return false;
+    var s = isObj(body.summary) ? body.summary : {};
+    var a = isObj(s.assessments) ? s.assessments : {};
+    var v = isObj(s.verifications) ? s.verifications : {};
+    var c = isObj(s.citation_checks) ? s.citation_checks : {};
+    var thin = countTooFewSources(body);
+    return !(thin > 0 && thin >= (v.failed || 0) && !(a.failed > 0) && !(c.failed > 0));
+  }
+
   function claimEntry(row, opts) {
     var result = isObj(row.result) ? row.result : {};
     var assessment = isObj(row.assessment) ? row.assessment : {};
@@ -292,7 +336,7 @@ var LenzView = (function () {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (str(assessment.dissent)) lines.push({ lead: 'A reviewer disagreed: ', text: assessment.dissent });
       if (verification !== null && verification.status === 'failed') {
-        lines.push({ lead: null, text: 'The deep check did not finish, so this is the quick verdict.' });
+        lines.push({ lead: null, text: deepFailureText(verification) });
       }
     }
     // Re-rendered whenever the block changes; no line while edits are worked out: the verdict's
@@ -426,8 +470,13 @@ var LenzView = (function () {
     var a = isObj(s.assessments) ? s.assessments : {};
     if (a.failed > 0) out.push(plural(a.failed, 'claim', 'claims') + ' could not be checked this time.');
     var v = isObj(s.verifications) ? s.verifications : {};
-    if (v.failed > 0) {
-      out.push(plural(v.failed, 'deep check', 'deep checks') + ' did not finish; ' + (v.failed === 1 ? 'that claim shows its' : 'those claims show their') + ' quick verdict.');
+    var thin = Math.min(countTooFewSources(body), v.failed > 0 ? v.failed : 0);
+    if (thin > 0) {
+      out.push(plural(thin, 'claim', 'claims') + ' had too few public sources for a deep check; ' + (thin === 1 ? 'it shows' : 'they show') + ' the quick verdict.');
+    }
+    var rest = v.failed > 0 ? v.failed - thin : 0;
+    if (rest > 0) {
+      out.push(plural(rest, 'deep check', 'deep checks') + ' did not finish; ' + (rest === 1 ? 'that claim shows its' : 'those claims show their') + ' quick verdict.');
     }
     var c = isObj(s.citation_checks) ? s.citation_checks : {};
     if (c.unchecked > 0) {
@@ -456,7 +505,7 @@ var LenzView = (function () {
       if (typeof k === 'number' && k > 0) parts.push(plural(k, n[1], n[2]));
     });
     if (parts.length) out.push('Not read: ' + parts.join(', ') + '.');
-    if (body.outcome === 'incomplete') out.push('Some checks did not finish. Choose Check this Doc to try them again.');
+    if (retryHelps(body)) out.push('Some checks did not finish. Choose Check this Doc to try them again.');
     return out;
   }
 
@@ -612,6 +661,7 @@ var LenzView = (function () {
     citationState: citationState,
     STATE_WORDS: STATE_WORDS,
     editFp: editFp,
+    retryHelps: retryHelps,
   };
 })();
 if (typeof module !== 'undefined') {

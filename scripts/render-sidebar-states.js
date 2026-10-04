@@ -24,6 +24,8 @@ const FIX = path.join(ROOT, 'test', 'fixtures', 'reviews');
 
 const review = JSON.parse(fs.readFileSync(path.join(FIX, 'draft-a.review.json'), 'utf8'));
 const polls = JSON.parse(fs.readFileSync(path.join(FIX, 'draft-a.polls.json'), 'utf8'));
+const thin = JSON.parse(fs.readFileSync(path.join(FIX, 'deep-failed-thin.review.json'), 'utf8'));
+const mixed = JSON.parse(fs.readFileSync(path.join(FIX, 'deep-failed-mixed.review.json'), 'utf8'));
 const AUTH = { mode: 'oauth', signedIn: true };
 const reply = (phase, extra) => Object.assign({ phase, auth: AUTH, model: null, nextPollS: null, error: null }, extra || {});
 
@@ -56,6 +58,8 @@ const STATES = {
     model: LenzView.build(polls[0]), nextPollS: 600, startedAt: Date.now() - 102000 }) } },
   results: { height: 1900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: resultsModel() }) } },
   clean: { height: 900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: cleanModel() }) } },
+  'deep-failed-thin': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(thin) }) } },
+  'deep-failed-mixed': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(mixed) }) } },
   error: { height: 520, replies: { lenzOpen: reply('idle'), lenzOpenState: reply('error', {
     error: { code: 0, message: "Couldn't reach Lenz. Check your connection and try again.", retryable: true } }) } },
   footer: { height: 420, replies: { lenzOpen: reply('idle'), lenzOpenState: reply('idle') } },

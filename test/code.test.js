@@ -1473,6 +1473,20 @@ test('Check this Doc: a completed but incomplete review starts over (a new revie
   assert.equal(posts(w)[0].o.payload, posts(w)[1].o.payload);
 });
 
+test('Check this Doc: an incomplete review whose deep checks all found too few sources shows its results, no charge', () => {
+  const w = started();
+  const body = JSON.parse(JSON.stringify(POLLS[POLLS.length - 1]));
+  Object.assign(body, JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'reviews', 'deep-failed-thin.review.json'), 'utf8')), { review_id: body.review_id });
+  w.state.polls = [body];
+  const done = w.ctx.lenzPoll();
+  assert.equal(done.phase, 'done');
+  assert.ok(!done.model.coverage.includes('Some checks did not finish. Choose Check this Doc to try them again.'));
+  const r = w.ctx.lenzStart();
+  assert.equal(r.phase, 'done');
+  assert.equal(r.notice, 'No changes since the last check.');
+  assert.equal(posts(w).length, 1);
+});
+
 for (const outcome of ['issues_found', 'clean']) {
   test('Check this Doc: a completed ' + outcome + ' review on unchanged text shows its results, no charge', () => {
     const w = started();
