@@ -1,6 +1,6 @@
 # Security
 
-Please report a vulnerability privately to **info@lenz.io** (subject "Security: lenz-gdocs"), not in
+Please report a vulnerability privately through [GitHub's advisory form](https://github.com/lenzhq/lenz-gdocs/security/advisories/new) or to **info@lenz.io** (subject "Security: lenz-gdocs"), not in
 a public issue. Include what you found, how to reproduce it and what it affects. We reply within
 three working days.
 
