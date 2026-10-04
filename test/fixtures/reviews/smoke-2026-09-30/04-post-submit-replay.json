@@ -1,0 +1,53 @@
+{
+ "n": 4,
+ "label": "submit-replay",
+ "at": "2026-09-30T00:23:31.081Z",
+ "request": {
+  "method": "post",
+  "url": "https://lenz.io/api/v1/review",
+  "headers": {
+   "Accept": "application/json",
+   "User-Agent": "lenz-gdocs-smoke/0.1",
+   "Content-Type": "application/json",
+   "Idempotency-Key": "be77e6d22fe541198d633a0f220c3426df14c6be7b87e1a321ba1ecebc396734"
+  },
+  "body": {
+   "text": "Quarterly science brief\n\nThe Apollo 11 mission landed on the Moon on 20 July 1972 with a crew of four astronauts.\n\nAccording to [Wikipedia](https://en.wikipedia.org/wiki/Speed_of_light), the speed of light in a vacuum is exactly 299,792,458 metres per second.\n\nThe human heart has three chambers and pumps blood through the body, as the [NHS](https://www.nhs.uk/conditions/coronary-heart-disease/) describes.\n\nCafé culture in Vienna — “Wiener Kaffeehauskultur” — was added to UNESCO's intangible heritage list in 2011.\n\nThe Pacific Ocean is the largest ocean on Earth.\n",
+   "webhook_url": "",
+   "visibility": "private",
+   "escalate": {
+    "depth": "standard",
+    "max_assessments": 20,
+    "max_citations": 20,
+    "max_verifications": 3,
+    "suggest_edits": true
+   }
+  }
+ },
+ "response": {
+  "code": 202,
+  "headers": {
+   "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+   "cache-control": "no-store",
+   "content-length": "45",
+   "content-type": "application/json",
+   "cross-origin-opener-policy": "same-origin",
+   "date": "Wed, 30 Sep 2026 00:23:30 GMT",
+   "location": "/api/v1/reviews/aeb9cb33",
+   "referrer-policy": "strict-origin-when-cross-origin",
+   "retry-after": "20",
+   "server": "Google Frontend",
+   "vary": "origin",
+   "via": "1.1 google",
+   "x-cloud-trace-context": "dcae802f415010ec83e609fd22dd73ad",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-request-id": "afe4302fc13341999fddcb4a9fe5ce00"
+  },
+  "body": {
+   "review_id": "aeb9cb33",
+   "status": "queued"
+  }
+ },
+ "lostOnPurpose": false
+}

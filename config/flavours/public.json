@@ -1,0 +1,19 @@
+{
+  "scriptTitle": "Lenz Fact-Checking",
+  "oauthClientId": "lzc_c1323964675e4edc134c671c",
+  "pickerApiKey": "AIzaSyD_OTaf-O5azXegvQtV2V_fi0x6pifGBy0",
+  "pickerAppId": "465409082149",
+  "trialLog": false,
+  "omitFiles": ["dev.js", "spike.js", "dev-e2e.js", "dev-tools.js"],
+  "manifest": {
+    "oauthScopes": [
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/documents.currentonly",
+      "https://www.googleapis.com/auth/script.container.ui",
+      "https://www.googleapis.com/auth/script.external_request"
+    ],
+    "urlFetchWhitelist": [
+      "https://lenz.io/"
+    ]
+  }
+}

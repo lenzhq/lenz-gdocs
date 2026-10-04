@@ -1,0 +1,555 @@
+{
+ "review_id": "9f9cafea",
+ "view": "full",
+ "status": "completed",
+ "outcome": "issues_found",
+ "created_at": "2026-09-30T00:10:37.966873Z",
+ "completed_at": "2026-09-30T00:12:03.884646Z",
+ "language": "en",
+ "policy": {
+  "verdicts": [
+   "False",
+   "Mostly False",
+   "Mixed"
+  ],
+  "confidence": [
+   "low"
+  ],
+  "max_assessments": 20,
+  "max_verifications": 3,
+  "depth": "standard",
+  "suggest_edits": true,
+  "max_citations": 20
+ },
+ "summary": {
+  "claims_selected": 5,
+  "claim_limit": 20,
+  "claim_limit_reached": false,
+  "input_truncated": false,
+  "assessments": {
+   "completed": 5,
+   "failed": 0
+  },
+  "verifications": {
+   "planned": 3,
+   "completed": 3,
+   "failed": 0
+  },
+  "issues": 2,
+  "citations_found": 2,
+  "citations_selected": 2,
+  "citation_limit": 20,
+  "citation_limit_reached": false,
+  "citation_checks": {
+   "checked": 1,
+   "unchecked": 1,
+   "failed": 0
+  },
+  "citation_issues": 0,
+  "citations_skipped": null
+ },
+ "credits": {
+  "charged": 36
+ },
+ "poll_after_seconds": null,
+ "issues": [
+  {
+   "claim_index": 0,
+   "claim": "Apollo 11 landed on the Moon on 20 July 1972 with a crew of four astronauts.",
+   "verified_claim": null,
+   "verdict": "False",
+   "confidence": "high",
+   "source": "verification",
+   "verification_id": "a6557f64",
+   "verification_status": "completed",
+   "verification_url": "https://lenz.io/api/v1/verifications/a6557f64",
+   "url": "https://lenz.io/c/apollo-11-moon-landing-date-crew-a6557f64",
+   "escalation": {
+    "matched_rules": [
+     "verdict"
+    ],
+    "disposition": "planned"
+   },
+   "key_finding": "Apollo 11 landed in 1969 and carried three astronauts.",
+   "rationale": "The claim is false on both key details: Apollo 11 landed on the Moon on July 20, 1969, not 1972, and its crew consisted of three astronauts—Neil Armstrong, Buzz Aldrin, and Michael Collins—not four. NASA and other independent institutional sources confirm the correct date and crew size.",
+   "suggested_rewrite": "Apollo 11 landed on the Moon on 20 July 1969 with a crew of three astronauts.",
+   "failure": null,
+   "suggested_edits": {
+    "status": "completed",
+    "edits": [
+     {
+      "position": 0,
+      "start": 69,
+      "end": 81,
+      "text": "20 July 1972",
+      "replacement": "20 July 1969"
+     },
+     {
+      "position": 0,
+      "start": 97,
+      "end": 112,
+      "text": "four astronauts",
+      "replacement": "three astronauts"
+     }
+    ]
+   }
+  },
+  {
+   "claim_index": 1,
+   "claim": "The human heart has three chambers and pumps blood through the body.",
+   "verified_claim": null,
+   "verdict": "False",
+   "confidence": "high",
+   "source": "verification",
+   "verification_id": "4cdde2ba",
+   "verification_status": "completed",
+   "verification_url": "https://lenz.io/api/v1/verifications/4cdde2ba",
+   "url": "https://lenz.io/c/human-heart-chambers-blood-pumping-4cdde2ba",
+   "escalation": {
+    "matched_rules": [
+     "verdict"
+    ],
+    "disposition": "planned"
+   },
+   "key_finding": "The human heart has four chambers and pumps blood through the body.",
+   "rationale": "The pumping part is correct: the heart moves blood to the lungs and through the body. But a normal human heart has four chambers—two atria and two ventricles—not three. Because the claim gets a basic anatomical fact wrong, it is mostly false despite correctly describing the heart’s function.",
+   "suggested_rewrite": "The human heart has four chambers and pumps blood through the body.",
+   "failure": null,
+   "suggested_edits": {
+    "status": "completed",
+    "edits": [
+     {
+      "position": 0,
+      "start": 281,
+      "end": 286,
+      "text": "three",
+      "replacement": "four"
+     }
+    ]
+   }
+  }
+ ],
+ "failures": [],
+ "citation_issues": [],
+ "citation_failures": [],
+ "claims": [
+  {
+   "index": 0,
+   "claim": "Apollo 11 landed on the Moon on 20 July 1972 with a crew of four astronauts.",
+   "positions": [
+    {
+     "start": 25,
+     "end": 113,
+     "text": "The Apollo 11 mission landed on the Moon on 20 July 1972 with a crew of four astronauts."
+    }
+   ],
+   "result": {
+    "verdict": "False",
+    "confidence": "high",
+    "source": "verification",
+    "is_issue": true
+   },
+   "assessment": {
+    "status": "completed",
+    "verdict": "False",
+    "confidence": "high",
+    "rationale": "The claim is false on both key details: Apollo 11 landed on the Moon on July 20, 1969, not 1972, and its crew consisted of three astronauts—Neil Armstrong, Buzz Aldrin, and Michael Collins—not four. NASA and other independent institutional sources confirm the correct date and crew size.",
+    "dissent": null,
+    "verification_url": null,
+    "error_code": null,
+    "identified_claims": [],
+    "hint": null,
+    "suggested_rewrite": "Apollo 11 landed on the Moon on 20 July 1969 with a crew of three astronauts.",
+    "failure": null
+   },
+   "escalation": {
+    "matched_rules": [
+     "verdict"
+    ],
+    "disposition": "planned"
+   },
+   "verification": {
+    "status": "completed",
+    "content_status": "available",
+    "task_id": "1dbd4a500a5d4c6eb233bc7bfdc44d44",
+    "verification_id": "a6557f64",
+    "claim": "Apollo 11 landed on the Moon on 20 July 1972 with a crew of four astronauts.",
+    "language": "en",
+    "visibility": "private",
+    "depth": "standard",
+    "domain": "History",
+    "entities": [
+     {
+      "name": "Apollo 11",
+      "qid": null
+     },
+     {
+      "name": "Moon",
+      "qid": "Q405"
+     }
+    ],
+    "verdict": "False",
+    "confidence": "high",
+    "lenz_score": 1,
+    "key_finding": "Apollo 11 landed in 1969 and carried three astronauts.",
+    "executive_summary": "Apollo 11 landed on the Moon on 20 July 1969 and had a crew of three astronauts. NASA mission records and the U.S. National Archives confirm the date and crew size. The claim gets the day and month right, but its year and headcount are incorrect.",
+    "suggested_rewrite": "Apollo 11 landed on the Moon on 20 July 1969 with a crew of three astronauts.",
+    "warnings": [
+     "Only two of Apollo 11’s three crew members descended to the lunar surface; the third remained in lunar orbit.",
+     "Multiple NASA pages are authoritative mission sources, but they should not be counted as independent institutional confirmations."
+    ],
+    "created_at": "2026-09-30T00:11:59.844775+00:00",
+    "modified_at": null,
+    "verification_url": "https://lenz.io/api/v1/verifications/a6557f64",
+    "url": "https://lenz.io/c/apollo-11-moon-landing-date-crew-a6557f64",
+    "failure": null
+   },
+   "suggested_edits": {
+    "status": "completed",
+    "edits": [
+     {
+      "position": 0,
+      "start": 69,
+      "end": 81,
+      "text": "20 July 1972",
+      "replacement": "20 July 1969"
+     },
+     {
+      "position": 0,
+      "start": 97,
+      "end": 112,
+      "text": "four astronauts",
+      "replacement": "three astronauts"
+     }
+    ]
+   }
+  },
+  {
+   "index": 1,
+   "claim": "The human heart has three chambers and pumps blood through the body.",
+   "positions": [
+    {
+     "start": 261,
+     "end": 408,
+     "text": "The human heart has three chambers and pumps blood through the body, as the [NHS](https://www.nhs.uk/conditions/coronary-heart-disease/) describes."
+    }
+   ],
+   "result": {
+    "verdict": "False",
+    "confidence": "high",
+    "source": "verification",
+    "is_issue": true
+   },
+   "assessment": {
+    "status": "completed",
+    "verdict": "Mostly False",
+    "confidence": "medium",
+    "rationale": "The pumping part is correct: the heart moves blood to the lungs and through the body. But a normal human heart has four chambers—two atria and two ventricles—not three. Because the claim gets a basic anatomical fact wrong, it is mostly false despite correctly describing the heart’s function.",
+    "dissent": null,
+    "verification_url": null,
+    "error_code": null,
+    "identified_claims": [],
+    "hint": null,
+    "suggested_rewrite": null,
+    "failure": null
+   },
+   "escalation": {
+    "matched_rules": [
+     "verdict"
+    ],
+    "disposition": "planned"
+   },
+   "verification": {
+    "status": "completed",
+    "content_status": "available",
+    "task_id": "0a28f6e732bd432192029237917c43a5",
+    "verification_id": "4cdde2ba",
+    "claim": "The human heart has three chambers and pumps blood through the body.",
+    "language": "en",
+    "visibility": "private",
+    "depth": "standard",
+    "domain": "Health",
+    "entities": [
+     {
+      "name": "Human Heart",
+      "qid": null
+     }
+    ],
+    "verdict": "False",
+    "confidence": "high",
+    "lenz_score": 1,
+    "key_finding": "The human heart has four chambers and pumps blood through the body.",
+    "executive_summary": "The human heart has four chambers, not three, and pumps blood through the body. NIH and other medical sources directly confirm both facts, making the stated chamber count a clear error. References to three-chambered hearts in nonhuman animals do not apply to humans.",
+    "suggested_rewrite": "The human heart has four chambers and pumps blood through the body.",
+    "warnings": [
+     "The statement that the heart pumps blood is accurate, but it does not correct the erroneous chamber count.",
+     "Three-chambered hearts in some nonhuman animals are not evidence about human heart anatomy.",
+     "Some anatomy textbooks reproduce the same material and should not be counted as independent confirmations."
+    ],
+    "created_at": "2026-09-30T00:11:48.731141+00:00",
+    "modified_at": null,
+    "verification_url": "https://lenz.io/api/v1/verifications/4cdde2ba",
+    "url": "https://lenz.io/c/human-heart-chambers-blood-pumping-4cdde2ba",
+    "failure": null
+   },
+   "suggested_edits": {
+    "status": "completed",
+    "edits": [
+     {
+      "position": 0,
+      "start": 281,
+      "end": 286,
+      "text": "three",
+      "replacement": "four"
+     }
+    ]
+   }
+  },
+  {
+   "index": 2,
+   "claim": "According to Wikipedia, the speed of light in a vacuum is exactly 299,792,458 metres per second.",
+   "positions": [
+    {
+     "start": 115,
+     "end": 259,
+     "text": "According to [Wikipedia](https://en.wikipedia.org/wiki/Speed_of_light), the speed of light in a vacuum is exactly 299,792,458 metres per second."
+    }
+   ],
+   "result": {
+    "verdict": "True",
+    "confidence": "high",
+    "source": "assessment",
+    "is_issue": false
+   },
+   "assessment": {
+    "status": "completed",
+    "verdict": "True",
+    "confidence": "high",
+    "rationale": "Wikipedia states that the speed of light in a vacuum is exactly 299,792,458 metres per second. The International Bureau of Weights and Measures and the U.S. National Institute of Standards and Technology independently confirm that exact SI value; it is fixed by the definition of the metre, not merely an approximate measurement.",
+    "dissent": null,
+    "verification_url": null,
+    "error_code": null,
+    "identified_claims": [],
+    "hint": null,
+    "suggested_rewrite": null,
+    "failure": null
+   },
+   "escalation": {
+    "matched_rules": [],
+    "disposition": "not_selected"
+   },
+   "verification": null,
+   "suggested_edits": null
+  },
+  {
+   "index": 3,
+   "claim": "Vienna's café culture, “Wiener Kaffeehauskultur,” was added to UNESCO's intangible heritage list in 2011.",
+   "positions": [
+    {
+     "start": 410,
+     "end": 518,
+     "text": "Café culture in Vienna — “Wiener Kaffeehauskultur” — was added to UNESCO's intangible heritage list in 2011."
+    }
+   ],
+   "result": {
+    "verdict": "Mostly True",
+    "confidence": "low",
+    "source": "verification",
+    "is_issue": false
+   },
+   "assessment": {
+    "status": "completed",
+    "verdict": "Mixed",
+    "confidence": "low",
+    "rationale": "The date is correct: the Austrian UNESCO Commission’s official inventory says Viennese coffee house culture was included in 2011. The important qualification is that this was Austria’s national inventory of intangible cultural heritage, not UNESCO’s international Representative List; the claim’s wording “UNESCO’s... list” is therefore misleading, though it reflects the common shorthand for the national inventory.",
+    "dissent": "Multiple reliable sources, including the official Austrian UNESCO Commission website and contemporary 2011 news reports, confirm that Viennese coffee house culture (Wiener Kaffeehauskultur) was inscribed in 2011 on Austria's national inventory of intangible cultural heritage, which is maintained under the UNESCO framework. Wikipedia and other independent references consistently date the listing to October/November 2011. The claim matches the facts exactly with no material discrepancies.",
+    "verification_url": null,
+    "error_code": null,
+    "identified_claims": [],
+    "hint": null,
+    "suggested_rewrite": null,
+    "failure": null
+   },
+   "escalation": {
+    "matched_rules": [
+     "verdict",
+     "confidence"
+    ],
+    "disposition": "planned"
+   },
+   "verification": {
+    "status": "completed",
+    "content_status": "available",
+    "task_id": "3269ff85399f43d3978a93acb3570350",
+    "verification_id": "7c0e0b6d",
+    "claim": "Vienna's café culture, “Wiener Kaffeehauskultur,” was added to UNESCO's intangible heritage list in 2011.",
+    "language": "en",
+    "visibility": "private",
+    "depth": "standard",
+    "domain": "History",
+    "entities": [
+     {
+      "name": "UNESCO",
+      "qid": null
+     },
+     {
+      "name": "Vienna",
+      "qid": null
+     },
+     {
+      "name": "Wiener Kaffeehauskultur",
+      "qid": null
+     }
+    ],
+    "verdict": "Mostly True",
+    "confidence": "low",
+    "lenz_score": 7,
+    "key_finding": "Vienna’s café culture entered Austria’s national intangible heritage inventory in 2011.",
+    "executive_summary": "Vienna’s café culture was added to Austria’s national inventory of intangible cultural heritage in 2011. Records from the Austrian UNESCO Commission and the City of Vienna establish the designation and year, while news reports also describe the UNESCO-linked recognition. The phrase “UNESCO’s intangible heritage list” risks implying an international UNESCO listing, which the cited sources do not establish.",
+    "suggested_rewrite": "Vienna’s café culture, “Wiener Kaffeehauskultur,” was added to Austria’s national inventory of intangible cultural heritage in 2011.",
+    "warnings": [
+     "Austria’s national inventory should not be confused with UNESCO’s international intangible cultural heritage lists.",
+     "Some news reports use broad UNESCO terminology without identifying the inventory as national.",
+     "The Austrian UNESCO Commission’s German and English entries describe the same listing, not independent confirmations."
+    ],
+    "created_at": "2026-09-30T00:11:59.588510+00:00",
+    "modified_at": null,
+    "verification_url": "https://lenz.io/api/v1/verifications/7c0e0b6d",
+    "url": "https://lenz.io/c/unesco-vienna-wiener-kaffeehauskultur-2011-listing-7c0e0b6d",
+    "failure": null
+   },
+   "suggested_edits": {
+    "status": "completed",
+    "edits": [
+     {
+      "position": 0,
+      "start": 476,
+      "end": 509,
+      "text": "UNESCO's intangible heritage list",
+      "replacement": "Austria's national inventory of intangible cultural heritage"
+     }
+    ]
+   }
+  },
+  {
+   "index": 4,
+   "claim": "The Pacific Ocean is the largest ocean on Earth.",
+   "positions": [
+    {
+     "start": 520,
+     "end": 568,
+     "text": "The Pacific Ocean is the largest ocean on Earth."
+    }
+   ],
+   "result": {
+    "verdict": "True",
+    "confidence": "high",
+    "source": "assessment",
+    "is_issue": false
+   },
+   "assessment": {
+    "status": "completed",
+    "verdict": "True",
+    "confidence": "high",
+    "rationale": "The claim is correct: NOAA identifies the Pacific as Earth’s largest ocean basin, and its area comparison places it well ahead of the Atlantic. Independent sources from the U.S. Geological Survey and National Geographic also identify the Pacific as the largest.",
+    "dissent": null,
+    "verification_url": null,
+    "error_code": null,
+    "identified_claims": [],
+    "hint": null,
+    "suggested_rewrite": null,
+    "failure": null
+   },
+   "escalation": {
+    "matched_rules": [],
+    "disposition": "not_selected"
+   },
+   "verification": null,
+   "suggested_edits": null
+  }
+ ],
+ "citations": [
+  {
+   "index": 0,
+   "reference": "Wikipedia",
+   "cited_url": "https://en.wikipedia.org/wiki/Speed_of_light",
+   "doi": null,
+   "statement": "According to Wikipedia, the speed of light in a vacuum is exactly 299,792,458 metres per second.",
+   "quotes": [],
+   "position": {
+    "start": 115,
+    "end": 259,
+    "text": null
+   },
+   "result": {
+    "finding": "unchecked",
+    "source": null,
+    "is_issue": false
+   },
+   "check": {
+    "status": "completed",
+    "page_read": "partial",
+    "page_title": "Speed of light - Wikipedia",
+    "page_published_date": "2001-10-31",
+    "page_language": "en",
+    "source_url": "https://en.wikipedia.org/wiki/Speed_of_light",
+    "source_version": null,
+    "support": "unchecked",
+    "snippet": null,
+    "rationale": null,
+    "quote": null,
+    "doi_registered": null,
+    "metadata": null,
+    "metadata_differences": [],
+    "registered": null,
+    "unchecked_reason": "partial_text",
+    "hint": "Only part of the source could be read, so what it leaves out cannot be judged. Open the link and check the rest by hand.",
+    "failure": null,
+    "missing_quote": null
+   }
+  },
+  {
+   "index": 1,
+   "reference": "NHS",
+   "cited_url": "https://www.nhs.uk/conditions/coronary-heart-disease/",
+   "doi": null,
+   "statement": "The human heart has three chambers and pumps blood through the body, as the NHS describes.",
+   "quotes": [],
+   "position": {
+    "start": 261,
+    "end": 408,
+    "text": null
+   },
+   "result": {
+    "finding": "partly_supported",
+    "source": "support",
+    "is_issue": false
+   },
+   "check": {
+    "status": "completed",
+    "page_read": "full",
+    "page_title": "Coronary heart disease\n - NHS",
+    "page_published_date": null,
+    "page_language": "en",
+    "source_url": "https://www.nhs.uk/conditions/coronary-heart-disease/",
+    "source_version": null,
+    "support": "partly_supported",
+    "snippet": "The heart is a muscle about the size of your fist. It pumps blood around your body",
+    "rationale": "The source never states the number of heart chambers, and the human heart in fact has four chambers, not three.",
+    "quote": null,
+    "doi_registered": null,
+    "metadata": null,
+    "metadata_differences": [],
+    "registered": null,
+    "unchecked_reason": null,
+    "hint": null,
+    "failure": null,
+    "missing_quote": null
+   }
+  }
+ ],
+ "failure": null,
+ "more_claims": [],
+ "more_claim_locations": [],
+ "more_citations": []
+}

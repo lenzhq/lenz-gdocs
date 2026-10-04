@@ -1,0 +1,38 @@
+{
+ "n": 1,
+ "label": "missing-review",
+ "at": "2026-09-30T00:23:29.552Z",
+ "request": {
+  "method": "get",
+  "url": "https://lenz.io/api/v1/reviews/00000000",
+  "headers": {
+   "Accept": "application/json",
+   "User-Agent": "lenz-gdocs-smoke/0.1"
+  },
+  "body": null
+ },
+ "response": {
+  "code": 404,
+  "headers": {
+   "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+   "cache-control": "no-store",
+   "content-length": "52",
+   "content-type": "application/json",
+   "cross-origin-opener-policy": "same-origin",
+   "date": "Wed, 30 Sep 2026 00:23:29 GMT",
+   "referrer-policy": "strict-origin-when-cross-origin",
+   "server": "Google Frontend",
+   "vary": "origin",
+   "via": "1.1 google",
+   "x-cloud-trace-context": "0fd32ab51f806599aa494b6ce15cb9f3",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-request-id": "4fd4a09fa5254812a657fb40f084b958"
+  },
+  "body": {
+   "detail": "Review not found.",
+   "code": "not_found"
+  }
+ },
+ "lostOnPurpose": false
+}

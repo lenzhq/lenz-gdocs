@@ -1,0 +1,13 @@
+node_modules/
+.clasp.json
+.clasprc.json
+*.log
+tmp/
+.DS_Store
+.secrets/
+.deploy-id
+.clasp.public.json
+.deploy-id.public
+dist/
+config/flavours/internal.json
+.env

@@ -1,0 +1,76 @@
+{
+  "documentId": "doc-astral",
+  "title": "astral",
+  "revisionId": "rev-astral",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "title": "Tab 1",
+        "index": 0
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {}
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 35,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 35,
+                    "textRun": {
+                      "content": "Party 🎉 time, café ☕ and 𝒜𝒷𝒸.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 35,
+              "endIndex": 43,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 35,
+                    "endIndex": 39,
+                    "textRun": {
+                      "content": "👍🏽",
+                      "textStyle": {
+                        "link": {
+                          "url": "https://example.org/thumb"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 39,
+                    "endIndex": 43,
+                    "textRun": {
+                      "content": " ok\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

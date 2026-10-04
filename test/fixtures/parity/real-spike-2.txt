@@ -1,0 +1,51 @@
+Tab 1
+
+Lenz spike document: a paragraph.
+
+	Lenz spike document: a plain paragraph.	1
+
+Emoji 🎉, astral 𝒜𝒷𝒸 and a skin tone 👍🏽 before the end.
+
+Soft
+break, and a tab:	here.
+
+Links: [the website](https://lenz.io/), [mail us](mailto:info@lenz.io) and [call](tel:+10000000000).
+
+Split link: [two ](https://lenz.io/split)[runs](https://lenz.io/split) end.
+
+First item
+
+Second item
+
+Third item
+
+Before the table. Sep 30, 2026
+
+Cell A1
+
+Cell B1 extra
+
+Cell A2
+
+Cell B2 🎉
+
+Person chip: [info@lenz.io](mailto:info@lenz.io) after the chip.
+
+Page break follows:
+
+
+Footnote here and after.
+
+Apply target: the [quick brown fox](https://lenz.io/fox) jumps.
+
+Whole link: [replace me](https://lenz.io/whole) now.
+
+Second whole link: [second link](https://lenz.io/second) too.
+
+Glue target: the [lazy dog](https://lenz.io/dog) sleeps.
+
+Last paragraph. [A linked Doc](https://docs.google.com/document/d/EXAMPLE-DOC-ID/edit?tab=t.0)
+
+Second tab
+
+Second tab text.

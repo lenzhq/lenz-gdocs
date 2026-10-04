@@ -1,0 +1,325 @@
+{
+  "documentId": "doc-suggestions",
+  "title": "suggestions",
+  "revisionId": "rev-suggestions",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "title": "Tab 1",
+        "index": 0
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {}
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 32,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 14,
+                    "textRun": {
+                      "content": "Revenue grew ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 14,
+                    "endIndex": 17,
+                    "textRun": {
+                      "content": "10%",
+                      "textStyle": {},
+                      "suggestedDeletionIds": [
+                        "sug.1"
+                      ]
+                    }
+                  },
+                  {
+                    "startIndex": 17,
+                    "endIndex": 20,
+                    "textRun": {
+                      "content": "12%",
+                      "textStyle": {},
+                      "suggestedInsertionIds": [
+                        "sug.1"
+                      ]
+                    }
+                  },
+                  {
+                    "startIndex": 20,
+                    "endIndex": 32,
+                    "textRun": {
+                      "content": " last year.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 32,
+              "endIndex": 51,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 32,
+                    "endIndex": 51,
+                    "textRun": {
+                      "content": "Deleted paragraph.\n",
+                      "textStyle": {},
+                      "suggestedDeletionIds": [
+                        "sug.2"
+                      ]
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 51,
+              "endIndex": 57,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 51,
+                    "endIndex": 57,
+                    "textRun": {
+                      "content": "Kept.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 57,
+              "endIndex": 111,
+              "table": {
+                "rows": 3,
+                "columns": 2,
+                "tableRows": [
+                  {
+                    "startIndex": 58,
+                    "endIndex": 75,
+                    "tableCells": [
+                      {
+                        "startIndex": 59,
+                        "endIndex": 67,
+                        "content": [
+                          {
+                            "startIndex": 60,
+                            "endIndex": 67,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 60,
+                                  "endIndex": 67,
+                                  "textRun": {
+                                    "content": "Keep A\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      },
+                      {
+                        "startIndex": 67,
+                        "endIndex": 75,
+                        "content": [
+                          {
+                            "startIndex": 68,
+                            "endIndex": 75,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 68,
+                                  "endIndex": 75,
+                                  "textRun": {
+                                    "content": "Keep B\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      }
+                    ]
+                  },
+                  {
+                    "startIndex": 75,
+                    "endIndex": 92,
+                    "tableCells": [
+                      {
+                        "startIndex": 76,
+                        "endIndex": 84,
+                        "content": [
+                          {
+                            "startIndex": 77,
+                            "endIndex": 84,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 77,
+                                  "endIndex": 84,
+                                  "textRun": {
+                                    "content": "Gone A\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      },
+                      {
+                        "startIndex": 84,
+                        "endIndex": 92,
+                        "content": [
+                          {
+                            "startIndex": 85,
+                            "endIndex": 92,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 85,
+                                  "endIndex": 92,
+                                  "textRun": {
+                                    "content": "Gone B\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      }
+                    ],
+                    "suggestedDeletionIds": [
+                      "sug.3"
+                    ]
+                  },
+                  {
+                    "startIndex": 92,
+                    "endIndex": 110,
+                    "tableCells": [
+                      {
+                        "startIndex": 93,
+                        "endIndex": 100,
+                        "content": [
+                          {
+                            "startIndex": 94,
+                            "endIndex": 100,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 94,
+                                  "endIndex": 100,
+                                  "textRun": {
+                                    "content": "Row C\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      },
+                      {
+                        "startIndex": 100,
+                        "endIndex": 110,
+                        "content": [
+                          {
+                            "startIndex": 101,
+                            "endIndex": 110,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 101,
+                                  "endIndex": 110,
+                                  "textRun": {
+                                    "content": "New cell\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {},
+                        "suggestedInsertionIds": [
+                          "sug.4"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "startIndex": 111,
+              "endIndex": 124,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 111,
+                    "endIndex": 124,
+                    "textRun": {
+                      "content": "After table.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

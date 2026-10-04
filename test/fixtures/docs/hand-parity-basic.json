@@ -1,0 +1,267 @@
+{
+  "documentId": "doc-parity-basic",
+  "title": "parity-basic",
+  "revisionId": "rev-parity-basic",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "title": "Tab 1",
+        "index": 0
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {}
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 13,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 13,
+                    "textRun": {
+                      "content": "Alpha beta.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 13,
+              "endIndex": 14,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 13,
+                    "endIndex": 14,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 14,
+              "endIndex": 54,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 14,
+                    "endIndex": 54,
+                    "textRun": {
+                      "content": "Tab\there and a soft break:\u000bsecond line.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 54,
+              "endIndex": 82,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 54,
+                    "endIndex": 58,
+                    "textRun": {
+                      "content": "See ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 58,
+                    "endIndex": 68,
+                    "textRun": {
+                      "content": "the report",
+                      "textStyle": {
+                        "link": {
+                          "url": "https://example.org/report?a=1&b=2"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 68,
+                    "endIndex": 75,
+                    "textRun": {
+                      "content": ", then ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 75,
+                    "endIndex": 80,
+                    "textRun": {
+                      "content": "write",
+                      "textStyle": {
+                        "link": {
+                          "url": "mailto:info@example.org"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 80,
+                    "endIndex": 82,
+                    "textRun": {
+                      "content": ".\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 82,
+              "endIndex": 109,
+              "table": {
+                "rows": 1,
+                "columns": 2,
+                "tableRows": [
+                  {
+                    "startIndex": 83,
+                    "endIndex": 108,
+                    "tableCells": [
+                      {
+                        "startIndex": 84,
+                        "endIndex": 92,
+                        "content": [
+                          {
+                            "startIndex": 85,
+                            "endIndex": 92,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 85,
+                                  "endIndex": 92,
+                                  "textRun": {
+                                    "content": "Cell A\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      },
+                      {
+                        "startIndex": 92,
+                        "endIndex": 108,
+                        "content": [
+                          {
+                            "startIndex": 93,
+                            "endIndex": 100,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 93,
+                                  "endIndex": 100,
+                                  "textRun": {
+                                    "content": "Cell B\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          },
+                          {
+                            "startIndex": 100,
+                            "endIndex": 108,
+                            "paragraph": {
+                              "elements": [
+                                {
+                                  "startIndex": 100,
+                                  "endIndex": 108,
+                                  "textRun": {
+                                    "content": "Cell B2\n",
+                                    "textStyle": {}
+                                  }
+                                }
+                              ],
+                              "paragraphStyle": {
+                                "namedStyleType": "NORMAL_TEXT"
+                              }
+                            }
+                          }
+                        ],
+                        "tableCellStyle": {}
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "startIndex": 109,
+              "endIndex": 111,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 109,
+                    "endIndex": 111,
+                    "textRun": {
+                      "content": "\t\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 111,
+              "endIndex": 129,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 111,
+                    "endIndex": 129,
+                    "textRun": {
+                      "content": "End with émoji 🎉\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+ "at": "2026-09-30T00:24:12.841Z",
+ "passed": true,
+ "reviewsStarted": 2,
+ "results": [
+  {
+   "name": "GET of an unknown review is 404, terminal, recorded lost",
+   "ok": true,
+   "detail": {
+    "code": 404,
+    "apiCode": "not_found",
+    "message": "Lenz cannot find this check. Choose Run again to check the document."
+   }
+  },
+  {
+   "name": "a bad key is 401, rejected, not retryable",
+   "ok": true,
+   "detail": {
+    "code": 401,
+    "message": "Lenz did not accept your key. Paste a current one from the API credentials page on lenz.io."
+   }
+  },
+  {
+   "name": "the first POST was accepted (202) behind the lost reply",
+   "ok": true,
+   "detail": {
+    "code": 202,
+    "retryAfter": "20"
+   }
+  },
+  {
+   "name": "api.js saw no answer and kept the submission pending",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "the replay returned the same review id",
+   "ok": true,
+   "detail": {
+    "first": "aeb9cb33",
+    "replay": "aeb9cb33",
+    "code": 202
+   }
+  },
+  {
+   "name": "the replay sent the same key and the byte-identical body",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "the replay kept the first text as the snapshot",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "review A completed",
+   "ok": true,
+   "detail": {
+    "status": "completed",
+    "waits": [
+     20
+    ]
+   }
+  },
+  {
+   "name": "edit() returns the Apollo edits",
+   "ok": true,
+   "detail": [
+    {
+     "text": "20 July 1972",
+     "replacement": "20 July 1969",
+     "start": 69,
+     "end": 81
+    },
+    {
+     "text": "four astronauts",
+     "replacement": "three astronauts",
+     "start": 97,
+     "end": 112
+    }
+   ]
+  },
+  {
+   "name": "every edit's text is exactly the sent slice (code points)",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "every edit lies inside its claim passage",
+   "ok": true,
+   "detail": null
+  },
+  {
+   "name": "Run again started a NEW review",
+   "ok": true,
+   "detail": {
+    "a": "aeb9cb33",
+    "b": "e9660817"
+   }
+  },
+  {
+   "name": "review B completed",
+   "ok": true,
+   "detail": {
+    "status": "completed",
+    "waits": [
+     20
+    ]
+   }
+  },
+  {
+   "name": "review A charged no more than review B (one review behind the lost reply)",
+   "ok": true,
+   "detail": {
+    "chargedA": 6,
+    "chargedB": 6
+   }
+  }
+ ],
+ "requests": 7
+}

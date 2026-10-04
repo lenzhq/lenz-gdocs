@@ -1,0 +1,6 @@
+# Only the add-on ships: src/*.js, src/*.html and src/appsscript.json. Patterns are relative to
+# rootDir (src/), checked with `clasp --json status` on clasp 3.4.1 (`!src/*.js` matches nothing).
+**/**
+!*.js
+!*.html
+!appsscript.json

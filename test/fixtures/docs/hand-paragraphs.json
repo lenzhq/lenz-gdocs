@@ -1,0 +1,167 @@
+{
+  "documentId": "doc-paragraphs",
+  "title": "paragraphs",
+  "revisionId": "rev-paragraphs",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "title": "Tab 1",
+        "index": 0
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {}
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 22,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 22,
+                    "textRun": {
+                      "content": "The first paragraph.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 22,
+              "endIndex": 23,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 22,
+                    "endIndex": 23,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 23,
+              "endIndex": 27,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 23,
+                    "endIndex": 27,
+                    "textRun": {
+                      "content": "   \n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 27,
+              "endIndex": 29,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 27,
+                    "endIndex": 29,
+                    "textRun": {
+                      "content": "\t\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 29,
+              "endIndex": 50,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 29,
+                    "endIndex": 37,
+                    "textRun": {
+                      "content": "Second, ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 37,
+                    "endIndex": 50,
+                    "textRun": {
+                      "content": "in two runs.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 50,
+              "endIndex": 68,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 50,
+                    "endIndex": 68,
+                    "textRun": {
+                      "content": "Line one\u000bline two\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 68,
+              "endIndex": 82,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 68,
+                    "endIndex": 82,
+                    "textRun": {
+                      "content": "Col\tafter tab\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

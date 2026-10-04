@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+  /* Geist, the Lenz sans (lenz.io static/geist.woff2 at Lenz 753c8454d, the self-hosted subset, weights
+     400-700), inlined: the sidebar fetches nothing outside Google's iframe. */
+  @font-face { font-family: 'Geist'; font-style: normal; font-weight: 400 700; font-display: swap;
+    src: url(data:font/woff2;base64,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) format('woff2'); }
+  /* Lenz's design tokens, light theme, at the sidebar's 300 px: the web app's values (its primitives
+     harmonised with the website: ink pill, ghost pill, quiet link, 4px radii, the .lz-verdict atom, the
+     warmer verdict tints, ink rule + mono eyebrow). */
+  :root {
+    --cream: #FFFDF7; --warm-50: #FAF8F5; --warm-100: #F3F0EB; --warm-200: #E8E4DD; --warm-300: #D4CFC6;
+    --warm-400: #6F6A64; --warm-500: #635E59; --warm-700: #3D3935; --warm-800: #2A2724; --warm-900: #1A1816;
+    --primary: #3D65BC; --primary-hover: #31518F; --on-primary: #FFFFFF;
+    --true: #14783A; --true-bg: #EEF7F0; --mostly-true: #A16207; --mostly-true-bg: #FBF5E6;
+    --mixed: #635E59; --mixed-bg: #F4F2EE; --mostly-false: #C2410C; --mostly-false-bg: #FCF1EA;
+    --false: #B91C1C; --false-bg: #FBEFEE;
+    --radius: 4px; --radius-full: 9999px; --ls-eyebrow: 0.08em;
+    --font-sans: 'Geist', 'Helvetica Neue', Arial, ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 12px 24px; background: var(--cream); color: var(--warm-700);
+         font: 14px/1.5 var(--font-sans); }
+  [hidden] { display: none !important; }
+  /* A section opens on an ink rule, then its mono eyebrow (the site layer's section head, at sidebar size). */
+  h1, h2 { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: var(--ls-eyebrow);
+           text-transform: uppercase; color: var(--warm-500); line-height: 1.5; margin: 0 0 4px; }
+  h2 { margin-top: 24px; padding-top: 10px; border-top: 1px solid var(--warm-900); }
+  p { margin: 0 0 8px; }
+  a { color: var(--primary); }
+  a:hover { color: var(--primary-hover); }
+  /* Standalone links (See sources in Lenz, a source, lenz.io): the quiet link, ink with a hairline that turns blue. */
+  p.line a, a.home-link { color: var(--warm-900); text-decoration-line: underline; text-decoration-color: var(--warm-300);
+                          text-decoration-thickness: 1px; text-underline-offset: 4px; }
+  p.line a:hover, a.home-link:hover { color: var(--warm-900); text-decoration-color: var(--primary); }
+  label { display: block; font-size: 13px; color: var(--warm-800); margin-bottom: 4px; }
+  input[type=password] { width: 100%; padding: 8px; border: 1px solid var(--warm-300); border-radius: var(--radius);
+                         font: 13px var(--font-mono); background: #fff; color: var(--warm-900); }
+  /* Buttons: the ghost pill by default, ink text in a hairline that steps to ink on hover; the
+     primary is the ink pill, blue on hover; quiet is a link. Disabled fades, as .button[disabled] does. */
+  button { font: 500 14px/1 var(--font-sans); letter-spacing: -0.005em; border-radius: var(--radius-full);
+           padding: 10px 16px; cursor: pointer; border: 1px solid var(--warm-300); background: transparent;
+           color: var(--warm-900); transition: background-color 0.2s, border-color 0.2s, color 0.2s; }
+  button:hover:not(:disabled) { border-color: var(--warm-900); }
+  button:disabled { cursor: not-allowed; opacity: 0.35; }
+  button.primary { background: var(--warm-900); border-color: var(--warm-900); color: var(--cream); }
+  button.primary:hover:not(:disabled) { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  button.quiet { border: 0; border-radius: 0; background: none; padding: 0; font-size: 13px; line-height: 1.5;
+                 color: var(--warm-900); text-decoration-line: underline; text-decoration-color: var(--warm-300);
+                 text-decoration-thickness: 1px; text-underline-offset: 4px; }
+  button.quiet:hover:not(:disabled) { text-decoration-color: var(--primary); }
+  button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+  .muted { color: var(--warm-400); font-size: 13px; }
+  .error { color: var(--false); font-size: 13px; }
+  .headline { font-size: 15px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.35; color: var(--warm-900);
+              margin-top: 12px; }
+  .note { font-size: 13px; color: var(--warm-800); background: var(--warm-100); border-radius: var(--radius); padding: 8px; }
+  ol.entries { list-style: none; margin: 0; padding: 0; }
+  li.entry { border-top: 1px solid var(--warm-200); padding: 12px 0; }
+  /* The section's ink rule is the first entry's top: one rule, never two. */
+  ol.entries > li.entry:first-child { border-top: 0; }
+  .head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+  /* The verdict label is the .lz-verdict atom: a dot in the verdict colour, then mono caps; never a filled pill. */
+  .stamp { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px;
+           font-weight: 500; letter-spacing: var(--ls-eyebrow); text-transform: uppercase; line-height: 1.25;
+           white-space: nowrap; color: var(--warm-500); }
+  .stamp::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .v-true { color: var(--true); }
+  .v-mostly-true { color: var(--mostly-true); }
+  .v-mixed { color: var(--mixed); }
+  .v-mostly-false { color: var(--mostly-false); }
+  .v-false { color: var(--false); }
+  .meta { font-family: var(--font-mono); font-size: 11px; color: var(--warm-400); }
+  .meta .seg { white-space: nowrap; }
+  .title { display: block; width: 100%; text-align: left; border: 0; border-radius: 0; background: none; padding: 0;
+           font: 500 14px/1.45 var(--font-sans); letter-spacing: -0.005em; color: var(--warm-900); margin-bottom: 6px; }
+  button.title { cursor: pointer; }
+  button.title:hover { color: var(--primary); background: none; }
+  .line { font-size: 13px; }
+  .lead { font-weight: 500; color: var(--warm-800); }
+  .edit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 6px 0; font-size: 13px; }
+  .from { text-decoration: line-through; color: var(--false); }
+  .to { color: var(--true); font-weight: 500; }
+  .edit button { padding: 6px 12px; font-size: 13px; }
+  .step { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--warm-400); margin-bottom: 6px; }
+  .step button { padding: 4px 10px; font-size: 12px; }
+  /* A collapsed group opens on the same ink rule and eyebrow as h2. */
+  details { margin-top: 24px; padding-top: 10px; border-top: 1px solid var(--warm-900); }
+  details > summary { cursor: pointer; font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+                      letter-spacing: var(--ls-eyebrow); text-transform: uppercase; color: var(--warm-500); }
+  details[open] > summary { margin-bottom: 4px; }
+  ul.coverage { margin: 0; padding-left: 18px; font-size: 13px; }
+  ul.coverage li { margin-bottom: 4px; }
+  /* The running state: the Workbench's three dots, still under reduced motion. */
+  .running { margin: 4px 0 12px; }
+  .run-line { display: flex; gap: 6px; align-items: baseline; font-size: 13px; color: var(--warm-800); margin: 0 0 6px; }
+  .dots { display: inline-block; letter-spacing: 1px; }
+  .dots i { font-style: normal; opacity: 0; animation: lenz-dot 1.4s infinite; }
+  .dots i:nth-child(2) { animation-delay: 0.2s; }
+  .dots i:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes lenz-dot { 0%, 60%, 100% { opacity: 0; } 20%, 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: 1; } }
+  ul.stages { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  ul.stages li { display: flex; justify-content: space-between; padding: 3px 0; border-top: 1px solid var(--warm-200); }
+  ul.stages li:first-child { border-top: 0; }
+  .stage-count { font-family: var(--font-mono); font-size: 12px; color: var(--warm-400); font-variant-numeric: tabular-nums; }
+  .stage-done { color: var(--true); }
+  .foot { margin-top: 24px; border-top: 1px solid var(--warm-200); padding-top: 12px; }
+  .foot .home-link { float: right; }
+</style>
+</head>
+<body>
+<section id="signin" hidden>
+  <p>Sign in with your Lenz account to check this Doc. No account yet? You can create one when you sign in.</p>
+  <div class="row"><button id="signin-go" class="primary" type="button" disabled>Sign in with Lenz</button></div>
+  <p class="muted" id="signin-wait" role="status" hidden></p>
+  <p class="error" id="signin-error" role="alert"></p>
+  <p class="muted privacy"></p>
+</section>
+
+<section id="main" hidden>
+  <div class="row">
+    <button id="check" class="primary" type="button">Check this Doc</button>
+  </div>
+  <div id="access" hidden>
+    <p id="access-line"></p>
+    <div class="row"><button id="access-go" class="primary" type="button">Allow Lenz to read this Doc</button></div>
+    <p class="muted" id="access-wait" role="status" hidden></p>
+    <p class="error" id="access-error" role="alert" hidden></p>
+  </div>
+  <p class="muted" id="updating" hidden></p>
+  <p id="status" role="status" aria-live="polite"></p>
+  <div class="running" id="running" hidden>
+    <p class="run-line"><span id="elapsed"></span><span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>
+    <ul class="stages" id="stages"></ul>
+  </div>
+  <p class="error" id="error" role="alert"></p>
+  <p class="note" id="note" role="status" hidden></p>
+  <p class="headline" id="headline" hidden></p>
+  <div id="groups"></div>
+  <section id="coverage-box" hidden>
+    <h2>What was not covered</h2>
+    <ul class="coverage" id="coverage"></ul>
+  </section>
+  <p class="muted" id="footnote" hidden></p>
+  <div class="foot"><span class="muted" id="account-line"></span>
+    <button id="signout" class="quiet" type="button" hidden>Sign out</button>
+    <a class="home-link" href="https://lenz.io/?utm_source=google-docs&amp;utm_medium=addon&amp;utm_campaign=sidebar" target="_blank" rel="noopener noreferrer">lenz.io</a></div>
+</section>
+
+<script>
+  // Every string from Lenz or the Doc is set with textContent, never innerHTML.
+  // The server functions take ids only: no text from here reaches the Doc or Lenz.
+  var PRIVACY = "Lenz receives this tab's text to check it and keeps the check in your Lenz account. Deleting your account deletes it.";
+  // Never invite leaving the panel: nothing tells you when the check is done.
+  var RUNNING = 'You can keep editing while Lenz checks this tab. First results appear here in under a minute; the full check takes two to four minutes.';
+  var RESUMED = 'Your check is still running. Results appear here when it finishes.';
+  var GLUE_FAILED = 'The add-on could not finish that. Try again.';
+  var SIGN_IN_WAIT = 'Finish signing in in the window that opened. This panel updates when you are done.';
+  var POPUP_BLOCKED = 'Your browser blocked the sign-in window. Allow pop-ups for docs.google.com, then try again.';
+  var SIGN_IN_URL_MS = 8 * 60 * 1000; // a sign-in link is good for 10 minutes on the server
+  var SIGN_IN_WAIT_MS = 10 * 60 * 1000;
+  var signIn = { url: null, at: 0, waitUntil: 0, timer: null, failed: false };
+  // Per-Doc access (Code.js "per-Doc access"): Lenz reads a Doc only once it is allowed to, Doc by Doc.
+  var ACCESS_LINE = 'Before Lenz can check this Doc, Google needs your permission. Lenz asks once for each Doc and cannot open your other Docs.';
+  var ACCESS_WAIT = 'Choose this Doc in the window that opened, then Select. This panel continues when you are done.';
+  var ACCESS_WAIT_MS = 10 * 60 * 1000;
+  // `retry`: what the user was doing (Check, a poll, Select, Apply, Undo), repeated once allowed.
+  var access = { retry: null, since: 0, until: 0, timer: null };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var busy = false;
+  var queued = null;
+  var timer = null;
+  var phase = null;
+  var resumed = false; // the panel opened on a check already running (a reopen)
+  var startedAt = null; // the running check's start in ms, for the elapsed time
+  var last = null; // the last state rendered, to fall back on when a call fails
+  var shown = null; // the review id the list shows; Select and Apply name it
+  var steps = {}; // entry id -> occurrence shown ("1 of N")
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = String(text);
+    return n;
+  }
+  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
+  function show(n, on) { n.hidden = !on; }
+  function setText(id, text) { var n = $(id); n.textContent = text || ''; show(n, !!text); }
+
+  // One call in flight; a click made meanwhile runs next (the latest one wins).
+  // A failed call restores the last state (its buttons come back) and says so.
+  // `dropped`: runs when a later click replaces this call while it waits (only the latest waits).
+  function call(fn, args, done, dropped) {
+    if (busy) {
+      if (queued && queued[3]) queued[3]();
+      queued = [fn, args, done, dropped];
+      return;
+    }
+    busy = true;
+    google.script.run
+      .withSuccessHandler(function (r) { busy = false; done(r); drain(); })
+      .withFailureHandler(function () {
+        busy = false;
+        writing = false;
+        if (last) {
+          render(last);
+        } else {
+          // The first call failed: show the main screen so the error and Check are visible.
+          show($('main'), true);
+          $('check').disabled = false;
+        }
+        setText(last && last.phase === 'signed_out' ? 'signin-error' : 'error', GLUE_FAILED);
+        if (phase === 'running' && !timer) schedule(15);
+        drain();
+      })[fn].apply(null, args);
+  }
+  function drain() {
+    if (!queued) return;
+    var q = queued; queued = null;
+    call(q[0], q[1], q[2], q[3]);
+  }
+
+  function schedule(seconds) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      timer = null;
+      if (busy) { schedule(1); return; }
+      call('lenzPoll', [], render);
+    }, Math.max(1, seconds) * 1000);
+  }
+
+  function render(r) {
+    if (!r || typeof r !== 'object') return;
+    if (timer) { clearTimeout(timer); timer = null; }
+    // Lenz may not read this Doc yet: ask, keep the list as it was, and read the state again once allowed.
+    // An action already waiting for the grant (Select, Apply, Undo, Check) keeps its place.
+    if (r.phase === 'needs_file_access') { askAccess(access.retry || function () { call('lenzState', [], render); }); return; }
+    show($('access'), false);
+    stopAccessWait();
+    last = r;
+    phase = r.phase;
+    var id = r.model && r.model.reviewId ? r.model.reviewId : null;
+    if (id !== shown) steps = {}; // entry ids repeat across reviews
+    shown = id;
+    var signedOut = r.phase === 'signed_out';
+    show($('signin'), signedOut);
+    show($('main'), !signedOut);
+    if (signedOut) {
+      setText('signin-error', r.error ? r.error.message : '');
+      // A link that failed to load is fetched again only on a click, never in a loop.
+      if (!signInFresh() && !signIn.failed) loadSignInUrl();
+      if (signIn.failed) $('signin-go').disabled = false;
+      var waiting = Date.now() < signIn.waitUntil;
+      setText('signin-wait', waiting ? SIGN_IN_WAIT : '');
+      if (waiting) waitForSignIn();
+      return;
+    }
+    signIn.waitUntil = 0;
+    setText('signin-wait', '');
+    var auth = r.auth || {};
+    setText('account-line', auth.mode === 'key' ? 'Using an API key (dev tools).' : 'Signed in to Lenz.');
+    show($('signout'), auth.mode !== 'key');
+
+    var running = r.phase === 'running';
+    var done = r.phase === 'done';
+    $('check').disabled = running;
+    var m = r.model;
+    if (!running) resumed = false;
+    setText('status', running ? (resumed ? RESUMED : RUNNING) : '');
+    startedAt = running && typeof r.startedAt === 'number' ? r.startedAt : null;
+    show($('running'), running);
+    renderStages(running && m ? m.stages : null);
+    tick();
+    setText('error', r.error ? r.error.message : '');
+    // Check this Doc on an unchanged, completed Doc: the same results, said so.
+    if (r.notice) note(r.notice);
+
+    setText('headline', m ? m.headline : '');
+    if (m && m.failure) setText('error', m.failure);
+    renderGroups(m);
+    var cov = $('coverage');
+    clear(cov);
+    (m ? m.coverage : []).forEach(function (line) { cov.appendChild(el('li', null, line)); });
+    show($('coverage-box'), !!(m && m.coverage.length));
+    setText('footnote', m ? m.footnote : '');
+
+    setText('updating', r.stale ? 'Updating…' : '');
+    // A remembered reply is shown only until the real one arrives; it schedules nothing.
+    if (running && r.nextPollS && !r.stale) schedule(r.nextPollS);
+  }
+
+  // 1:42, 12:05, 1:02:05.
+  function clock(ms) {
+    var t = Math.max(0, Math.floor(ms / 1000));
+    var h = Math.floor(t / 3600), mnt = Math.floor((t % 3600) / 60), sec = t % 60;
+    var two = function (x) { return (x < 10 ? '0' : '') + x; };
+    return h ? h + ':' + two(mnt) + ':' + two(sec) : mnt + ':' + two(sec);
+  }
+
+  // Ticks every second between polls; no server call.
+  function tick() {
+    $('elapsed').textContent = startedAt === null ? 'Checking' : 'Running for ' + clock(Date.now() - startedAt);
+  }
+  setInterval(function () { if (phase === 'running') tick(); }, 1000);
+
+  function renderStages(stages) {
+    var ul = $('stages');
+    clear(ul);
+    (stages || []).forEach(function (st) {
+      var li = el('li');
+      li.appendChild(el('span', null, st.label));
+      if (st.complete) li.appendChild(el('span', 'stage-count stage-done', '\u2713 ' + st.done + ' of ' + st.total));
+      else if (typeof st.total === 'number') li.appendChild(el('span', 'stage-count', st.done + ' of ' + st.total));
+      ul.appendChild(li);
+    });
+    show(ul, !!(stages && stages.length));
+  }
+
+  function renderGroups(m) {
+    var box = $('groups');
+    clear(box);
+    if (!m) return;
+    m.groups.forEach(function (g) {
+      var list = el('ol', 'entries');
+      g.entries.forEach(function (e) { list.appendChild(renderEntry(e)); });
+      if (g.collapsed) {
+        var d = el('details');
+        d.appendChild(el('summary', null, g.title + ' (' + g.count + ')'));
+        d.appendChild(list);
+        box.appendChild(d);
+      } else {
+        box.appendChild(el('h2', null, g.title + ' (' + g.count + ')'));
+        box.appendChild(list);
+      }
+    });
+  }
+
+  function renderEntry(e) {
+    var li = el('li', 'entry');
+    var head = el('div', 'head');
+    head.appendChild(el('span', 'stamp' + (e.token ? ' v-' + e.token : ''), e.label));
+    var meta = [];
+    if (e.check) meta.push(e.check);
+    if (e.confidence) meta.push('confidence ' + e.confidence);
+    if (e.deepRunning) meta.push('deep check running');
+    if (typeof e.score === 'number') meta.push(e.score + '/10');
+    // Each segment stays whole ("deep check running"); the line breaks only between segments.
+    if (meta.length) {
+      var mt = el('span', 'meta');
+      meta.forEach(function (m, i) {
+        if (i) mt.appendChild(document.createTextNode(' · '));
+        mt.appendChild(el('span', 'seg', m));
+      });
+      head.appendChild(mt);
+    }
+    li.appendChild(head);
+
+    var occ = Math.min(steps[e.id] || 0, Math.max(0, e.occurrences - 1));
+    steps[e.id] = occ;
+    if (e.placed && e.occurrences > 0) {
+      var t = el('button', 'title', e.title);
+      t.type = 'button';
+      t.title = 'Select these words in the Doc';
+      t.addEventListener('click', function () { select(e.id, steps[e.id] || 0); });
+      li.appendChild(t);
+    } else {
+      li.appendChild(el('p', 'title', e.title));
+    }
+    if (e.placed && e.occurrences > 1) li.appendChild(stepper(e, occ));
+    if (e.placeNote) li.appendChild(el('p', 'line muted', e.placeNote));
+
+    if (e.rewrite) li.appendChild(line('Suggested rewrite: ', e.rewrite));
+    e.lines.forEach(function (l) { li.appendChild(line(l.lead, l.text)); });
+    if (e.source) li.appendChild(link(e.source.href, 'Source: ' + e.source.words));
+    e.edits.forEach(function (x) { li.appendChild(editRow(x)); });
+    if (e.editsNote) li.appendChild(el('p', 'line muted', e.editsNote));
+    if (e.link) li.appendChild(link(e.link.href, e.link.words));
+    return li;
+  }
+
+  function line(lead, text) {
+    var p = el('p', 'line');
+    if (lead) p.appendChild(el('span', 'lead', lead));
+    p.appendChild(document.createTextNode(text));
+    return p;
+  }
+
+  function link(href, words) {
+    var p = el('p', 'line');
+    var a = el('a', null, words);
+    a.href = href;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    p.appendChild(a);
+    return p;
+  }
+
+  function stepper(e, occ) {
+    var box = el('div', 'step');
+    var prev = el('button', null, 'Previous');
+    var next = el('button', null, 'Next');
+    prev.type = next.type = 'button';
+    prev.disabled = occ === 0;
+    next.disabled = occ >= e.occurrences - 1;
+    var label = el('span', null, (occ + 1) + ' of ' + e.occurrences);
+    function go(d) {
+      steps[e.id] = Math.max(0, Math.min(e.occurrences - 1, (steps[e.id] || 0) + d));
+      label.textContent = (steps[e.id] + 1) + ' of ' + e.occurrences;
+      prev.disabled = steps[e.id] === 0;
+      next.disabled = steps[e.id] >= e.occurrences - 1;
+      select(e.id, steps[e.id]);
+    }
+    prev.addEventListener('click', function () { go(-1); });
+    next.addEventListener('click', function () { go(1); });
+    box.appendChild(prev); box.appendChild(label); box.appendChild(next);
+    return box;
+  }
+
+  // One edit write at a time: the clicked button says what it is doing at
+  // once, every other Apply / Undo waits until the answer is in.
+  var writing = false;
+  function editButtons(on) {
+    Array.prototype.forEach.call(document.querySelectorAll('.edit button'), function (b) { b.disabled = !on; });
+  }
+
+  // `target`: { claimIndex, editIndex, fp }: the edit to apply, or the applied one to undo. fp is the
+  // edit's fingerprint (view.js editFp): the server acts only if it is still that edit.
+  function writeEdit(fn, button, busyWords, target) {
+    if (writing) return;
+    writing = true;
+    if (button) button.textContent = busyWords;
+    editButtons(false);
+    call(fn, [shown, target.claimIndex, target.editIndex, target.fp], function (r) {
+      writing = false;
+      if (r && r.phase === 'needs_file_access') {
+        if (last) render(last);
+        askAccess(function () { writeEdit(fn, null, busyWords, target); });
+        return;
+      }
+      if (r && r.phase) render(r);
+      else if (last) render(last); // refused: the list as it was, buttons back
+      note(r && r.message);
+    }, function () {
+      // Replaced before it ran (a later click): nothing was written; the buttons come back.
+      writing = false;
+      if (last) render(last);
+    });
+  }
+
+  // x.mode: apply | applied | suggest (an applied edit changed its words: shown, no Apply).
+  function editRow(x) {
+    var wrap = el('div', 'edit-wrap');
+    if (x.mode === 'suggest') wrap.appendChild(el('p', 'line lead', 'Now suggested:'));
+    if (x.earlier) wrap.appendChild(el('p', 'line muted', 'Applied earlier:'));
+    var row = el('div', 'edit');
+    wrap.appendChild(row);
+    row.appendChild(el('span', 'from', x.from));
+    row.appendChild(el('span', 'muted', '→'));
+    row.appendChild(el('span', 'to', x.to));
+    if (x.mode === 'applied') {
+      row.appendChild(el('span', 'muted', 'Applied'));
+      var u = el('button', null, 'Undo');
+      u.type = 'button';
+      u.disabled = writing || !x.undo;
+      u.setAttribute('aria-label', 'Undo: put back “' + x.from + '”');
+      u.addEventListener('click', function () { writeEdit('lenzUndo', u, 'Undoing…', x.undo); });
+      row.appendChild(u);
+      return wrap;
+    }
+    if (x.mode === 'suggest') {
+      wrap.appendChild(el('p', 'line muted', 'An edit already applied changed these words. Undo it first to apply this one.'));
+      return wrap;
+    }
+    var b = el('button', null, 'Apply');
+    b.type = 'button';
+    b.disabled = writing;
+    b.setAttribute('aria-label', 'Apply: replace “' + x.from + '” with “' + x.to + '”');
+    b.addEventListener('click', function () { writeEdit('lenzApply', b, 'Applying…', x); });
+    row.appendChild(b);
+    return wrap;
+  }
+
+
+
+  function select(id, occurrence) {
+    if (writing) return; // one edit write at a time; a selection waits for it
+    call('lenzSelect', [shown, id, occurrence], function (r) {
+      if (r && r.phase === 'needs_file_access') { askAccess(function () { select(id, occurrence); }); return; }
+      note(r && !r.ok ? r.message : '');
+    });
+  }
+
+  function note(text) { setText('note', text || ''); }
+
+  function startCheck() {
+    note('');
+    resumed = false;
+    $('check').disabled = true;
+    call('lenzStart', [], function (r) {
+      if (r && r.phase === 'needs_file_access') { askAccess(startCheck); return; }
+      render(r);
+    });
+  }
+  // After a grant asked for on opening: lenzAutoStart refreshes a check already running and otherwise
+  // runs Check this Doc (unchanged text with a completed review: its results again, no charge).
+  function autoStart() {
+    note('');
+    resumed = false;
+    $('check').disabled = true;
+    call('lenzAutoStart', [], function (r) {
+      if (r && r.phase === 'needs_file_access') { askAccess(autoStart); return; }
+      render(r);
+    });
+  }
+  $('check').addEventListener('click', startCheck);
+
+  // Per-Doc access: the line and the button; the Picker opens in a dialog (picker.html). While it is
+  // open, the panel asks every 2 s whether this Doc has been allowed since, then repeats `retry`.
+  function askAccess(retry) {
+    access.retry = retry;
+    // No review polling while waiting: a poll's reply would replace the prompt or the waiting action.
+    // The retry (or the state it reads) schedules the next poll.
+    if (timer) { clearTimeout(timer); timer = null; }
+    // Only "Allow Lenz to read this Doc" acts until the grant: Check this Doc is off (render, after the
+    // retry, turns it back on).
+    $('check').disabled = true;
+    show($('signin'), false);
+    show($('main'), true);
+    setText('access-line', ACCESS_LINE);
+    setText('access-error', '');
+    $('access-go').disabled = false;
+    show($('access'), true);
+  }
+  function stopAccessWait() {
+    if (access.timer) clearTimeout(access.timer);
+    access.timer = null;
+    access.until = 0;
+    setText('access-wait', '');
+  }
+  function waitForAccess() {
+    if (access.timer) clearTimeout(access.timer);
+    access.timer = null;
+    if (Date.now() >= access.until) { stopAccessWait(); return; }
+    access.timer = setTimeout(function () {
+      access.timer = null;
+      if (busy) { waitForAccess(); return; }
+      call('lenzFileAccessReady', [access.since], function (x) {
+        if (!x || !x.ready) { waitForAccess(); return; }
+        stopAccessWait();
+        show($('access'), false);
+        var retry = access.retry;
+        access.retry = null;
+        // Check this Doc back as the state has it (a retried Check or auto-start turns it off again).
+        $('check').disabled = phase === 'running';
+        if (retry) retry();
+        // Review polling stopped while waiting (askAccess); a retried Select renders no state, so a
+        // running check's polling starts again here (a reply that renders replaces this timer).
+        if (phase === 'running' && !timer) schedule(3);
+      });
+    }, 2000);
+  }
+  $('access-go').addEventListener('click', function () {
+    setText('access-error', '');
+    $('access-go').disabled = true;
+    call('lenzShowPicker', [], function (o) {
+      $('access-go').disabled = false;
+      if (!o || typeof o.openedAt !== 'number') { setText('access-error', GLUE_FAILED); return; }
+      access.since = o.openedAt;
+      access.until = Date.now() + ACCESS_WAIT_MS;
+      setText('access-wait', ACCESS_WAIT);
+      waitForAccess();
+    });
+  });
+  // Signing in: the sign-in link is fetched ahead, so the window opens in the click itself (a
+  // window opened later is blocked as a pop-up). The link is single-use; the next one is fetched.
+  function signInFresh() { return !!signIn.url && Date.now() - signIn.at < SIGN_IN_URL_MS; }
+  function loadSignInUrl() {
+    $('signin-go').disabled = true;
+    // Failed until it succeeds: a call that fails outright re-renders, and must not load again.
+    signIn.failed = true;
+    call('lenzSignInUrl', [], function (u) {
+      if (u && u.url) {
+        signIn.url = u.url;
+        signIn.at = Date.now();
+        signIn.failed = false;
+      } else {
+        signIn.url = null;
+        setText('signin-error', (u && u.message) || GLUE_FAILED);
+      }
+      $('signin-go').disabled = false;
+    });
+  }
+  // While the sign-in window is open: look every 3 s (and when the panel gets focus back).
+  function waitForSignIn() {
+    if (signIn.timer) clearTimeout(signIn.timer);
+    signIn.timer = null;
+    if (phase !== 'signed_out' || Date.now() >= signIn.waitUntil) return;
+    signIn.timer = setTimeout(function () {
+      signIn.timer = null;
+      if (busy) { waitForSignIn(); return; }
+      call('lenzState', [], render);
+    }, 3000);
+  }
+  $('signin-go').addEventListener('click', function () {
+    if (!signInFresh()) { loadSignInUrl(); return; }
+    setText('signin-error', '');
+    var win = window.open(signIn.url, 'lenz-sign-in', 'width=520,height=720');
+    if (!win) { setText('signin-error', POPUP_BLOCKED); return; }
+    signIn.url = null;
+    signIn.waitUntil = Date.now() + SIGN_IN_WAIT_MS;
+    setText('signin-wait', SIGN_IN_WAIT);
+    waitForSignIn();
+    loadSignInUrl();
+  });
+  window.addEventListener('focus', function () {
+    if (phase === 'signed_out' && Date.now() < signIn.waitUntil && !busy) call('lenzState', [], render);
+  });
+  $('signout').addEventListener('click', function () {
+    note('');
+    call('lenzSignOut', [], render);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.privacy'), function (n) { n.textContent = PRIVACY; });
+  // Open: the last list for this tab at once (no network), then the real state.
+  var opened = Date.now();
+  var msFirst = null;
+  call('lenzOpen', [], function (r) {
+    msFirst = Date.now() - opened;
+    if (r && r.phase) render(r);
+    // lenzOpenState: the state, and whether Lenz may read this Doc yet. Asked on opening, the grant
+    // then starts the check (opening the sidebar from Check this Doc is the intent): autoStart.
+    call('lenzOpenState', [], function (full) {
+      resumed = !!(full && full.phase === 'running');
+      if (full && full.phase === 'needs_file_access') askAccess(autoStart);
+      else render(full);
+      call('lenzLogOpen', [msFirst, Date.now() - opened], function () {});
+    });
+  });
+</script>
+</body>
+</html>

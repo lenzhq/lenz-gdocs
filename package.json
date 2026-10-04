@@ -1,0 +1,25 @@
+{
+  "name": "lenz-gdocs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Lenz Fact-Checking for Google Docs: check the factual claims and citations in a Google Doc against independent sources (Apps Script add-on)",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lenzhq/lenz-gdocs.git"
+  },
+  "homepage": "https://lenz.io",
+  "keywords": [
+    "google-docs",
+    "google-apps-script",
+    "fact-checking",
+    "citations",
+    "lenz"
+  ]
+}

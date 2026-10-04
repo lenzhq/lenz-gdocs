@@ -1,0 +1,50 @@
+{
+ "n": 2,
+ "label": "bad-key",
+ "at": "2026-09-30T00:23:29.961Z",
+ "request": {
+  "method": "post",
+  "url": "https://lenz.io/api/v1/review",
+  "headers": {
+   "Accept": "application/json",
+   "User-Agent": "lenz-gdocs-smoke/0.1",
+   "Content-Type": "application/json",
+   "Idempotency-Key": "a52b2d08e4c775bf5634fc4fdf991ddc027e224a38ff05aa71340c379746599e"
+  },
+  "body": {
+   "text": "x",
+   "webhook_url": "",
+   "visibility": "private",
+   "escalate": {
+    "depth": "standard",
+    "max_assessments": 20,
+    "max_citations": 20,
+    "max_verifications": 3,
+    "suggest_edits": true
+   }
+  }
+ },
+ "response": {
+  "code": 401,
+  "headers": {
+   "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+   "cache-control": "no-store",
+   "content-length": "26",
+   "content-type": "application/json; charset=utf-8",
+   "cross-origin-opener-policy": "same-origin",
+   "date": "Wed, 30 Sep 2026 00:23:29 GMT",
+   "referrer-policy": "strict-origin-when-cross-origin",
+   "server": "Google Frontend",
+   "vary": "origin",
+   "via": "1.1 google",
+   "x-cloud-trace-context": "9107be2954cc7135574dce4fdcb51880",
+   "x-content-type-options": "nosniff",
+   "x-frame-options": "DENY",
+   "x-request-id": "6da1560c741d4478a3ff4b9858ab2425"
+  },
+  "body": {
+   "detail": "Unauthorized"
+  }
+ },
+ "lostOnPurpose": false
+}

@@ -1,0 +1,255 @@
+{
+  "documentId": "doc-links",
+  "title": "links",
+  "revisionId": "rev-links",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "title": "Tab 1",
+        "index": 0
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {}
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 29,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 5,
+                    "textRun": {
+                      "content": "See ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 5,
+                    "endIndex": 15,
+                    "textRun": {
+                      "content": "the report",
+                      "textStyle": {
+                        "link": {
+                          "url": "https://example.org/r?a=1&b=2"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 15,
+                    "endIndex": 20,
+                    "textRun": {
+                      "content": " and ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 20,
+                    "endIndex": 27,
+                    "textRun": {
+                      "content": "mail us",
+                      "textStyle": {
+                        "link": {
+                          "url": "mailto:info@example.org"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 27,
+                    "endIndex": 29,
+                    "textRun": {
+                      "content": ".\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 29,
+              "endIndex": 45,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 29,
+                    "endIndex": 35,
+                    "textRun": {
+                      "content": "Split ",
+                      "textStyle": {
+                        "link": {
+                          "url": "https://example.org/split"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 35,
+                    "endIndex": 39,
+                    "textRun": {
+                      "content": "link",
+                      "textStyle": {
+                        "link": {
+                          "url": "https://example.org/split"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 39,
+                    "endIndex": 45,
+                    "textRun": {
+                      "content": " end.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 45,
+              "endIndex": 71,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 45,
+                    "endIndex": 57,
+                    "textRun": {
+                      "content": "Heading link",
+                      "textStyle": {
+                        "link": {
+                          "headingId": "h.abc"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 57,
+                    "endIndex": 71,
+                    "textRun": {
+                      "content": " stays plain.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 71,
+              "endIndex": 85,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 71,
+                    "endIndex": 77,
+                    "textRun": {
+                      "content": "Chip: ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 77,
+                    "endIndex": 78,
+                    "richLink": {
+                      "richLinkId": "rl78",
+                      "richLinkProperties": {
+                        "title": "Quarterly report",
+                        "uri": "https://docs.google.com/document/d/abc",
+                        "mimeType": ""
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 78,
+                    "endIndex": 85,
+                    "textRun": {
+                      "content": " done.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 85,
+              "endIndex": 96,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 85,
+                    "endIndex": 88,
+                    "textRun": {
+                      "content": "By ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 88,
+                    "endIndex": 89,
+                    "person": {
+                      "personId": "pp89",
+                      "personProperties": {
+                        "name": "Ana Novak",
+                        "email": "ana@example.org"
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 89,
+                    "endIndex": 93,
+                    "textRun": {
+                      "content": " on ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 93,
+                    "endIndex": 94,
+                    "dateElement": {
+                      "dateId": "dd94",
+                      "dateElementProperties": {
+                        "displayText": "Sep 30, 2026",
+                        "timestamp": "2026-09-30T00:00:00Z"
+                      }
+                    }
+                  },
+                  {
+                    "startIndex": 94,
+                    "endIndex": 96,
+                    "textRun": {
+                      "content": ".\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

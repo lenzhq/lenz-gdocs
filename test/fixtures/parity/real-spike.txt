@@ -1,0 +1,47 @@
+Tab 1
+
+Lenz spike document: a plain paragraph.
+
+Emoji 🎉, astral 𝒜𝒷𝒸 and a skin tone 👍🏽 before the end.
+
+Soft
+break, and a tab:	here.
+
+Links: [the website](https://lenz.io/), [mail us](mailto:info@lenz.io) and [call](tel:+10000000000).
+
+Split link: [two ](https://lenz.io/split)[runs](https://lenz.io/split) end.
+
+First item
+
+Second item
+
+Third item
+
+Before the table.
+
+Cell A1
+
+Cell B1
+
+Cell A2
+
+Cell B2 🎉
+
+Person chip: [Ana Novak](mailto:ana@example.org) after the chip.
+
+Page break follows:
+
+
+Footnote here and after.
+
+Apply target: the [quick brown fox](https://lenz.io/fox) jumps.
+
+Whole link: [replace me](https://lenz.io/whole) now.
+
+Second whole link: [second link](https://lenz.io/second) too.
+
+Last paragraph.
+
+Second tab
+
+Second tab text.

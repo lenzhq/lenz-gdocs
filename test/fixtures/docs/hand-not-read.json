@@ -1,0 +1,378 @@
+{
+  "documentId": "doc-not-read",
+  "title": "not-read",
+  "revisionId": "rev-not-read",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "title": "Tab 1",
+        "index": 0
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {}
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 19,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 10,
+                    "textRun": {
+                      "content": "Footnoted",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 10,
+                    "endIndex": 11,
+                    "footnoteReference": {
+                      "footnoteId": "fn.1",
+                      "footnoteNumber": "1"
+                    }
+                  },
+                  {
+                    "startIndex": 11,
+                    "endIndex": 19,
+                    "textRun": {
+                      "content": " claim.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 19,
+              "endIndex": 35,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 19,
+                    "endIndex": 27,
+                    "textRun": {
+                      "content": "Picture ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 27,
+                    "endIndex": 28,
+                    "inlineObjectElement": {
+                      "inlineObjectId": "kix.img1"
+                    }
+                  },
+                  {
+                    "startIndex": 28,
+                    "endIndex": 35,
+                    "textRun": {
+                      "content": " here.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                },
+                "positionedObjectIds": [
+                  "kix.pos1"
+                ]
+              }
+            },
+            {
+              "startIndex": 35,
+              "endIndex": 52,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 35,
+                    "endIndex": 36,
+                    "equation": {}
+                  },
+                  {
+                    "startIndex": 36,
+                    "endIndex": 52,
+                    "textRun": {
+                      "content": "Equation above.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 52,
+              "endIndex": 60,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 52,
+                    "endIndex": 57,
+                    "textRun": {
+                      "content": "Page ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 57,
+                    "endIndex": 58,
+                    "autoText": {
+                      "type": "PAGE_NUMBER"
+                    }
+                  },
+                  {
+                    "startIndex": 58,
+                    "endIndex": 60,
+                    "textRun": {
+                      "content": ".\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 60,
+              "endIndex": 85,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 60,
+                    "endIndex": 72,
+                    "textRun": {
+                      "content": "Before break",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 72,
+                    "endIndex": 73,
+                    "pageBreak": {}
+                  },
+                  {
+                    "startIndex": 73,
+                    "endIndex": 85,
+                    "textRun": {
+                      "content": "after break\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 85,
+              "endIndex": 87,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 85,
+                    "endIndex": 86,
+                    "horizontalRule": {}
+                  },
+                  {
+                    "startIndex": 86,
+                    "endIndex": 87,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 87,
+              "endIndex": 108,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 87,
+                    "endIndex": 101,
+                    "textRun": {
+                      "content": "Deleted image ",
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 101,
+                    "endIndex": 102,
+                    "inlineObjectElement": {
+                      "inlineObjectId": "kix.img2",
+                      "suggestedDeletionIds": [
+                        "sug.9"
+                      ]
+                    }
+                  },
+                  {
+                    "startIndex": 102,
+                    "endIndex": 108,
+                    "textRun": {
+                      "content": "gone.\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 108,
+              "endIndex": 125,
+              "tableOfContents": {
+                "content": [
+                  {
+                    "startIndex": 109,
+                    "endIndex": 124,
+                    "paragraph": {
+                      "elements": [
+                        {
+                          "startIndex": 109,
+                          "endIndex": 124,
+                          "textRun": {
+                            "content": "Contents entry\n",
+                            "textStyle": {
+                              "link": {
+                                "headingId": "h.1"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "paragraphStyle": {
+                        "namedStyleType": "NORMAL_TEXT"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "headers": {
+          "kix.h1": {
+            "content": [
+              {
+                "startIndex": 0,
+                "endIndex": 12,
+                "paragraph": {
+                  "elements": [
+                    {
+                      "startIndex": 0,
+                      "endIndex": 12,
+                      "textRun": {
+                        "content": "Header text\n",
+                        "textStyle": {}
+                      }
+                    }
+                  ],
+                  "paragraphStyle": {
+                    "namedStyleType": "NORMAL_TEXT"
+                  }
+                }
+              }
+            ]
+          },
+          "kix.h2": {
+            "content": [
+              {
+                "startIndex": 0,
+                "endIndex": 1,
+                "paragraph": {
+                  "elements": [
+                    {
+                      "startIndex": 0,
+                      "endIndex": 1,
+                      "textRun": {
+                        "content": "\n",
+                        "textStyle": {}
+                      }
+                    }
+                  ],
+                  "paragraphStyle": {
+                    "namedStyleType": "NORMAL_TEXT"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "footers": {
+          "kix.f1": {
+            "content": [
+              {
+                "startIndex": 0,
+                "endIndex": 12,
+                "paragraph": {
+                  "elements": [
+                    {
+                      "startIndex": 0,
+                      "endIndex": 12,
+                      "textRun": {
+                        "content": "Footer text\n",
+                        "textStyle": {}
+                      }
+                    }
+                  ],
+                  "paragraphStyle": {
+                    "namedStyleType": "NORMAL_TEXT"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "footnotes": {
+          "fn.1": {
+            "content": [
+              {
+                "startIndex": 0,
+                "endIndex": 10,
+                "paragraph": {
+                  "elements": [
+                    {
+                      "startIndex": 0,
+                      "endIndex": 10,
+                      "textRun": {
+                        "content": "The note.\n",
+                        "textStyle": {}
+                      }
+                    }
+                  ],
+                  "paragraphStyle": {
+                    "namedStyleType": "NORMAL_TEXT"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
