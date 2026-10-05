@@ -276,6 +276,16 @@ test('cap: exactly 50,000 is not truncated', () => {
   assert.equal(S.cpLength(out.text), S.CAP);
 });
 
+test('cap: Infinity reads the whole tab, not truncated (a selection check); the default is unchanged', () => {
+  const items = [para([run('e'.repeat(S.CAP + 10))]), para([run('after the cap')])];
+  const whole = S.serialize(bigDoc(items), null, { cap: Infinity });
+  assert.equal(whole.truncated, false);
+  assert.equal(whole.text, 'e'.repeat(S.CAP + 10) + '\n\nafter the cap');
+  assert.equal(whole.pieces[whole.pieces.length - 1].re, S.cpLength(whole.text));
+  assert.deepEqual(S.serialize(bigDoc(items), null), S.serialize(bigDoc(items), null, {}));
+  assert.equal(S.serialize(bigDoc(items), null).truncated, true);
+});
+
 // ---- helpers ----
 
 test('cp helpers', () => {

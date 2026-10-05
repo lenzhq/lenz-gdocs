@@ -127,14 +127,38 @@ function world(opts) {
     };
   }
 
-  const T = { PARAGRAPH: 'PARAGRAPH', LIST_ITEM: 'LIST_ITEM', TABLE: 'TABLE', TABLE_OF_CONTENTS: 'TOC', TEXT: 'TEXT' };
+  const T = { PARAGRAPH: 'PARAGRAPH', LIST_ITEM: 'LIST_ITEM', TABLE: 'TABLE', TABLE_OF_CONTENTS: 'TOC', TEXT: 'TEXT',
+    BODY_SECTION: 'BODY_SECTION', HEADER_SECTION: 'HEADER_SECTION' };
   function appBody() {
     // `appText`: what DocumentApp sees when a collaborator typed after the REST read.
+    const body = { getType: () => T.BODY_SECTION, getParent: () => null };
     const paras = restParagraphTexts(state.appText === null ? state.text : state.appText).map((s) => {
-      const kid = { getType: () => T.TEXT, asText() { return this; }, getText: () => s };
-      return { getType: () => T.PARAGRAPH, getNumChildren: () => 1, getChild: () => kid };
+      const para = { getType: () => T.PARAGRAPH, getNumChildren: () => 1, getParent: () => body, getChildIndex: () => 0 };
+      const kid = { getType: () => T.TEXT, asText() { return this; }, getText: () => s, getParent: () => para };
+      para.getChild = () => kid;
+      return para;
     });
-    return { getNumChildren: () => paras.length, getChild: (i) => paras[i] };
+    Object.assign(body, { getNumChildren: () => paras.length, getChild: (i) => paras[i], getChildIndex: (el) => paras.indexOf(el) });
+    return body;
+  }
+  // The user's selection: `selectParas` [first, last] (partial text in each, or `selectWhole`: the
+  // paragraphs themselves); `selectOutside`: text in a header.
+  function appSelection() {
+    let elements = [];
+    if (state.selectOutside) {
+      const header = { getType: () => T.HEADER_SECTION, getParent: () => null, getChildIndex: () => 0 };
+      const para = { getType: () => T.PARAGRAPH, getParent: () => header, getChildIndex: () => 0 };
+      elements = [{ getElement: () => ({ getType: () => T.TEXT, getParent: () => para }), isPartial: () => true }];
+    } else if (state.selectParas) {
+      const b = appBody();
+      for (let k = state.selectParas[0]; k <= state.selectParas[1]; k++) {
+        const p = b.getChild(k);
+        elements.push({ getElement: () => (state.selectWhole ? p : p.getChild(0)), isPartial: () => !state.selectWhole });
+      }
+    } else {
+      return null;
+    }
+    return { getRangeElements: () => elements };
   }
   const tab = { getId: () => 't.0', asDocumentTab: () => ({ getBody: appBody }) };
   const appDoc = {
@@ -150,6 +174,7 @@ function world(opts) {
       };
     },
     setSelection(r) { state.selections.push(r); },
+    getSelection: () => appSelection(),
   };
 
   function response(code, headers, body) {
@@ -2679,4 +2704,191 @@ test('auto-start: on a Doc still not allowed it asks again and sends nothing', (
   w.state.noAccess = true;
   assert.equal(w.ctx.lenzAutoStart().phase, 'needs_file_access');
   assert.equal(reviewPosts(w), 0);
+});
+
+// ── Check only the selected text ─────────────────────────────────────
+
+const OPENING = 'An opening paragraph the selection leaves out.';
+const postsOf = (w) => w.state.fetches.filter((f) => f.o.method === 'post');
+const sentText = (w, i) => JSON.parse(postsOf(w)[i === undefined ? postsOf(w).length - 1 : i].o.payload).text;
+const paraCount = (text) => restParagraphTexts(text).length;
+
+// A Doc of `before` then draft-a, with draft-a's paragraphs selected: the review text is draft-a, so
+// the captured responses' positions are the slice's.
+function selectedWorld(before) {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  w.state.text = before + '\n\n' + TEXT;
+  w.state.selectParas = [paraCount(before), paraCount(w.state.text) - 1];
+  return w;
+}
+
+// The REST range of `words` in the paragraph of `text` that holds them.
+function restRangeOf(text, words) {
+  const paras = restParagraphTexts(text);
+  let at = 1;
+  for (const p of paras) {
+    const i = p.indexOf(words);
+    if (i >= 0) return { startIndex: at + i, endIndex: at + i + words.length };
+    at += p.length + 1;
+  }
+  throw new Error('not in the Doc: ' + words);
+}
+
+test('selection: the selected paragraphs are the review text; findings select and apply in the whole tab', () => {
+  const w = selectedWorld(OPENING);
+  const r = w.ctx.lenzStartSelection();
+  assert.equal(r.phase, 'running');
+  assert.equal(r.selection, true);
+  assert.equal(sentText(w), TEXT);
+  const done = pollToEnd(w);
+  assert.equal(done.phase, 'done');
+  assert.equal(done.model.headline, '3 issues to look at.');
+  assert.equal(done.model.scope, 'This check covered the text you selected (' + paraCount(TEXT) + ' paragraphs). Check this Doc checks the whole tab.');
+  // Not the tab's not-read counts: they are not the selection's.
+  assert.deepEqual(plain(done.model.coverage), ['2 citations could not be checked: the reason is under each one.']);
+  assert.equal(done.model.groups.flatMap((g) => g.entries).every((e) => e.placed), true);
+  const aldrin = 'The first person to walk on the Moon was Buzz Aldrin, in July 1969.';
+  assert.equal(w.ctx.lenzSelect(RID, 'claim:1', 0).ok, true);
+  assert.deepEqual(plain(w.state.selections.pop()), [{ text: aldrin, s: 0, e: aldrin.length - 1 }]);
+  w.state.onBatch = () => {
+    w.state.text = w.state.text.replace('Buzz Aldrin', 'Neil Armstrong');
+    w.state.rev = 'rev-2';
+  };
+  const before = w.state.text;
+  const a = w.ctx.lenzApply(RID, 1, 0);
+  assert.equal(a.ok, true, a.message);
+  const want = restRangeOf(before, 'Buzz Aldrin');
+  assert.deepEqual(w.state.batches[0].req.requests, [
+    { insertText: { text: 'Neil Armstrong', location: { index: want.endIndex, tabId: 't.0' } } },
+    { deleteContentRange: { range: { startIndex: want.startIndex, endIndex: want.endIndex, tabId: 't.0' } } },
+  ]);
+  assert.equal(a.model.groups.flatMap((g) => g.entries).every((e) => e.placed), true);
+  assert.equal(w.ctx.lenzUndo(RID, 1, 0).ok, true);
+  assert.equal(w.state.batches.length, 2);
+});
+
+test('selection: past the 50,000th character, where Check this Doc never reads, it checks and applies', () => {
+  const long = 'Filler words that make this tab long. '.repeat(1400).trim();
+  assert.ok(long.length > 50000);
+  const w = selectedWorld(long);
+  w.ctx.lenzStartSelection();
+  assert.equal(sentText(w), TEXT);
+  const done = pollToEnd(w);
+  assert.equal(done.model.groups.flatMap((g) => g.entries).every((e) => e.placed), true);
+  assert.equal(done.model.coverage.some((l) => /first part/.test(l)), false);
+  w.state.onBatch = () => { w.state.text = w.state.text.replace('Buzz Aldrin', 'Neil Armstrong'); w.state.rev = 'rev-2'; };
+  const want = restRangeOf(w.state.text, 'Buzz Aldrin');
+  assert.equal(w.ctx.lenzApply(RID, 1, 0).ok, true);
+  assert.equal(w.state.batches[0].req.requests[1].deleteContentRange.range.startIndex, want.startIndex);
+  // The whole tab, by contrast, is cut: Check this Doc sends the first 50,000 characters only.
+  const t = world();
+  t.ctx.lenzSaveKey(KEY);
+  t.state.text = long + '\n\n' + TEXT;
+  t.ctx.lenzStart();
+  assert.equal(Array.from(sentText(t)).length <= 50000, true);
+});
+
+test('selection: a selection in the middle of one paragraph checks that whole paragraph', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  w.state.selectParas = [5, 5];
+  w.ctx.lenzStartSelection();
+  assert.equal(sentText(w), 'The first person to walk on the Moon was Buzz Aldrin, in July 1969.');
+});
+
+test('selection: a link at a paragraph\'s edge keeps its [words](url) whole', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  const paras = TEXT.split('\n\n');
+  const k = paras.findIndex((p) => /\)\.?$/.test(p) || /^\[/.test(p));
+  assert.ok(k >= 0, 'draft-a has a paragraph that ends with a link');
+  w.state.selectParas = [k, k];
+  w.ctx.lenzStartSelection();
+  assert.equal(sentText(w), paras[k]);
+});
+
+test('selection: whole paragraphs selected (not their text) count the same', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  w.state.selectParas = [4, 5];
+  w.state.selectWhole = true;
+  w.ctx.lenzStartSelection();
+  assert.equal(sentText(w), TEXT.split('\n\n').slice(4, 6).join('\n\n'));
+});
+
+test('selection: nothing selected, a header, an empty paragraph or too much text: a note, nothing sent', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  let r = w.ctx.lenzStartSelection();
+  assert.deepEqual(plain(r), { ok: false, message: 'Select the text to check first, then choose Check only the selected text.' });
+  w.state.selectOutside = true;
+  r = w.ctx.lenzStartSelection();
+  assert.equal(r.message, 'Select text in the body of this tab. Headers, footers and footnotes are not checked.');
+  w.state.selectOutside = false;
+  w.state.text = 'One.\n\n   \n\nTwo.';
+  w.state.selectParas = [1, 1];
+  assert.equal(w.ctx.lenzStartSelection().message, 'The selected text has nothing Lenz can check.');
+  w.state.text = 'x'.repeat(50001) + '\n\nTwo.';
+  w.state.selectParas = [0, 0];
+  assert.equal(w.ctx.lenzStartSelection().message, 'The selection is longer than Lenz reads in one check (50,000 characters). Select less.');
+  assert.equal(postsOf(w).length, 0);
+  // The shown check is untouched: there is none.
+  assert.equal(w.ctx.lenzState().phase, 'idle');
+});
+
+test('selection: a Doc that changes under the selection twice says so and sends nothing', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  w.state.selectParas = [5, 5];
+  w.state.appText = TEXT.replace('Buzz Aldrin', 'Someone else');
+  assert.equal(w.ctx.lenzStartSelection().message, 'The Doc is changing. Try again in a moment.');
+  assert.equal(postsOf(w).length, 0);
+});
+
+test('selection: the same selection of the same tab again shows that check, with no new review', () => {
+  const w = selectedWorld(OPENING);
+  w.ctx.lenzStartSelection();
+  pollToEnd(w);
+  const again = w.ctx.lenzStartSelection();
+  assert.equal(again.phase, 'done');
+  assert.equal(again.notice, 'No changes since the last check.');
+  assert.equal(postsOf(w).length, 1);
+});
+
+test('selection: the same words after the tab changed around them are a new review', () => {
+  const w = selectedWorld(OPENING);
+  w.ctx.lenzStartSelection();
+  pollToEnd(w);
+  w.state.text = 'A new first paragraph.\n\n' + w.state.text;
+  w.state.selectParas = [2, paraCount(w.state.text) - 1];
+  w.ctx.lenzStartSelection();
+  assert.equal(postsOf(w).length, 2);
+  assert.equal(sentText(w, 1), TEXT);
+  assert.notEqual(postsOf(w)[0].o.headers['Idempotency-Key'], postsOf(w)[1].o.headers['Idempotency-Key']);
+});
+
+test('selection then Check this Doc: the whole tab, and the selection line is gone', () => {
+  const w = selectedWorld(OPENING);
+  w.ctx.lenzStartSelection();
+  pollToEnd(w);
+  const r = w.ctx.lenzStart();
+  assert.equal(r.selection, false);
+  assert.equal(sentText(w, 1), OPENING + '\n\n' + TEXT);
+  w.state.polls = POLLS.slice();
+  assert.equal(pollToEnd(w).model.scope, null);
+});
+
+test('selection: signing out with a selection check still pending forgets the whole tab\'s text', () => {
+  const w = world({ oauth: true });
+  signIn(w);
+  w.state.text = OPENING + '\n\n' + TEXT;
+  w.state.selectParas = [1, paraCount(w.state.text) - 1];
+  w.state.down = true;
+  w.ctx.lenzStartSelection();
+  const held = () => [...w.cache.m.keys()].filter((k) => k.indexOf('lenz:scopesnap:') === 0);
+  assert.ok(held().length > 0, 'kept while the answer is unknown');
+  w.state.down = false;
+  w.ctx.lenzSignOut();
+  assert.deepEqual(held(), []);
 });

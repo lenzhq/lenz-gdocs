@@ -127,6 +127,7 @@
   <div class="row">
     <button id="check" class="primary" type="button">Check this Doc</button>
   </div>
+  <div class="row"><button id="check-selection" class="quiet" type="button">Check only the selected text</button></div>
   <div id="access" hidden>
     <p id="access-line"></p>
     <div class="row"><button id="access-go" class="primary" type="button">Allow Lenz to read this Doc</button></div>
@@ -145,6 +146,7 @@
   <div class="row" id="resume-row" hidden><button id="resume" class="primary" type="button">Resume</button></div>
   <p class="note" id="note" role="status" hidden></p>
   <p class="headline" id="headline" hidden></p>
+  <p class="muted" id="scope" hidden></p>
   <div id="groups"></div>
   <section id="coverage-box" hidden>
     <h2>What was not covered</h2>
@@ -162,6 +164,7 @@
   var PRIVACY = "Lenz receives this tab's text to check it and keeps the check in your Lenz account. Deleting your account deletes it.";
   // Never invite leaving the panel: nothing tells you when the check is done.
   var RUNNING = 'You can keep editing while Lenz checks this tab. First results appear here in under a minute; the full check takes two to four minutes.';
+  var RUNNING_SELECTION = 'You can keep editing while Lenz checks the text you selected. First results appear here in under a minute; the full check takes two to four minutes.';
   var RESUMED = 'Your check is still running. Results appear here when it finishes.';
   // Polling stopped after minutes without an answer; the review is kept and Resume looks at it again.
   var STALLED = 'Lenz is not answering. Your check is kept; choose Resume to look again.';
@@ -198,6 +201,8 @@
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
   function show(n, on) { n.hidden = !on; }
   function setText(id, text) { var n = $(id); n.textContent = text || ''; show(n, !!text); }
+  // Check this Doc and Check only the selected text are on and off together.
+  function setCheck(off) { $('check').disabled = off; $('check-selection').disabled = off; }
 
   // One call in flight; a click made meanwhile runs next (the latest one wins).
   // A failed call restores the last state (its buttons come back) and says so.
@@ -219,7 +224,7 @@
         } else {
           // The first call failed: show the main screen so the error and Check are visible.
           show($('main'), true);
-          $('check').disabled = false;
+          setCheck(false);
         }
         setText(last && last.phase === 'signed_out' ? 'signin-error' : 'error', GLUE_FAILED);
         if (phase === 'running' && !timer) schedule(15);
@@ -277,13 +282,13 @@
     var stalled = r.phase === 'stalled';
     var done = r.phase === 'done';
     // Stalled: Check this Doc would read the Doc again and may send a new review; only Resume acts.
-    $('check').disabled = running || stalled;
+    setCheck(running || stalled);
     setText('stalled', stalled ? STALLED : '');
     show($('resume-row'), stalled);
     $('resume').disabled = false;
     var m = r.model;
     if (!running) resumed = false;
-    setText('status', running ? (resumed ? RESUMED : RUNNING) : '');
+    setText('status', running ? (resumed ? RESUMED : r.selection ? RUNNING_SELECTION : RUNNING) : '');
     startedAt = running && typeof r.startedAt === 'number' ? r.startedAt : null;
     show($('running'), running);
     renderStages(running && m ? m.stages : null);
@@ -293,6 +298,7 @@
     if (r.notice) note(r.notice);
 
     setText('headline', m ? m.headline : '');
+    setText('scope', m ? m.scope : '');
     if (m && m.failure) setText('error', m.failure);
     var fl = $('failure-link');
     clear(fl);
@@ -515,7 +521,7 @@
   function startCheck() {
     note('');
     resumed = false;
-    $('check').disabled = true;
+    setCheck(true);
     call('lenzStart', [], function (r) {
       if (r && r.phase === 'needs_file_access') { askAccess(startCheck); return; }
       render(r);
@@ -526,13 +532,29 @@
   function autoStart() {
     note('');
     resumed = false;
-    $('check').disabled = true;
+    setCheck(true);
     call('lenzAutoStart', [], function (r) {
       if (r && r.phase === 'needs_file_access') { askAccess(autoStart); return; }
       render(r);
     });
   }
   $('check').addEventListener('click', startCheck);
+  // A note (nothing selected, …) sends nothing: the panel stays as it was and says why.
+  function startSelection() {
+    note('');
+    resumed = false;
+    setCheck(true);
+    call('lenzStartSelection', [], function (r) {
+      if (r && r.phase === 'needs_file_access') { askAccess(startSelection); return; }
+      if (r && !r.phase) {
+        if (last) render(last); else setCheck(false);
+        note(r.message);
+        return;
+      }
+      render(r);
+    });
+  }
+  $('check-selection').addEventListener('click', startSelection);
   // After polling gave up: look at the saved check again (never a new one, never a read of the Doc).
   $('resume').addEventListener('click', function () {
     note('');
@@ -549,7 +571,7 @@
     if (timer) { clearTimeout(timer); timer = null; }
     // Only "Allow Lenz to read this Doc" acts until the grant: Check this Doc is off (render, after the
     // retry, turns it back on).
-    $('check').disabled = true;
+    setCheck(true);
     show($('signin'), false);
     show($('main'), true);
     setText('access-line', ACCESS_LINE);
@@ -577,7 +599,7 @@
         var retry = access.retry;
         access.retry = null;
         // Check this Doc back as the state has it (a retried Check or auto-start turns it off again).
-        $('check').disabled = phase === 'running';
+        setCheck(phase === 'running');
         if (retry) retry();
         // Review polling stopped while waiting (askAccess); a retried Select renders no state, so a
         // running check's polling starts again here (a reply that renders replaces this timer).

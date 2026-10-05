@@ -914,3 +914,132 @@ test('api.js uses no Apps Script globals and no syntax past ES2019', () => {
   assert.ok(!/\?\?/.test(src), 'nullish coalescing');
   assert.ok(!/^\s*(import|export)\s/m.test(src), 'modules');
 });
+
+// ── a selection check: a slice of the tab, its offset and the whole tab ──
+
+const WHOLE = 'An opening paragraph.\n\n' + DRAFT;
+// Offsets in code points, as /review counts them.
+const AT = Array.from('An opening paragraph.\n\n').length;
+const cpSlice = (t, a, b) => Array.from(t).slice(a, b).join('');
+const selection = (extra) => Object.assign({ snapshot: WHOLE, offset: AT, scope: { paragraphs: 3 } }, extra || {});
+
+test('selection: the slice is the body, the whole tab is the snapshot, the record keeps the offset', () => {
+  const w = world({ replies: [accepted('r1')] });
+  const r = sub(w, DRAFT, selection());
+  assert.equal(r.ok, true);
+  assert.equal(JSON.parse(w.calls[0].req.payload).text, DRAFT);
+  assert.equal(w.client.snapshot('r1'), WHOLE);
+  const rec = w.client.record(DOC.docId, DOC.tabId);
+  assert.equal(rec.offset, AT);
+  assert.equal(rec.snapshotHash, sha256(WHOLE));
+  assert.deepEqual(rec.scope, { paragraphs: 3 });
+  assert.equal(rec.textHash, sha256(DRAFT));
+});
+
+test('selection: the key is the whole-tab key plus the offset and the whole tab, so it never meets another', () => {
+  const policy = sortedJson(LenzApi.DEFAULT_POLICY);
+  const plainKey = sha256([DOC.docId, DOC.tabId, sha256(DRAFT), policy, '0'].join('|'));
+  const w = world({ replies: [accepted('r1'), accepted('r2'), accepted('r3'), accepted('r4')] });
+  sub(w, DRAFT);
+  assert.equal(keyOf(w.calls[0]), plainKey);
+  sub(w, DRAFT, selection());
+  assert.equal(keyOf(w.calls[1]), sha256([DOC.docId, DOC.tabId, sha256(DRAFT), policy, '0',
+    'sel:' + AT + ':' + sha256(WHOLE)].join('|')));
+  // The same words moved, or the tab changed around them: a new review, not the old id.
+  sub(w, DRAFT, selection({ snapshot: 'Moved.\n\n' + WHOLE, offset: AT + 8 }));
+  sub(w, DRAFT, selection({ snapshot: WHOLE + '\n\nAnd more.' }));
+  assert.equal(new Set(w.calls.map(keyOf)).size, 4);
+  // The same selection of the same tab again: the stored review, no POST.
+  const again = sub(w, DRAFT, selection({ snapshot: WHOLE + '\n\nAnd more.' }));
+  assert.equal(again.reviewId, 'r4');
+  assert.equal(w.calls.length, 4);
+});
+
+test('selection: a lost reply replays the body and lands the whole-tab snapshot', () => {
+  const w = world({ replies: [transportFail(), accepted('r1')] });
+  assert.equal(sub(w, DRAFT, selection()).state, 'submitting');
+  const r = sub(w, 'whatever the Doc says now');
+  assert.equal(r.reviewId, 'r1');
+  assert.equal(w.calls[1].req.payload, w.calls[0].req.payload);
+  assert.equal(w.client.snapshot('r1'), WHOLE);
+  assert.equal(w.client.record(DOC.docId, DOC.tabId).offset, AT);
+});
+
+test('selection: a whole-tab snapshot evicted before accept leaves no snapshot, never the slice', () => {
+  const w = world({ replies: [transportFail(), accepted('r1')] });
+  sub(w, DRAFT, selection());
+  w.cache.delete(LenzApi.scopeSnapshotKey(w.client.record(DOC.docId, DOC.tabId).key));
+  sub(w, DRAFT);
+  assert.equal(w.client.snapshot('r1'), null);
+});
+
+test('selection: Run again forgets the offset, and the next whole-tab check has none', () => {
+  const w = world({ replies: [accepted('r1'), accepted('r2')] });
+  sub(w, DRAFT, selection());
+  w.client.runAgain(DOC);
+  const idle = w.client.record(DOC.docId, DOC.tabId);
+  assert.equal('offset' in idle || 'snapshotHash' in idle || 'scope' in idle, false);
+  sub(w, WHOLE);
+  const rec = w.client.record(DOC.docId, DOC.tabId);
+  assert.equal(rec.offset, undefined);
+  assert.equal(w.client.snapshot('r2'), WHOLE);
+});
+
+test('selection: a poll moves every draft position by the offset, once', () => {
+  const w = world({ replies: [accepted('r1'), json(200, REVIEW)] });
+  sub(w, DRAFT, selection());
+  const body = w.client.poll(DOC.docId, DOC.tabId).body;
+  const claim = REVIEW.claims.find((c) => c.positions && c.positions.length);
+  const got = body.claims.find((c) => c.index === claim.index);
+  assert.equal(got.positions[0].start, claim.positions[0].start + AT);
+  assert.equal(cpSlice(WHOLE, got.positions[0].start, got.positions[0].end), claim.positions[0].text);
+  const cit = REVIEW.citations.find((c) => c.position);
+  assert.equal(body.citations.find((c) => c.index === cit.index).position.start, cit.position.start + AT);
+  const edited = REVIEW.claims.find((c) => c.suggested_edits && (c.suggested_edits.edits || []).length);
+  const e0 = edited.suggested_edits.edits[0];
+  const g0 = body.claims.find((c) => c.index === edited.index).suggested_edits.edits[0];
+  assert.deepEqual([g0.start, g0.end, g0.position], [e0.start + AT, e0.end + AT, e0.position]);
+  assert.equal(cpSlice(WHOLE, g0.start, g0.end), e0.text);
+});
+
+test('shiftBody: every listed field moves; nulls, indexes and other numbers do not', () => {
+  const body = {
+    claims: [{ index: 0, positions: [{ start: 1, end: 2, text: 'a' }, { start: null, end: null, text: 'b' }],
+      suggested_edits: { edits: [{ start: 3, end: 3, text: '', replacement: 'x', position: 0 }] } }],
+    issues: [{ claim_index: 0, suggested_edits: { edits: [{ start: 4, end: 5, text: 'c', replacement: 'd', position: 1 }] } }],
+    citations: [{ index: 0, position: { start: 6, end: 7, text: null } }, { index: 1, position: null }],
+    citation_issues: [{ citation_index: 0, position: { start: 8, end: 9, text: null } }],
+    citation_failures: [{ citation_index: 1, position: { start: 10, end: 11, text: null } }],
+    more_claim_locations: [{ claim: 'q', positions: [{ start: 12, end: 13, text: 'e' }] }, { claim: 'r', positions: null }],
+    more_citations: [{ index: 2, sentence: 's', position: { start: 14, end: 15, text: null } }],
+    summary: { start: 1, end: 2 },
+    credits: { charged: 3 },
+  };
+  LenzApi.shiftBody(body, 100);
+  assert.deepEqual(body.claims[0].positions, [{ start: 101, end: 102, text: 'a' }, { start: null, end: null, text: 'b' }]);
+  assert.deepEqual([body.claims[0].suggested_edits.edits[0].start, body.claims[0].suggested_edits.edits[0].position], [103, 0]);
+  assert.equal(body.issues[0].suggested_edits.edits[0].start, 104);
+  assert.equal(body.citations[0].position.start, 106);
+  assert.equal(body.citations[1].position, null);
+  assert.equal(body.citation_issues[0].position.end, 109);
+  assert.equal(body.citation_failures[0].position.start, 110);
+  assert.equal(body.more_claim_locations[0].positions[0].start, 112);
+  assert.equal(body.more_citations[0].position.start, 114);
+  assert.deepEqual(body.summary, { start: 1, end: 2 });
+  assert.equal(body.credits.charged, 3);
+  assert.equal(body.claims[0].index, 0);
+});
+
+test('a whole-tab check: polls never move a position', () => {
+  const w = world({ replies: [accepted('r1'), json(200, REVIEW)] });
+  sub(w, DRAFT);
+  assert.deepEqual(w.client.poll(DOC.docId, DOC.tabId).body, REVIEW);
+});
+
+test('selection: once accepted, the whole tab is the review snapshot and the pending copy is gone', () => {
+  const w = world({ replies: [accepted('r1')] });
+  sub(w, DRAFT, selection());
+  const key = w.client.record(DOC.docId, DOC.tabId).key;
+  assert.equal(w.cache.has(LenzApi.scopeSnapshotKey(key)), false);
+  assert.equal(w.client.snapshot('r1'), WHOLE);
+});

@@ -78,7 +78,10 @@ Units: **cp** = Unicode code points of the review text (the API's unit); **u16**
 
 ## serialize.js — `LenzSerialize`
 
-`serialize(doc, tabId) -> Serialized`
+`serialize(doc, tabId, opts?) -> Serialized`
+
+- `opts.cap`: the code points kept (default `CAP`, 50,000). `Infinity` reads the whole tab, never
+  `truncated` (a selection check slices it, and places its findings in it). The default is unchanged.
 
 - `doc`: a Docs REST `Document` fetched with `includeTabsContent: true`,
   `suggestionsViewMode: 'SUGGESTIONS_INLINE'`. `tabId` = the active tab (`null` → first tab).
@@ -208,12 +211,18 @@ deps = {
   getToken({force}) -> {token|null, signedOut}     // signed in with Lenz (src/oauth.js), or:
   apiKey: string                                   // the dev key
 }
-client.submit({ docId, tabId, text, policy }) -> SubmitResult   // policy = the escalate block; default below
+client.submit({ docId, tabId, text, policy, snapshot?, offset?, scope? }) -> SubmitResult
+                                                   // policy = the escalate block; default below.
+                                                   // A selection check: `text` is the slice,
+                                                   // `snapshot` the whole tab's text, `offset` (cp)
+                                                   // where the slice starts in it, `scope` kept as is
 client.runAgain({ docId, tabId }) -> void          // bumps attempt
 client.resume(docId, tabId) -> bool                 // a fresh window of failed polls; the same review id, no request
 client.poll(docId, tabId) -> PollResult             // one GET; caller schedules the next
 client.record(docId, tabId) -> Record|null
-client.snapshot(reviewId) -> string|null            // the text that review was run on (user cache, 6 h)
+client.snapshot(reviewId) -> string|null            // the text that review was run on (user cache, 6 h);
+                                                    // a selection check's: the whole tab at submit
+LenzApi.shiftBody(body, offset) -> body             // every draft position moved by offset, in place
 client.edit(reviewBody, claimIndex, editIndex) -> Edit|null   // server-side source of truth for Apply
 describeError(code, headers, body) -> ApiError
 
@@ -224,12 +233,17 @@ ApiError     = { code,            // HTTP status; 0 = no response
                  apiCode|null,    // the body's `code` when it is JSON
                  message, retryable, retryAfterS|null }
 Record       = { reviewId|null, key|null, tabId, textHash, attempt, submittedAt, state, pollFailures,
-                 pollFailingSince|null, submitFailures }
+                 pollFailingSince|null, submitFailures,
+                 offset?, snapshotHash?, scope? }   // a selection check only (absent otherwise)
 Edit         = { claimIndex, editIndex, start, end, text, replacement, position,   // cp, as sent
                  passage: {start, end, text}|null }   // claims[i].positions[position]; null on view=issues
 ```
 
-- Key = `sha256(docId|tabId|sha256(text)|policyJSON|attempt)`, policyJSON with its keys sorted.
+- Key = `sha256(docId|tabId|sha256(text)|policyJSON|attempt)`, policyJSON with its keys sorted. A
+  selection check appends `|sel:<offset>:<sha256(snapshot)>`: the same words at another place, or in
+  a tab that changed around them, are another review, so a review id (with its done body, snapshot
+  and applied edits, all in whole-tab coordinates at one offset) is never reused at another offset.
+  A whole-tab key is unchanged.
   The Record and the exact request body (cache `lenz:body:<key>`, 6 h) are written **before** the POST.
   Store key `lenz:rec:<docId>:<tabId>`.
 - Record `state`: `submitting` (sent, answer not known) · `pending_conflict` (409 with `review_id: null`)
@@ -242,7 +256,15 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   the first request may still have created a review; a replay answered `idempotency_body_mismatch`
   can never be accepted and becomes `unknown` (Run again). While pending, `nextPollS` is when to
   submit again: 5, 10, 20, 40, then 60 s, or a longer Retry-After. Same key with a `reviewId` → that review, no request. A 202 or a 409 carrying
-  `review_id` stores it and copies the sent text to `lenz:snap:<reviewId>`.
+  `review_id` stores it and copies the sent text to `lenz:snap:<reviewId>`; for a selection check,
+  the whole tab's text, cached before the POST under `lenz:scopesnap:<key>` (6 h; deleted once
+  copied, and by sign-out while pending). Evicted by then: no snapshot (never the slice). `runAgain` drops `offset`, `snapshotHash` and `scope`.
+- Selection check: a poll moves every draft position of a 200 body by the record's `offset`
+  (`shiftBody`, once, as the body arrives), so the glue, the kept done body, the applied records
+  and the fingerprints all work in the whole tab's coordinates. The fields: `claims[].positions[]`,
+  `claims[].suggested_edits.edits[]`, `issues[].suggested_edits.edits[]`, `citations[].position`,
+  `citation_issues[].position`, `citation_failures[].position`, `more_claim_locations[].positions[]`,
+  `more_citations[].position`; only objects with integer `start` and `end`.
 - Poll reads `poll_after_seconds` (15 when a running body has none); the first poll waits the POST's
   `Retry-After` (20 without one); every wait ≥ 3 s. No response, a non-JSON 200 or a 5xx backs off
   5, 10, 20, 40, 60 s; a 429 waits its Retry-After (60). A streak of such failures that lasts 5
@@ -307,13 +329,17 @@ client.signedIn() -> bool;  client.signOut() -> void (revoke + forget);  client.
 ## view.js — `LenzView`
 
 `build(reviewBody, opts) -> Model`. `opts = { notRead, truncated, applied: {'<ci>:<ei>': true},
-unplaced: {'<entryId>': reason} }` (all optional; the glue supplies them). Every string the sidebar
+unplaced: {'<entryId>': reason}, scope: {paragraphs, gap}|null }` (all optional; the glue supplies them). Every string the sidebar
 shows comes from here or from `LenzApi.MESSAGES`; the sidebar sets each as a text node.
 
 ```
 Model = { reviewId, status, done, progress|null, headline|null, failure|null, failureLink|null,
           groups: [{ key, title, collapsed, count, entries }],   // non-empty groups only
-          coverage: string[], footnote|null, charged|null }
+          coverage: string[], scope|null, footnote|null, charged|null }
+          // scope: a selection check's line ("This check covered the text you selected (N
+          // paragraphs). Check this Doc checks the whole tab."; with `gap`, "the paragraphs from the
+          // first to the last you selected"); null for Check this Doc. Not a coverage line, so a
+          // clean selection still reads "No issues found."
 Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (the body's indexes; stable across polls)
           kind, group, state, stateWords, title, label, token,   // token = verdict colour class or null
           check,                      // 'Quick check' | 'Deep check' | 'Citation check' | null
@@ -359,6 +385,7 @@ key in `lenzSaveKey`, reached from Dev tools → Use an API key…, is the one e
 
 ```
 lenzState() / lenzPoll() / lenzStart() / lenzSignOut() / lenzSaveKey(key) -> Reply
+lenzStartSelection() -> Reply | Note                  // Check only the selected text (below)
 lenzResume() -> Reply                                 // after `stalled`: polls the saved review again
 lenzSignInUrl() -> { url|null, message|null }        // opened by the sidebar in a new window
 lenzShowPicker() -> { openedAt }                      // opens picker.html (modal); server ms
@@ -375,7 +402,7 @@ lenzApply(reviewId, claimIndex, editIndex) -> Note | Reply & { ok: true, message
 lenzUndo(reviewId, claimIndex, editIndex)  -> Note | Reply & { ok: true, message }
 Reply = { phase: 'signed_out'|'needs_file_access'|'idle'|'running'|'stalled'|'done'|'error', auth: { mode: 'oauth'|'key', signedIn },
           model: Model|null, nextPollS|null, error: {code, message, retryable, retryAfterS}|null,
-          startedAt|null, notice? }  // notice: "No changes since the last check."   // running only: the record's submittedAt (ms); the sidebar ticks the elapsed time
+          startedAt|null, selection?, notice? }  // selection (running): a selection check;  // notice: "No changes since the last check."   // running only: the record's submittedAt (ms); the sidebar ticks the elapsed time
 Note  = { ok, message|null }
 ```
 
@@ -397,6 +424,23 @@ Note  = { ok, message|null }
   the glue reads that body; the record does not carry the outcome);
   otherwise the text decides: changed → a new review, unchanged → the same review, and when it is
   complete the reply carries `notice: "No changes since the last check."` (no request, no charge).
+- **Check only the selected text** (`lenzStartSelection`): the whole paragraphs from the first to the
+  last the selection in the active tab's body touches (`lenzSelectionParas_`: each range element's
+  child-index path from the BODY_SECTION, matched by prefix against the paths of the walk Select
+  aligns with REST; a whole table or cell touches every paragraph in it). Read uncapped, so a
+  selection past the 50,000th character works. The slice runs from the first piece of the first
+  paragraph to the last piece of the last (a link's `[..](..)` whole), the `\n\n` between paragraphs
+  kept, none after the last. The selected paragraphs' text must match the REST read (else read and
+  map again, once). Then `client.submit` with the slice, the whole tab as `snapshot` and its
+  `offset`, `scope = {paragraphs, gap}` (`gap`: a paragraph in the range the selection did not touch,
+  a table column). Lock, file access, sign-in, the pending replay and the start-over states are
+  Check this Doc's. A Note, nothing sent, nothing recorded: no selection ("Select the text to check
+  first..."), only outside the body ("Select text in the body of this tab..."), no text, over 50,000
+  characters ("The selection is longer than Lenz reads in one check..."), the Doc changing twice.
+  `lenz:meta` gets no not-read counts (they are the tab's). Every read a selection check's findings
+  are placed on (`lenzReadFor_`: the placement pass, Select, Apply, Undo) is uncapped.
+  Known limit, as for a whole-tab check: after the tab changed, a passage the whole tab holds twice
+  does not place.
 - The user lock (`LockService.getUserLock`, 10 s) is held around submit and every GET of
   the review (poll, and the fresh read behind Select and Apply), never around a Doc read alone.
 - Signing in: `LENZ_OAUTH_CLIENT_ID` (public; per build, from `config/flavours/<f>.json` through
@@ -439,8 +483,8 @@ Note  = { ok, message|null }
  , and the hash of the snapshot with all of them made, computed at Apply (from the cached
   snapshot, else from the live text when it was the snapshot) and stored, so an unchanged Doc still
   places after the 6 h cache drops the snapshot. The snapshot is `client.snapshot(reviewId)` with the
-  applied edits replayed through `applyToSnapshot`; `snapshotHash` = the record's `textHash` until
-  the first Apply, then the stored one.
+  applied edits replayed through `applyToSnapshot`; `snapshotHash` = the record's `snapshotHash` (a
+  selection check) or `textHash` until the first Apply, then the stored one.
 - The key is checked only for a `lenz_` prefix and no spaces; Lenz answers the rest (401).
 - Adapters: UrlFetchApp (`muteHttpExceptions`, `followRedirects: false`, `Content-Type` passed as
   `contentType`, response header names lower-cased, a thrown fetch = `{code: 0}`); User properties;
@@ -511,7 +555,8 @@ Note  = { ok, message|null }
   `lenz:trialDone:*`, `lenz:last:*` or `lenz:trialLogDoc` written, no `lenz_trial` log line.
 - Read cache (`lenzRead_`): every read first gets `fields: 'revisionId'`; a cached `{live
   (Serialized), paras (REST paragraph index)}` under `lenz:read:<sha(docId|tabId|revisionId|
-  LENZ_SERIALIZER_SHA|v)>` (chunked user cache, 6 h) is used when its revision matches, else a full
+  LENZ_SERIALIZER_SHA|v)>` (an uncapped read: `...|v|uncapped`, its own entries; the map after a
+  write is stored under its read's mode) (chunked user cache, 6 h) is used when its revision matches, else a full
   read is cached under the revision it returned. `LENZ_SERIALIZER_SHA` = first 16 hex of
   sha256(`src/serialize.js`), pinned by a test: **a serialize.js change must update it** (the test
   prints the value). Apply keeps `requiredRevisionId`, so a map can never write to words it no

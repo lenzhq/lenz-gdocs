@@ -194,7 +194,10 @@ var LenzSerialize = (function () {
     return { del: ctx.del || has(node.suggestedDeletionIds), ins: ctx.ins || has(node.suggestedInsertionIds) };
   }
 
-  function serialize(doc, tabId) {
+  // `opts.cap`: the code points kept (default CAP); Infinity reads the whole tab (a selection check
+  // slices it, and its findings place past the 50,000th character).
+  function serialize(doc, tabId, opts) {
+    var cap = opts && typeof opts.cap === 'number' ? opts.cap : CAP;
     var tabs = flattenTabs(doc.tabs, []);
     if (!tabs.length) throw new Error('document has no tabs (fetch with includeTabsContent: true)');
     var tab = tabs[0];
@@ -249,12 +252,12 @@ var LenzSerialize = (function () {
     var text = chunks.join('');
     var truncated = false;
 
-    if (pos > CAP) {
+    if (pos > cap) {
       truncated = true;
-      var cut = CAP;
+      var cut = cap;
       // Link syntax typed in the Doc is protected too: find [..](..) around the cut.
-      var ws = Math.max(0, CAP - 4000);
-      var windowText = cpSlice(text, ws, Math.min(pos, CAP + 4000));
+      var ws = Math.max(0, cap - 4000);
+      var windowText = cpSlice(text, ws, Math.min(pos, cap + 4000));
       var literal = /\[[^\[\]\n]*\]\([^()\s]*\)/g;
       var m;
       while ((m = literal.exec(windowText)) !== null) {

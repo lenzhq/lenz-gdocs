@@ -34,8 +34,11 @@ can build and deploy your own copy (below). Either way you need a Lenz account
    reviewers' reasoning), citations whose source does not say what the Doc attributes to it, and
    what was not covered (claims past the limit, sources that could not be read, parts of the Doc
    not read).
-3. **Click a finding** to select its words.
-4. **Apply a suggested edit.** Lenz shows the old and new wording; one click replaces exactly those
+3. **Check only the selected text.** Select part of the tab and choose Check only the selected text
+   under Check this Doc: Lenz checks the whole paragraphs the selection touches, wherever they are in
+   the tab, including past the first 50,000 characters a full check reads.
+4. **Click a finding** to select its words.
+5. **Apply a suggested edit.** Lenz shows the old and new wording; one click replaces exactly those
    words, and only if the Doc still says what was checked. Nothing changes without that click. The
    Doc's own undo does not reach an edit made this way, so the sidebar has an Undo for each one, and
    File → Version history keeps every earlier version.
