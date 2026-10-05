@@ -1,0 +1,204 @@
+{
+  "review_id": "e0a1b2c6",
+  "view": "full",
+  "status": "failed",
+  "outcome": "unchecked",
+  "created_at": "2026-09-30T00:07:15.181873Z",
+  "completed_at": "2026-09-30T00:07:15.181873Z",
+  "language": "en",
+  "policy": {
+    "verdicts": [
+      "False",
+      "Mostly False",
+      "Mixed"
+    ],
+    "confidence": [
+      "low"
+    ],
+    "max_assessments": 20,
+    "max_verifications": 3,
+    "depth": "standard",
+    "suggest_edits": true,
+    "max_citations": 20
+  },
+  "summary": {
+    "claims_selected": 5,
+    "claim_limit": 20,
+    "claim_limit_reached": false,
+    "input_truncated": false,
+    "assessments": {
+      "completed": 0,
+      "failed": 0
+    },
+    "verifications": null,
+    "issues": 0,
+    "citations_found": null,
+    "citations_selected": null,
+    "citation_limit": 20,
+    "citation_limit_reached": null,
+    "citation_checks": null,
+    "citation_issues": 0,
+    "citations_skipped": null
+  },
+  "credits": {
+    "charged": 0
+  },
+  "poll_after_seconds": null,
+  "issues": [],
+  "failures": [],
+  "citation_issues": [],
+  "citation_failures": [],
+  "claims": [
+    {
+      "index": 0,
+      "claim": "The Great Wall of China is visible to the naked eye from the Moon, according to NASA.",
+      "positions": [
+        {
+          "start": 242,
+          "end": 394,
+          "text": "The Great Wall of China is clearly visible to the naked eye from the Moon, according to [NASA](https://www.nasa.gov/image-article/great-wall-of-china/)."
+        }
+      ],
+      "result": null,
+      "assessment": {
+        "status": "pending",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": null,
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 1,
+      "claim": "Buzz Aldrin was the first person to walk on the Moon in July 1969.",
+      "positions": [
+        {
+          "start": 522,
+          "end": 589,
+          "text": "The first person to walk on the Moon was Buzz Aldrin, in July 1969."
+        }
+      ],
+      "result": null,
+      "assessment": {
+        "status": "pending",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": null,
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 2,
+      "claim": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in central Paris.",
+      "positions": [
+        {
+          "start": 34,
+          "end": 129,
+          "text": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in the centre of Paris."
+        }
+      ],
+      "result": null,
+      "assessment": {
+        "status": "pending",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": null,
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 3,
+      "claim": "Water boils at 100 degrees Celsius at sea level, according to Britannica.",
+      "positions": [
+        {
+          "start": 396,
+          "end": 520,
+          "text": "Water boils at 100 degrees Celsius at sea level, as [Britannica explains](https://www.britannica.com/science/boiling-point)."
+        }
+      ],
+      "result": null,
+      "assessment": {
+        "status": "pending",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": null,
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 4,
+      "claim": "Mount Everest is the tallest mountain above sea level.",
+      "positions": [
+        {
+          "start": 131,
+          "end": 240,
+          "text": "Mount Everest is the tallest mountain above sea level. Mount Everest is the tallest mountain above sea level."
+        }
+      ],
+      "result": null,
+      "assessment": {
+        "status": "pending",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": null,
+      "verification": null,
+      "suggested_edits": null
+    }
+  ],
+  "citations": [],
+  "failure": {
+    "failure_reason": "insufficient_credits",
+    "failure_class": "invalid_input",
+    "retryable": false,
+    "hint": "This review needs 5 credits to assess its claims. Nothing was charged.",
+    "docs_url": "https://lenz.io/docs/errors#invalid-input"
+  },
+  "more_claims": [],
+  "more_claim_locations": [],
+  "more_citations": []
+}

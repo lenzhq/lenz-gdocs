@@ -674,6 +674,92 @@ test('poll: backoff is capped at 60 s', () => {
   assert.equal(last.nextPollS, 60);
 });
 
+// ── a poll that keeps failing gives up after five minutes, and Resume polls the same review again ──
+
+const FIVE_MIN = 5 * 60 * 1000;
+const capacity503 = () => json(503, { code: 'capacity' }, { 'Retry-After': '90' });
+const throttled429 = () => ({ code: 429, headers: {}, text: 'Too Many Requests' });
+
+[['no response', transportFail], ['a 5xx', () => ({ code: 502, headers: {}, text: 'x' })], ['a 503 with a code', capacity503], ['a 429', throttled429]].forEach(function (row) {
+  test('poll: ' + row[0] + ' for five minutes in a row ends polling (gaveUp), and the record keeps its review id', () => {
+    const w = accepted_world([row[1](), row[1](), row[1]()]);
+    const first = w.client.poll(DOC.docId, DOC.tabId);
+    assert.equal(first.gaveUp, false);
+    assert.equal(first.terminal, false);
+    w.tick(FIVE_MIN - 1000);
+    const near = w.client.poll(DOC.docId, DOC.tabId);
+    assert.equal(near.gaveUp, false);
+    assert.notEqual(near.nextPollS, null);
+    w.tick(1000);
+    const last = w.client.poll(DOC.docId, DOC.tabId);
+    assert.equal(last.gaveUp, true);
+    assert.equal(last.ok, false);
+    assert.equal(last.terminal, false);
+    assert.equal(last.nextPollS, null);
+    assert.equal(last.error.retryable, true);
+    const rec = w.client.record(DOC.docId, DOC.tabId);
+    assert.equal(rec.reviewId, '4881a880');
+    assert.equal(rec.state, 'running');
+  });
+});
+
+test('poll: one answer in between starts the five minutes over', () => {
+  const w = accepted_world([transportFail(), json(200, POLLS[0]), transportFail()]);
+  w.client.poll(DOC.docId, DOC.tabId);
+  w.tick(FIVE_MIN - 1000);
+  assert.equal(w.client.poll(DOC.docId, DOC.tabId).ok, true);
+  w.tick(FIVE_MIN - 1000);
+  const p = w.client.poll(DOC.docId, DOC.tabId);
+  assert.equal(p.gaveUp, false);
+  assert.equal(p.nextPollS, 5);
+  assert.equal(w.client.record(DOC.docId, DOC.tabId).pollFailingSince, w.deps.now());
+});
+
+test('poll: a failed poll that is terminal (403/404/410) is not a give-up', () => {
+  const w = accepted_world([json(404, { code: 'not_found' })]);
+  const p = w.client.poll(DOC.docId, DOC.tabId);
+  assert.equal(p.gaveUp, false);
+  assert.equal(p.terminal, true);
+});
+
+test('resume: the same review id is polled again with a fresh window, and nothing else is sent', () => {
+  const w = accepted_world([transportFail(), transportFail(), json(200, POLLS[0]), transportFail(), transportFail()]);
+  w.client.poll(DOC.docId, DOC.tabId);
+  w.tick(FIVE_MIN);
+  assert.equal(w.client.poll(DOC.docId, DOC.tabId).gaveUp, true);
+  // A later poll that fails still counts the old streak; only resume clears it.
+  const before = w.calls.length;
+  assert.equal(w.client.resume(DOC.docId, DOC.tabId), true);
+  const rec = w.client.record(DOC.docId, DOC.tabId);
+  assert.equal(rec.reviewId, '4881a880');
+  assert.equal(rec.pollFailingSince, null);
+  assert.equal(w.calls.length, before, 'resume itself makes no request');
+  const p = w.client.poll(DOC.docId, DOC.tabId);
+  assert.equal(p.ok, true);
+  const get = w.calls[w.calls.length - 1].req;
+  assert.equal(get.method, 'get');
+  assert.equal(get.url, BASE + '/reviews/4881a880');
+  assert.equal(w.calls.filter((c) => c.req.method === 'post').length, 1, 'the only POST is the first submission');
+  // A new window: failing again does not give up at once.
+  const again = w.client.poll(DOC.docId, DOC.tabId);
+  assert.equal(again.gaveUp, false);
+  assert.equal(again.nextPollS, 5);
+});
+
+test('resume with no saved review does nothing', () => {
+  const w = world();
+  assert.equal(w.client.resume(DOC.docId, DOC.tabId), false);
+  assert.equal(w.client.record(DOC.docId, DOC.tabId), null);
+});
+
+test('Run again clears the failed-poll streak with the review', () => {
+  const w = accepted_world([transportFail()]);
+  w.client.poll(DOC.docId, DOC.tabId);
+  assert.equal(typeof w.client.record(DOC.docId, DOC.tabId).pollFailingSince, 'number');
+  w.client.runAgain(DOC);
+  assert.equal(w.client.record(DOC.docId, DOC.tabId).pollFailingSince, null);
+});
+
 test('poll: 429 waits the stated time', () => {
   const w = accepted_world([{ code: 429, headers: { 'Retry-After': '30' }, text: 'Too Many Requests' }]);
   const p = w.client.poll(DOC.docId, DOC.tabId);

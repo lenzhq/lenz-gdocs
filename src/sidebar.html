@@ -139,7 +139,10 @@
     <p class="run-line"><span id="elapsed"></span><span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>
     <ul class="stages" id="stages"></ul>
   </div>
+  <p id="stalled" role="status" hidden></p>
   <p class="error" id="error" role="alert"></p>
+  <div id="failure-link"></div>
+  <div class="row" id="resume-row" hidden><button id="resume" class="primary" type="button">Resume</button></div>
   <p class="note" id="note" role="status" hidden></p>
   <p class="headline" id="headline" hidden></p>
   <div id="groups"></div>
@@ -160,6 +163,8 @@
   // Never invite leaving the panel: nothing tells you when the check is done.
   var RUNNING = 'You can keep editing while Lenz checks this tab. First results appear here in under a minute; the full check takes two to four minutes.';
   var RESUMED = 'Your check is still running. Results appear here when it finishes.';
+  // Polling stopped after minutes without an answer; the review is kept and Resume looks at it again.
+  var STALLED = 'Lenz is not answering. Your check is kept; choose Resume to look again.';
   var GLUE_FAILED = 'The add-on could not finish that. Try again.';
   var SIGN_IN_WAIT = 'Finish signing in in the window that opened. This panel updates when you are done.';
   var POPUP_BLOCKED = 'Your browser blocked the sign-in window. Allow pop-ups for docs.google.com, then try again.';
@@ -269,8 +274,13 @@
     show($('signout'), auth.mode !== 'key');
 
     var running = r.phase === 'running';
+    var stalled = r.phase === 'stalled';
     var done = r.phase === 'done';
-    $('check').disabled = running;
+    // Stalled: Check this Doc would read the Doc again and may send a new review; only Resume acts.
+    $('check').disabled = running || stalled;
+    setText('stalled', stalled ? STALLED : '');
+    show($('resume-row'), stalled);
+    $('resume').disabled = false;
     var m = r.model;
     if (!running) resumed = false;
     setText('status', running ? (resumed ? RESUMED : RUNNING) : '');
@@ -284,6 +294,9 @@
 
     setText('headline', m ? m.headline : '');
     if (m && m.failure) setText('error', m.failure);
+    var fl = $('failure-link');
+    clear(fl);
+    if (m && m.failureLink) fl.appendChild(link(m.failureLink.href, m.failureLink.words));
     renderGroups(m);
     var cov = $('coverage');
     clear(cov);
@@ -520,6 +533,12 @@
     });
   }
   $('check').addEventListener('click', startCheck);
+  // After polling gave up: look at the saved check again (never a new one, never a read of the Doc).
+  $('resume').addEventListener('click', function () {
+    note('');
+    $('resume').disabled = true;
+    call('lenzResume', [], render);
+  });
 
   // Per-Doc access: the line and the button; the Picker opens in a dialog (picker.html). While it is
   // open, the panel asks every 2 s whether this Doc has been allowed since, then repeats `retry`.

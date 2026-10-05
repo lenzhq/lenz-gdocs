@@ -8,6 +8,16 @@ const POLLS = require('./fixtures/reviews/draft-a.polls.json');
 // in issues[], row 3 in failures[]), and one too-few-sources failure beside one where search was down.
 const THIN = require('./fixtures/reviews/deep-failed-thin.review.json');
 const MIXED = require('./fixtures/reviews/deep-failed-mixed.review.json');
+// Review-level failures as the API sends them (failure_reason, failure_class and the integrator's hint),
+// a review with one failed quick check, and a deep check that failed on Lenz's side.
+const F = (name) => require('./fixtures/reviews/' + name + '.review.json');
+const NO_CLAIM = F('failed-no-claim');
+const NO_CREDITS = F('failed-insufficient-credits');
+const UNAVAILABLE = F('failed-unavailable');
+const ASSESSMENT_FAILED = F('failed-assessment');
+const INTERNAL = F('failed-internal');
+const QUICK_FAILED = F('quick-check-failed');
+const DEEP_INTERNAL = F('deep-failed-internal');
 
 function review(edit) {
   const body = JSON.parse(JSON.stringify(REVIEW));
@@ -193,7 +203,7 @@ test('coverage: caps, more_claims, more_citations, failures, skipped, truncated,
     '1 citation check failed this time.',
     'Citations were not checked: not enough credits.',
     'Not read: 2 footnotes, 1 header, 3 smart chips, 1 other tab.',
-    'Some checks did not finish. Choose Check this Doc to try them again.',
+    'Choose Check this Doc to check it again; the new check is charged.',
   ]);
   assert.equal(m.headline, '3 issues to look at.');
 });
@@ -265,17 +275,6 @@ test('while running: progress, no headline, citations checking', () => {
   assert.equal(entry(m, 'citation:0').lines[0].text, 'Checking.');
 });
 
-test('a failed review shows its hint', () => {
-  const m = LenzView.build(
-    review((b) => {
-      b.status = 'failed';
-      b.outcome = 'unchecked';
-      b.failure = { failure_reason: 'no_claim', failure_class: 'invalid_input', retryable: false, hint: 'No claim found.' };
-    })
-  );
-  assert.equal(m.headline, 'The check did not finish.');
-  assert.equal(m.failure, 'No claim found.');
-});
 
 test('only lenz.io claim pages become links; sources only over http(s)', () => {
   const m = LenzView.build(
@@ -424,7 +423,7 @@ test('a claim says "could not be checked" only when its check failed, or the rev
     r.assessment = { status: 'failed', hint: null };
     r.result = null;
   }));
-  assert.equal(entry(failed, 'claim:3').lines[0].text, 'Could not be checked this time.');
+  assert.equal(entry(failed, 'claim:3').lines[0].text, 'Could not be checked this time. Nothing was charged for it.');
   const ended = LenzView.build(review((b) => {
     const r = b.claims.find((c) => c.index === 3);
     r.assessment = { status: 'running', hint: null };
@@ -572,7 +571,9 @@ test('two applied occurrences of the same correction both keep their Undo', () =
 const TOO_FEW_ROW = 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
 const UNAVAILABLE_ROW = 'The deep check could not run because search was unavailable, so this is the quick verdict.';
 const PLAIN_ROW = 'The deep check did not finish, so this is the quick verdict.';
-const RETRY = 'Some checks did not finish. Choose Check this Doc to try them again.';
+const OUR_SIDE_ROW = 'The deep check stopped on our side, so this is the quick verdict.';
+const SERVICE_ROW = 'The deep check could not run because a service Lenz relies on was unavailable, so this is the quick verdict.';
+const RETRY = 'Choose Check this Doc to check it again; the new check is charged.';
 
 function rowLines(m, id) {
   return entry(m, id).lines.map((l) => l.text);
@@ -590,10 +591,12 @@ test('failed deep checks: each row says why, by the failure class', () => {
   assert.ok(rowLines(mixed, 'claim:1').includes(UNAVAILABLE_ROW));
 });
 
-test('failed deep checks: a failure of another class, or none, keeps the plain line', () => {
-  const other = JSON.parse(JSON.stringify(MIXED));
-  other.claims.find((c) => c.index === 1).verification.failure.failure_class = 'internal';
-  assert.ok(rowLines(LenzView.build(other), 'claim:1').includes(PLAIN_ROW));
+test('failed deep checks: a failure with no class, an input problem or a stop keeps the plain line', () => {
+  ['invalid_input', 'cancelled'].forEach((cls) => {
+    const other = JSON.parse(JSON.stringify(MIXED));
+    other.claims.find((c) => c.index === 1).verification.failure.failure_class = cls;
+    assert.ok(rowLines(LenzView.build(other), 'claim:1').includes(PLAIN_ROW), cls);
+  });
   const none = JSON.parse(JSON.stringify(MIXED));
   none.claims.find((c) => c.index === 1).verification.failure = null;
   assert.ok(rowLines(LenzView.build(none), 'claim:1').includes(PLAIN_ROW));
@@ -603,7 +606,30 @@ test('failed deep checks: an outage outside the search for sources does not name
   const later = JSON.parse(JSON.stringify(MIXED));
   const row = later.claims.find((c) => c.verification && c.verification.failure && c.verification.failure.failure_class === 'upstream_unavailable');
   row.verification.failure.failure_reason = 'conclusion_failed';
-  assert.ok(rowLines(LenzView.build(later), 'claim:' + row.index).includes(PLAIN_ROW));
+  const lines = rowLines(LenzView.build(later), 'claim:' + row.index);
+  assert.ok(lines.includes(SERVICE_ROW));
+  assert.ok(!lines.includes(UNAVAILABLE_ROW));
+});
+
+test('failed deep checks: one that stopped on our side says so (the API sends class internal)', () => {
+  const m = LenzView.build(DEEP_INTERNAL);
+  assert.equal(DEEP_INTERNAL.claims.find((c) => c.index === 1).verification.failure.failure_class, 'internal');
+  assert.ok(rowLines(m, 'claim:1').includes(OUR_SIDE_ROW));
+  // A class this add-on does not know is not claimed as search or as an input problem.
+  const odd = JSON.parse(JSON.stringify(MIXED));
+  odd.claims.find((c) => c.index === 1).verification.failure.failure_class = 'something_new';
+  assert.ok(rowLines(LenzView.build(odd), 'claim:1').includes(OUR_SIDE_ROW));
+  // A class named like an Object property is just unknown too.
+  odd.claims.find((c) => c.index === 1).verification.failure.failure_class = 'constructor';
+  assert.ok(rowLines(LenzView.build(odd), 'claim:1').includes(OUR_SIDE_ROW));
+});
+
+test('failed deep checks: a stuck run (task_stuck, unavailable) names a service, not search', () => {
+  const stuck = JSON.parse(JSON.stringify(MIXED));
+  const f = stuck.claims.find((c) => c.index === 1).verification.failure;
+  f.failure_reason = 'task_stuck';
+  f.failure_class = 'upstream_unavailable';
+  assert.ok(rowLines(LenzView.build(stuck), 'claim:1').includes(SERVICE_ROW));
 });
 
 test('failed deep checks: coverage counts the too-few-sources ones apart from the rest', () => {
@@ -644,4 +670,128 @@ test('failed deep checks: a failed claim or citation check, or an unmarked failu
   assert.ok(LenzView.build(unmarked).coverage.includes(RETRY));
   // Not incomplete: never advice.
   assert.equal(LenzView.retryHelps(REVIEW), false);
+});
+
+// ── a failed review says why in Docs words, never in the API's hint ──
+
+const WORDS = {
+  noClaim: 'Lenz found no factual claim to check in this tab.',
+  credits: 'Not enough credits to check this tab. Nothing was charged.',
+  unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
+  ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
+};
+const BILLING = { href: 'https://lenz.io/billing', words: 'Add credits' };
+
+test('failed review: no claim says so, and never quotes the API hint', () => {
+  const m = LenzView.build(NO_CLAIM);
+  assert.equal(m.headline, 'The check did not finish.');
+  assert.equal(m.failure, WORDS.noClaim);
+  assert.equal(m.failureLink, null);
+  assert.ok(NO_CLAIM.failure.hint.includes('/extract'), 'the fixture carries the integrator hint');
+  assert.ok(!JSON.stringify(m).includes('/extract'));
+});
+
+test('failed review: not enough credits says nothing was charged and offers the billing page', () => {
+  const m = LenzView.build(NO_CREDITS);
+  assert.equal(NO_CREDITS.failure.failure_reason, 'insufficient_credits');
+  assert.equal(m.failure, WORDS.credits);
+  assert.deepEqual(m.failureLink, BILLING);
+  assert.ok(!JSON.stringify(m).includes('5 credits to assess'));
+  // Only this failure links; no other model carries a link.
+  [NO_CLAIM, UNAVAILABLE, ASSESSMENT_FAILED, INTERNAL].forEach((b) => assert.equal(LenzView.build(b).failureLink, null));
+});
+
+test('failed review: an outage and every quick check failing say it could not check just now', () => {
+  assert.equal(LenzView.build(UNAVAILABLE).failure, WORDS.unavailable);
+  const m = LenzView.build(ASSESSMENT_FAILED);
+  assert.equal(ASSESSMENT_FAILED.failure.failure_reason, 'assessment_failed');
+  assert.equal(m.failure, WORDS.unavailable);
+  assert.ok(!JSON.stringify(m).includes('Idempotency-Key'));
+  // The same reason with class internal (a non-retryable failure of every row) reads the same.
+  const internal = JSON.parse(JSON.stringify(ASSESSMENT_FAILED));
+  internal.failure.failure_class = 'internal';
+  internal.failure.retryable = false;
+  assert.equal(LenzView.build(internal).failure, WORDS.unavailable);
+});
+
+test('failed review: an internal failure, an unknown reason and no failure block say it is on our side', () => {
+  assert.equal(LenzView.build(INTERNAL).failure, WORDS.ours);
+  const unknown = JSON.parse(JSON.stringify(INTERNAL));
+  unknown.failure.failure_reason = 'something_new';
+  assert.equal(LenzView.build(unknown).failure, WORDS.ours);
+  const bare = JSON.parse(JSON.stringify(INTERNAL));
+  bare.failure = null;
+  assert.equal(LenzView.build(bare).failure, WORDS.ours);
+  // A reason named like an Object property is unknown, not a lookup.
+  unknown.failure.failure_reason = 'constructor';
+  assert.equal(LenzView.build(unknown).failure, WORDS.ours);
+});
+
+test('failed review: an unclassified reason in an outage class says it could not check just now', () => {
+  const stuck = JSON.parse(JSON.stringify(INTERNAL));
+  stuck.failure.failure_reason = 'task_stuck';
+  stuck.failure.failure_class = 'upstream_unavailable';
+  assert.equal(LenzView.build(stuck).failure, WORDS.unavailable);
+});
+
+test('failed review: the failure words never come from the hint, whatever it says', () => {
+  [NO_CLAIM, NO_CREDITS, UNAVAILABLE, ASSESSMENT_FAILED, INTERNAL].forEach((b) => {
+    const withHint = JSON.parse(JSON.stringify(b));
+    withHint.failure.hint = 'PRIVATE_HINT_TEXT';
+    const m = LenzView.build(withHint);
+    assert.ok(!JSON.stringify(m).includes('PRIVATE_HINT_TEXT'), b.failure.failure_reason);
+    assert.equal(m.failure, LenzView.build(b).failure);
+  });
+});
+
+test('a review that did not fail has no failure words or link', () => {
+  const m = LenzView.build(REVIEW);
+  assert.equal(m.failure, null);
+  assert.equal(m.failureLink, null);
+});
+
+test('failed review: the claims left unchecked by a credit shortfall are not called charged or failed', () => {
+  const m = LenzView.build(NO_CREDITS);
+  assert.deepEqual(m.groups.map((g) => g.key), ['none']);
+  m.groups[0].entries.forEach((e) => assert.ok(!e.lines.some((l) => /charged/.test(l.text)), e.id));
+});
+
+// ── a failed quick check says nothing was charged for it ──
+
+test('failed quick check: the row says it could not be checked and nothing was charged for it', () => {
+  const m = LenzView.build(QUICK_FAILED);
+  const e = entry(m, 'claim:3');
+  assert.equal(QUICK_FAILED.claims.find((c) => c.index === 3).assessment.error_code, 'internal');
+  assert.equal(e.group, 'none');
+  assert.equal(e.label, 'Not checked');
+  assert.deepEqual(e.lines, [{ lead: null, text: 'Could not be checked this time. Nothing was charged for it.' }]);
+  assert.ok(m.coverage.includes('1 claim could not be checked this time.'));
+  // The other rows are untouched.
+  assert.ok(!entry(m, 'claim:4').lines.some((l) => /charged/.test(l.text)));
+});
+
+test('failed quick check: every error code reads the same, and the row never shows a hint', () => {
+  ['timeout', 'upstream_unavailable', 'internal'].forEach((code) => {
+    const b = JSON.parse(JSON.stringify(QUICK_FAILED));
+    const r = b.claims.find((c) => c.index === 3);
+    r.assessment.error_code = code;
+    r.assessment.hint = 'PRIVATE_HINT_TEXT';
+    r.assessment.failure.hint = 'PRIVATE_HINT_TEXT';
+    const m = LenzView.build(b);
+    assert.deepEqual(entry(m, 'claim:3').lines, [{ lead: null, text: 'Could not be checked this time. Nothing was charged for it.' }], code);
+    assert.ok(!JSON.stringify(m).includes('PRIVATE_HINT_TEXT'), code);
+  });
+});
+
+test('failed quick check: the review advises running again, and says the new check is charged', () => {
+  const m = LenzView.build(QUICK_FAILED);
+  assert.equal(QUICK_FAILED.outcome, 'incomplete');
+  assert.equal(LenzView.retryHelps(QUICK_FAILED), true);
+  assert.equal(m.coverage[m.coverage.length - 1], 'Choose Check this Doc to check it again; the new check is charged.');
+});
+
+test('failed deep check on our side: the row and the run-again advice', () => {
+  const m = LenzView.build(DEEP_INTERNAL);
+  assert.ok(m.coverage.includes('1 deep check did not finish; that claim shows its quick verdict.'));
+  assert.equal(LenzView.retryHelps(DEEP_INTERNAL), true);
 });

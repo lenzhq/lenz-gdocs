@@ -210,6 +210,7 @@ deps = {
 }
 client.submit({ docId, tabId, text, policy }) -> SubmitResult   // policy = the escalate block; default below
 client.runAgain({ docId, tabId }) -> void          // bumps attempt
+client.resume(docId, tabId) -> bool                 // a fresh window of failed polls; the same review id, no request
 client.poll(docId, tabId) -> PollResult             // one GET; caller schedules the next
 client.record(docId, tabId) -> Record|null
 client.snapshot(reviewId) -> string|null            // the text that review was run on (user cache, 6 h)
@@ -217,12 +218,13 @@ client.edit(reviewBody, claimIndex, editIndex) -> Edit|null   // server-side sou
 describeError(code, headers, body) -> ApiError
 
 SubmitResult = { ok, reviewId|null, state, replayed: bool, nextPollS|null, error: ApiError|null }
-PollResult   = { ok, status|null, body|null, terminal: bool, nextPollS|null, error: ApiError|null }
+PollResult   = { ok, status|null, body|null, terminal: bool, nextPollS|null, error: ApiError|null,
+                 gaveUp: bool }       // failed polls for 5 minutes with no success: poll no more until resume
 ApiError     = { code,            // HTTP status; 0 = no response
                  apiCode|null,    // the body's `code` when it is JSON
                  message, retryable, retryAfterS|null }
 Record       = { reviewId|null, key|null, tabId, textHash, attempt, submittedAt, state, pollFailures,
-                 submitFailures }
+                 pollFailingSince|null, submitFailures }
 Edit         = { claimIndex, editIndex, start, end, text, replacement, position,   // cp, as sent
                  passage: {start, end, text}|null }   // claims[i].positions[position]; null on view=issues
 ```
@@ -243,7 +245,10 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   `review_id` stores it and copies the sent text to `lenz:snap:<reviewId>`.
 - Poll reads `poll_after_seconds` (15 when a running body has none); the first poll waits the POST's
   `Retry-After` (20 without one); every wait ≥ 3 s. No response, a non-JSON 200 or a 5xx backs off
-  5, 10, 20, 40, 60 s; a 429 waits its Retry-After (60). Terminal: `status` `completed` | `failed`,
+  5, 10, 20, 40, 60 s; a 429 waits its Retry-After (60). A streak of such failures that lasts 5
+  minutes (`pollFailingSince`, cleared by any answer) ends with `gaveUp: true` and no `nextPollS`; the
+  record keeps its review id and state `running`. `resume` clears the streak so the next poll is a
+  fresh window. Terminal: `status` `completed` | `failed`,
   and 401/403/404/410. A poll whose record changed during the GET (Run again, a new submit) writes
   nothing and returns `{ok: false, terminal: true, error: null}`: the caller stops that loop. The glue
   holds the user lock around submit, runAgain and poll.
@@ -306,7 +311,7 @@ unplaced: {'<entryId>': reason} }` (all optional; the glue supplies them). Every
 shows comes from here or from `LenzApi.MESSAGES`; the sidebar sets each as a text node.
 
 ```
-Model = { reviewId, status, done, progress|null, headline|null, failure|null,
+Model = { reviewId, status, done, progress|null, headline|null, failure|null, failureLink|null,
           groups: [{ key, title, collapsed, count, entries }],   // non-empty groups only
           coverage: string[], footnote|null, charged|null }
 Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (the body's indexes; stable across polls)
@@ -332,7 +337,13 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
 - Coverage lines: truncated (the API's `input_truncated` or the serializer's), `more_claims`,
   `more_citations`, failed quick checks, failed deep checks, unchecked and failed citation checks,
   `citations_skipped`, findings not in the Doc as it is now, `notRead`, `outcome: incomplete`.
-- A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s).
+- A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s);
+  and `failureLink` (`https://lenz.io/billing`, "Add credits") on a review that failed for credits.
+- A failed review's `failure` is Docs words chosen by `failure.failure_reason` / `failure_class`, never
+  the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not check
+  just now (an outage, or every quick check failed), else "on our side". A failed deep check's row says
+  too few sources, search unavailable, a service unavailable, or stopped on our side, by the same
+  fields; a failed quick check's row says nothing was charged for it.
 - `stages` (running only, else null): `[{key, label, done, total, complete}]`: `reading` ("Finding the
   claims", before the claims are read), `quick` (assessments completed+failed of `claims_selected`),
   `deep` (verifications completed+failed of `planned`, once planned > 0), `citations`
@@ -348,6 +359,7 @@ key in `lenzSaveKey`, reached from Dev tools → Use an API key…, is the one e
 
 ```
 lenzState() / lenzPoll() / lenzStart() / lenzSignOut() / lenzSaveKey(key) -> Reply
+lenzResume() -> Reply                                 // after `stalled`: polls the saved review again
 lenzSignInUrl() -> { url|null, message|null }        // opened by the sidebar in a new window
 lenzShowPicker() -> { openedAt }                      // opens picker.html (modal); server ms
 lenzPickerConfig() -> { token, apiKey, appId, docId } // picker.html: the script's own token, the
@@ -361,7 +373,7 @@ lenzOAuthCallback(e) -> HtmlOutput                    // the usercallback (state
 lenzSelect(reviewId, entryId, occurrence) -> Note
 lenzApply(reviewId, claimIndex, editIndex) -> Note | Reply & { ok: true, message }
 lenzUndo(reviewId, claimIndex, editIndex)  -> Note | Reply & { ok: true, message }
-Reply = { phase: 'signed_out'|'needs_file_access'|'idle'|'running'|'done'|'error', auth: { mode: 'oauth'|'key', signedIn },
+Reply = { phase: 'signed_out'|'needs_file_access'|'idle'|'running'|'stalled'|'done'|'error', auth: { mode: 'oauth'|'key', signedIn },
           model: Model|null, nextPollS|null, error: {code, message, retryable, retryAfterS}|null,
           startedAt|null, notice? }  // notice: "No changes since the last check."   // running only: the record's submittedAt (ms); the sidebar ticks the elapsed time
 Note  = { ok, message|null }
@@ -370,6 +382,10 @@ Note  = { ok, message|null }
 - `reviewId` in Select and Apply is the review the sidebar shows (`Model.reviewId`); the server
   refuses unless it is the active tab's current record, so a list left over from another tab or an
   earlier check never acts on the current one.
+- `stalled`: polls kept failing for 5 minutes, so the sidebar stops polling, says "Lenz is not
+  answering. Your check is kept; choose Resume to look again." and shows Resume (Check this Doc stays
+  off: it reads the Doc and may send a new review). Resume is `lenzResume`: it polls the SAVED review id;
+  it sends no review and starts no check. A reply of this phase is not kept for open.
 - `running` + `error` is a passing problem: polling goes on. A poll or a Check click on a
   `submitting` / `pending_conflict` record replays the cached request with its key WITHOUT reading
   the Doc (submit is called with empty text; LenzApi settles the pending request first), so an
