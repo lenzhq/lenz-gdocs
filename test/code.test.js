@@ -1487,6 +1487,19 @@ test('Check this Doc: an incomplete review whose deep checks all found too few s
   assert.equal(posts(w).length, 1);
 });
 
+test('Check this Doc: a marker an older add-on left on a too-few-sources review is cleared, no charge', () => {
+  const w = started();
+  const body = JSON.parse(JSON.stringify(POLLS[POLLS.length - 1]));
+  Object.assign(body, JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'reviews', 'deep-failed-thin.review.json'), 'utf8')), { review_id: body.review_id });
+  w.state.props.set('lenz:incomplete:' + body.review_id, '1');
+  w.state.polls = [body];
+  assert.equal(w.ctx.lenzPoll().phase, 'done');
+  assert.equal(w.state.props.has('lenz:incomplete:' + body.review_id), false);
+  const r = w.ctx.lenzStart();
+  assert.equal(r.notice, 'No changes since the last check.');
+  assert.equal(posts(w).length, 1);
+});
+
 for (const outcome of ['issues_found', 'clean']) {
   test('Check this Doc: a completed ' + outcome + ' review on unchanged text shows its results, no charge', () => {
     const w = started();
