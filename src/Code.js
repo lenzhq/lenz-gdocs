@@ -637,7 +637,12 @@ function lenzFromPoll_(ctx, rec, poll) {
 function lenzReplyFromBody_(ctx, rec, poll, body, known) {
   var meta = lenzMeta_(ctx, rec);
   var done = body.status === 'completed' || body.status === 'failed';
-  if (body.status === 'completed' && body.outcome === 'incomplete') lenzMarkIncomplete_(ctx, rec.reviewId);
+  if (body.status === 'completed') {
+    if (LenzView.retryHelps(body)) lenzMarkIncomplete_(ctx, rec.reviewId);
+    // A marker an older add-on left on a review no rerun can help (every unfinished check found
+    // too few sources) would still start a new, charged review on unchanged text: clear it.
+    else lenzClearIncomplete_(ctx, rec.reviewId);
+  }
   if (body.status === 'completed' && !(poll && poll.cached)) lenzKeepDoneBody_(rec.reviewId, body);
   var records = lenzApplied_(rec.reviewId);
   var model = LenzView.build(body, {
@@ -1513,8 +1518,9 @@ function lenzMeta_(ctx, rec) {
 
 // { edits: [...], snapshotHash }: the edits applied, each as it was applied,
 // and the hash of the snapshot with all of them made.
-// A completed review whose outcome is `incomplete` (the record does not carry
-// the outcome): the next Check this Doc starts a new review.
+// A completed review whose outcome is `incomplete` and that a rerun can help (the record does not
+// carry the outcome): the next Check this Doc starts a new review. Not one whose only unfinished
+// checks are deep checks that found too few public sources: the same click shows the results.
 function lenzMarkIncomplete_(ctx, reviewId) {
   if (lenzSessionOk_() && lenzIsCurrent_(ctx, reviewId)) lenzUserProps_().setProperty('lenz:incomplete:' + reviewId, '1');
 }
@@ -1556,6 +1562,12 @@ function lenzSessionSeenOk_() {
 function lenzIsCurrent_(ctx, reviewId) {
   var rec = lenzParse_(lenzUserProps_().getProperty(LenzApi.recordKey(ctx.docId, ctx.tabId)));
   return !!(rec && reviewId && rec.reviewId === reviewId);
+}
+
+function lenzClearIncomplete_(ctx, reviewId) {
+  if (lenzSessionOk_() && lenzIsCurrent_(ctx, reviewId) && lenzIncomplete_(reviewId)) {
+    lenzUserProps_().deleteProperty('lenz:incomplete:' + reviewId);
+  }
 }
 
 function lenzIncomplete_(reviewId) {

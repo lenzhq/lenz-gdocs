@@ -1,0 +1,505 @@
+{
+  "review_id": "4881a880",
+  "view": "full",
+  "status": "completed",
+  "outcome": "incomplete",
+  "created_at": "2026-09-30T00:07:15.181873Z",
+  "completed_at": "2026-09-30T00:08:41.703828Z",
+  "language": "en",
+  "policy": {
+    "verdicts": [
+      "False",
+      "Mostly False",
+      "Mixed"
+    ],
+    "confidence": [
+      "low"
+    ],
+    "max_assessments": 20,
+    "max_verifications": 3,
+    "depth": "standard",
+    "suggest_edits": true,
+    "max_citations": 20
+  },
+  "summary": {
+    "claims_selected": 5,
+    "claim_limit": 20,
+    "claim_limit_reached": false,
+    "input_truncated": false,
+    "assessments": {
+      "completed": 5,
+      "failed": 0
+    },
+    "verifications": {
+      "planned": 3,
+      "completed": 1,
+      "failed": 2
+    },
+    "issues": 3,
+    "citations_found": 2,
+    "citations_selected": 2,
+    "citation_limit": 20,
+    "citation_limit_reached": false,
+    "citation_checks": {
+      "checked": 0,
+      "unchecked": 2,
+      "failed": 0
+    },
+    "citation_issues": 0,
+    "citations_skipped": null
+  },
+  "credits": {
+    "charged": 15
+  },
+  "poll_after_seconds": null,
+  "issues": [
+    {
+      "claim_index": 2,
+      "claim": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in central Paris.",
+      "verified_claim": null,
+      "verdict": "False",
+      "confidence": "high",
+      "source": "verification",
+      "verification_id": "bd5fb3ee",
+      "verification_status": "completed",
+      "verification_url": "https://lenz.io/api/v1/verifications/bd5fb3ee",
+      "url": "https://lenz.io/c/eiffel-tower-completion-year-height-paris-bd5fb3ee",
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "key_finding": "The Eiffel Tower was completed in 1889 and stands 330 metres tall.",
+      "rationale": "The Eiffel Tower is in Paris, but the claim gets both its completion year and height substantially wrong. It was completed in 1889, not 1899, and stands about 330 metres tall, not 450 metres. The location is correct, but it does not rescue the claim’s two defining factual assertions.",
+      "suggested_rewrite": "The Eiffel Tower was completed in 1889 and stands about 330 metres tall in central Paris.",
+      "failure": null,
+      "suggested_edits": {
+        "status": "completed",
+        "edits": []
+      }
+    },
+    {
+      "claim_index": 0,
+      "claim": "The Great Wall of China is visible to the naked eye from the Moon, according to NASA.",
+      "verified_claim": null,
+      "verdict": "False",
+      "confidence": "high",
+      "source": "assessment",
+      "verification_id": null,
+      "verification_status": "failed",
+      "verification_url": null,
+      "url": null,
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "key_finding": null,
+      "rationale": "NASA explicitly says the Great Wall is not visible from the Moon, directly contradicting the claim about what NASA says. The European Space Agency likewise notes that even from the much closer International Space Station, seeing it requires a zoomed photograph rather than the naked eye.",
+      "suggested_rewrite": "The Great Wall of China is not visible to the naked eye from the Moon, according to NASA.",
+      "failure": {
+        "failure_reason": "research_insufficient",
+        "failure_class": "insufficient_evidence",
+        "retryable": false,
+        "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
+        "docs_url": "https://lenz.io/docs/errors#insufficient_evidence"
+      },
+      "suggested_edits": null
+    },
+    {
+      "claim_index": 1,
+      "claim": "Buzz Aldrin was the first person to walk on the Moon in July 1969.",
+      "verified_claim": null,
+      "verdict": "False",
+      "confidence": "high",
+      "source": "assessment",
+      "verification_id": null,
+      "verification_status": "failed",
+      "verification_url": null,
+      "url": null,
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "key_finding": null,
+      "rationale": "Buzz Aldrin walked on the Moon during Apollo 11 in July 1969, but he was the second person to do so. Neil Armstrong stepped onto the lunar surface first, on July 20, 1969, so the claim’s central assertion is false.",
+      "suggested_rewrite": "Neil Armstrong was the first person to walk on the Moon in July 1969.",
+      "failure": {
+        "failure_reason": "research_empty",
+        "failure_class": "upstream_unavailable",
+        "retryable": true,
+        "hint": "Search was unavailable. Try again in a minute.",
+        "docs_url": "https://lenz.io/docs/errors#upstream_unavailable"
+      },
+      "suggested_edits": null
+    }
+  ],
+  "failures": [],
+  "citation_issues": [],
+  "citation_failures": [],
+  "claims": [
+    {
+      "index": 0,
+      "claim": "The Great Wall of China is visible to the naked eye from the Moon, according to NASA.",
+      "positions": [
+        {
+          "start": 242,
+          "end": 394,
+          "text": "The Great Wall of China is clearly visible to the naked eye from the Moon, according to [NASA](https://www.nasa.gov/image-article/great-wall-of-china/)."
+        }
+      ],
+      "result": {
+        "verdict": "False",
+        "confidence": "high",
+        "source": "assessment",
+        "is_issue": true
+      },
+      "assessment": {
+        "status": "completed",
+        "verdict": "False",
+        "confidence": "high",
+        "rationale": "NASA explicitly says the Great Wall is not visible from the Moon, directly contradicting the claim about what NASA says. The European Space Agency likewise notes that even from the much closer International Space Station, seeing it requires a zoomed photograph rather than the naked eye.",
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": "The Great Wall of China is not visible to the naked eye from the Moon, according to NASA.",
+        "failure": null
+      },
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "verification": {
+        "status": "failed",
+        "content_status": "unavailable",
+        "task_id": "f00a1",
+        "verification_id": null,
+        "claim": "The Great Wall of China is visible to the naked eye from the Moon, according to NASA.",
+        "language": "en",
+        "visibility": "private",
+        "depth": "standard",
+        "verdict": null,
+        "confidence": null,
+        "lenz_score": null,
+        "key_finding": null,
+        "executive_summary": null,
+        "suggested_rewrite": null,
+        "warnings": [],
+        "verification_url": null,
+        "url": null,
+        "failure": {
+          "failure_reason": "research_insufficient",
+          "failure_class": "insufficient_evidence",
+          "retryable": false,
+          "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
+          "docs_url": "https://lenz.io/docs/errors#insufficient_evidence"
+        }
+      },
+      "suggested_edits": null
+    },
+    {
+      "index": 1,
+      "claim": "Buzz Aldrin was the first person to walk on the Moon in July 1969.",
+      "positions": [
+        {
+          "start": 522,
+          "end": 589,
+          "text": "The first person to walk on the Moon was Buzz Aldrin, in July 1969."
+        }
+      ],
+      "result": {
+        "verdict": "False",
+        "confidence": "high",
+        "source": "assessment",
+        "is_issue": true
+      },
+      "assessment": {
+        "status": "completed",
+        "verdict": "False",
+        "confidence": "high",
+        "rationale": "Buzz Aldrin walked on the Moon during Apollo 11 in July 1969, but he was the second person to do so. Neil Armstrong stepped onto the lunar surface first, on July 20, 1969, so the claim’s central assertion is false.",
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": "Neil Armstrong was the first person to walk on the Moon in July 1969.",
+        "failure": null
+      },
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "verification": {
+        "status": "failed",
+        "content_status": "unavailable",
+        "task_id": "f01a1",
+        "verification_id": null,
+        "claim": "Buzz Aldrin was the first person to walk on the Moon in July 1969.",
+        "language": "en",
+        "visibility": "private",
+        "depth": "standard",
+        "verdict": null,
+        "confidence": null,
+        "lenz_score": null,
+        "key_finding": null,
+        "executive_summary": null,
+        "suggested_rewrite": null,
+        "warnings": [],
+        "verification_url": null,
+        "url": null,
+        "failure": {
+          "failure_reason": "research_empty",
+          "failure_class": "upstream_unavailable",
+          "retryable": true,
+          "hint": "Search was unavailable. Try again in a minute.",
+          "docs_url": "https://lenz.io/docs/errors#upstream_unavailable"
+        }
+      },
+      "suggested_edits": null
+    },
+    {
+      "index": 2,
+      "claim": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in central Paris.",
+      "positions": [
+        {
+          "start": 34,
+          "end": 129,
+          "text": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in the centre of Paris."
+        }
+      ],
+      "result": {
+        "verdict": "False",
+        "confidence": "high",
+        "source": "verification",
+        "is_issue": true
+      },
+      "assessment": {
+        "status": "completed",
+        "verdict": "False",
+        "confidence": "high",
+        "rationale": "The Eiffel Tower is in Paris, but the claim gets both its completion year and height substantially wrong. It was completed in 1889, not 1899, and stands about 330 metres tall, not 450 metres. The location is correct, but it does not rescue the claim’s two defining factual assertions.",
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": "The Eiffel Tower was completed in 1889 and stands about 330 metres tall in central Paris.",
+        "failure": null
+      },
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "verification": {
+        "status": "completed",
+        "content_status": "available",
+        "task_id": "a07ea765c8194f3f802da5602e4b1163",
+        "verification_id": "bd5fb3ee",
+        "claim": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in central Paris.",
+        "language": "en",
+        "visibility": "private",
+        "depth": "standard",
+        "domain": "History",
+        "entities": [
+          {
+            "name": "Eiffel Tower",
+            "qid": "Q243"
+          },
+          {
+            "name": "Paris",
+            "qid": null
+          }
+        ],
+        "verdict": "False",
+        "confidence": "high",
+        "lenz_score": 1,
+        "key_finding": "The Eiffel Tower was completed in 1889 and stands 330 metres tall.",
+        "executive_summary": "The claim gives the wrong completion year and substantially overstates the Eiffel Tower’s height. It was completed in 1889 and stands 330 metres tall including its antenna, according to official tower records and structural references. Its location in central Paris is broadly accurate, but the two numerical assertions are not.",
+        "suggested_rewrite": "The Eiffel Tower was completed in 1889 and stands about 330 metres tall in central Paris.",
+        "warnings": [
+          "The 330-metre figure includes the antenna; measurements excluding it are lower.",
+          "Several official sources come from the same operator and should not be counted as independent confirmations.",
+          "The central Paris location is broadly accurate, despite the incorrect date and height."
+        ],
+        "created_at": "2026-09-30T00:08:31.410867+00:00",
+        "modified_at": null,
+        "verification_url": "https://lenz.io/api/v1/verifications/bd5fb3ee",
+        "url": "https://lenz.io/c/eiffel-tower-completion-year-height-paris-bd5fb3ee",
+        "failure": null
+      },
+      "suggested_edits": {
+        "status": "completed",
+        "edits": []
+      }
+    },
+    {
+      "index": 3,
+      "claim": "Water boils at 100 degrees Celsius at sea level, according to Britannica.",
+      "positions": [
+        {
+          "start": 396,
+          "end": 520,
+          "text": "Water boils at 100 degrees Celsius at sea level, as [Britannica explains](https://www.britannica.com/science/boiling-point)."
+        }
+      ],
+      "result": {
+        "verdict": "True",
+        "confidence": "medium",
+        "source": "assessment",
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "completed",
+        "verdict": "True",
+        "confidence": "medium",
+        "rationale": "Britannica explicitly states that water boils at 100 °C at sea level, with the usual qualification that boiling temperature varies with atmospheric pressure. This is consistent with the normal boiling point of pure water at standard sea-level pressure; the claim is accurate as worded, though “sea level” is a practical shorthand for that pressure.",
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": {
+        "matched_rules": [],
+        "disposition": "not_selected"
+      },
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 4,
+      "claim": "Mount Everest is the tallest mountain above sea level.",
+      "positions": [
+        {
+          "start": 131,
+          "end": 240,
+          "text": "Mount Everest is the tallest mountain above sea level. Mount Everest is the tallest mountain above sea level."
+        }
+      ],
+      "result": {
+        "verdict": "True",
+        "confidence": "high",
+        "source": "assessment",
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "completed",
+        "verdict": "True",
+        "confidence": "high",
+        "rationale": "Mount Everest has the highest summit elevation of any mountain, at approximately 8,848.86 metres above sea level. Mauna Kea is taller if measured from its underwater base to its summit, but that does not contradict the claim’s explicit above-sea-level measure.",
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": null
+      },
+      "escalation": {
+        "matched_rules": [],
+        "disposition": "not_selected"
+      },
+      "verification": null,
+      "suggested_edits": null
+    }
+  ],
+  "citations": [
+    {
+      "index": 0,
+      "reference": "NASA",
+      "cited_url": "https://www.nasa.gov/image-article/great-wall-of-china/",
+      "doi": null,
+      "statement": "The Great Wall of China is clearly visible to the naked eye from the Moon, according to NASA.",
+      "quotes": [],
+      "position": {
+        "start": 242,
+        "end": 394,
+        "text": null
+      },
+      "result": {
+        "finding": "unchecked",
+        "source": null,
+        "is_issue": false
+      },
+      "check": {
+        "status": "completed",
+        "page_read": "none",
+        "page_title": null,
+        "page_published_date": null,
+        "page_language": null,
+        "source_url": "https://www.nasa.gov/image-article/great-wall-of-china/",
+        "source_version": null,
+        "support": null,
+        "snippet": null,
+        "rationale": null,
+        "quote": null,
+        "doi_registered": null,
+        "metadata": null,
+        "metadata_differences": [],
+        "registered": null,
+        "unchecked_reason": "no_text",
+        "hint": "The link gave no text that could be read. Open it and check the passage by hand.",
+        "failure": null,
+        "missing_quote": null
+      }
+    },
+    {
+      "index": 1,
+      "reference": "Britannica explains",
+      "cited_url": "https://www.britannica.com/science/boiling-point",
+      "doi": null,
+      "statement": "Water boils at 100 degrees Celsius at sea level, as Britannica explains.",
+      "quotes": [],
+      "position": {
+        "start": 396,
+        "end": 520,
+        "text": null
+      },
+      "result": {
+        "finding": "unchecked",
+        "source": null,
+        "is_issue": false
+      },
+      "check": {
+        "status": "completed",
+        "page_read": "partial",
+        "page_title": "Boiling point | Definition, Examples, Temperature, & Facts | Britannica",
+        "page_published_date": null,
+        "page_language": "en",
+        "source_url": "https://www.britannica.com/science/boiling-point",
+        "source_version": null,
+        "support": "unchecked",
+        "snippet": null,
+        "rationale": null,
+        "quote": null,
+        "doi_registered": null,
+        "metadata": null,
+        "metadata_differences": [],
+        "registered": null,
+        "unchecked_reason": "inconclusive",
+        "hint": "Lenz couldn't determine whether this source supports the statement.",
+        "failure": null,
+        "missing_quote": null
+      }
+    }
+  ],
+  "failure": null,
+  "more_claims": [],
+  "more_claim_locations": [],
+  "more_citations": []
+}
