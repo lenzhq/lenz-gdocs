@@ -169,3 +169,33 @@ test('a failure without a link leaves the link area empty, and a later reply cle
   assert.equal(s.ids.error.textContent, 'Lenz found no factual claim to check in this tab.');
   assert.equal(s.ids['failure-link'].children.length, 0);
 });
+
+test('Check only the selected text: on and off with Check this Doc, and a note keeps the shown check', () => {
+  const doneReply = reply('done', { model: LenzView.build(NO_CLAIM) });
+  const note = { ok: false, message: 'Select the text to check first, then choose Check only the selected text.' };
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: doneReply, lenzLogOpen: null, lenzStartSelection: note });
+  assert.match(HTML, />Check only the selected text<\/button>/);
+  assert.equal(s.ids['check-selection'].disabled, false);
+  s.ids['check-selection'].click();
+  assert.equal(s.names().filter((n) => n === 'lenzStartSelection').length, 1);
+  assert.equal(s.ids.note.textContent, note.message);
+  assert.equal(s.ids.headline.textContent, doneReply.model.headline);
+  assert.equal(s.ids['check-selection'].disabled, false);
+  assert.equal(s.ids.check.disabled, false);
+});
+
+test('a selection check running says so, and both checks are off', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzLogOpen: null, lenzOpenState: reply('idle'),
+    lenzStartSelection: reply('running', { nextPollS: 15, selection: true, startedAt: Date.now() }) });
+  s.ids['check-selection'].click();
+  assert.match(s.ids.status.textContent, /checks the text you selected/);
+  assert.equal(s.ids.check.disabled, true);
+  assert.equal(s.ids['check-selection'].disabled, true);
+});
+
+test('a finished selection check shows what it covered', () => {
+  const model = LenzView.build(NO_CLAIM, { scope: { paragraphs: 2 } });
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model }), lenzLogOpen: null });
+  assert.equal(s.ids.scope.textContent, model.scope);
+  assert.equal(s.ids.scope.hidden, false);
+});

@@ -551,6 +551,14 @@ var LenzView = (function () {
     return out;
   }
 
+  // A selection check: what it covered. null for Check this Doc.
+  function scopeLine(scope) {
+    if (!scope) return null;
+    var n = typeof scope.paragraphs === 'number' && scope.paragraphs > 0 ? ' (' + plural(scope.paragraphs, 'paragraph', 'paragraphs') + ')' : '';
+    var what = scope.gap === true ? 'the paragraphs from the first to the last you selected' : 'the text you selected';
+    return 'This check covered ' + what + n + '. Check this Doc checks the whole tab.';
+  }
+
   function headline(body, groups, coverage) {
     if (body.status === 'failed') return 'The check did not finish.';
     if (body.status !== 'completed') return null;
@@ -613,6 +621,7 @@ var LenzView = (function () {
       notRead: opts.notRead,
       truncated: opts.truncated,
     };
+    var scope = isObj(opts.scope) ? opts.scope : null;
     body = isObj(body) ? body : {};
     o.done = body.status === 'completed' || body.status === 'failed';
     o.suggestEdits = isObj(body.policy) && body.policy.suggest_edits === true;
@@ -658,6 +667,7 @@ var LenzView = (function () {
         return g.count > 0;
       }),
       coverage: coverage,
+      scope: scopeLine(scope),
       footnote: quick ? 'A quick verdict is a first read. A deep check shows the sources and can change it.' : null,
       charged: charged === null ? null : 'Charged ' + plural(charged, 'credit', 'credits') + '.',
     };

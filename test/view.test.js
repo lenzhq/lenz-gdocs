@@ -795,3 +795,16 @@ test('failed deep check on our side: the row and the run-again advice', () => {
   assert.ok(m.coverage.includes('1 deep check did not finish; that claim shows its quick verdict.'));
   assert.equal(LenzView.retryHelps(DEEP_INTERNAL), true);
 });
+
+test('a selection check says what it covered; Check this Doc says nothing', () => {
+  assert.equal(LenzView.build(REVIEW, { scope: { paragraphs: 3, gap: false } }).scope,
+    'This check covered the text you selected (3 paragraphs). Check this Doc checks the whole tab.');
+  assert.equal(LenzView.build(REVIEW, { scope: { paragraphs: 1 } }).scope,
+    'This check covered the text you selected (1 paragraph). Check this Doc checks the whole tab.');
+  assert.equal(LenzView.build(REVIEW, { scope: { paragraphs: 5, gap: true } }).scope,
+    'This check covered the paragraphs from the first to the last you selected (5 paragraphs). Check this Doc checks the whole tab.');
+  assert.equal(LenzView.build(REVIEW, { scope: {} }).scope, 'This check covered the text you selected. Check this Doc checks the whole tab.');
+  assert.equal(LenzView.build(REVIEW).scope, null);
+  // The line is not a coverage gap: a clean selection still reads "No issues found." when it is.
+  assert.deepEqual(LenzView.build(REVIEW, { scope: { paragraphs: 3 } }).coverage, LenzView.build(REVIEW).coverage);
+});

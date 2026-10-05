@@ -48,6 +48,46 @@ var LenzApi = (function () {
   function recordKey(docId, tabId) { return 'lenz:rec:' + docId + ':' + tabId; }
   function bodyKey(key) { return 'lenz:body:' + key; }
   function snapshotKey(reviewId) { return 'lenz:snap:' + reviewId; }
+  // A selection check's whole-tab text, kept from before the POST until accept names the review.
+  function scopeSnapshotKey(key) { return 'lenz:scopesnap:' + key; }
+
+  // A selection check sends a slice of the tab that starts at `offset`; Lenz answers in the
+  // slice's coordinates. Every draft position in the body moves by `offset` once, as it arrives,
+  // so the rest of the add-on works in the whole tab's coordinates. The fields, as /review has
+  // them: only objects with integer start and end move.
+  var POSITION_LISTS = [
+    ['claims', 'positions'], ['more_claim_locations', 'positions']
+  ];
+  var POSITION_ONES = ['citations', 'citation_issues', 'citation_failures', 'more_citations'];
+  var EDIT_ROWS = ['claims', 'issues'];
+
+  function shiftSpan(span, offset) {
+    if (span && typeof span === 'object' && isInt(span.start) && isInt(span.end)) {
+      span.start += offset;
+      span.end += offset;
+    }
+  }
+
+  function rowsOf(body, field) { return Array.isArray(body[field]) ? body[field] : []; }
+
+  function shiftBody(body, offset) {
+    if (!body || typeof body !== 'object' || !isInt(offset) || offset === 0) return body;
+    POSITION_LISTS.forEach(function (f) {
+      rowsOf(body, f[0]).forEach(function (row) {
+        if (row && Array.isArray(row[f[1]])) row[f[1]].forEach(function (sp) { shiftSpan(sp, offset); });
+      });
+    });
+    POSITION_ONES.forEach(function (f) {
+      rowsOf(body, f).forEach(function (row) { if (row) shiftSpan(row.position, offset); });
+    });
+    EDIT_ROWS.forEach(function (f) {
+      rowsOf(body, f).forEach(function (row) {
+        var se = row && row.suggested_edits;
+        if (se && Array.isArray(se.edits)) se.edits.forEach(function (e) { shiftSpan(e, offset); });
+      });
+    });
+    return body;
+  }
 
   function stableStringify(v) {
     if (v === null || typeof v !== 'object') return JSON.stringify(v);
@@ -202,8 +242,15 @@ var LenzApi = (function () {
       rec.pollFailingSince = null;
       rec.submitFailures = 0;
       writeRecord(docId, rec);
-      var sent = parseJson(deps.cache.get(bodyKey(rec.key)));
-      if (sent && typeof sent.text === 'string') deps.cache.put(snapshotKey(reviewId), sent.text, CACHE_TTL_S);
+      if (isInt(rec.offset)) {
+        // A selection check: the whole tab as it was, never the slice (whose offsets are not the
+        // body's once shifted). Lost meanwhile: no snapshot, placement then needs the same text.
+        var whole = deps.cache.get(scopeSnapshotKey(rec.key));
+        if (typeof whole === 'string') deps.cache.put(snapshotKey(reviewId), whole, CACHE_TTL_S);
+      } else {
+        var sent = parseJson(deps.cache.get(bodyKey(rec.key)));
+        if (sent && typeof sent.text === 'string') deps.cache.put(snapshotKey(reviewId), sent.text, CACHE_TTL_S);
+      }
       return {
         ok: true, reviewId: reviewId, state: 'running', replayed: replayed,
         nextPollS: Math.max(MIN_POLL_S, firstPollS), error: null
@@ -279,7 +326,15 @@ var LenzApi = (function () {
       var policyJson = stableStringify(policy);
       var textHash = deps.sha256(args.text);
       var attempt = rec && isInt(rec.attempt) ? rec.attempt : 0;
-      var key = deps.sha256([docId, tabId, textHash, policyJson, String(attempt)].join('|'));
+      // A selection: `snapshot` (the whole tab's text) and `offset` (where the slice starts in it).
+      var scoped = typeof args.snapshot === 'string' && isInt(args.offset) && args.offset >= 0;
+      var snapshotHash = scoped ? deps.sha256(args.snapshot) : null;
+      var parts = [docId, tabId, textHash, policyJson, String(attempt)];
+      // The same words at another place, or in a tab that changed, are another review: a review id
+      // whose done body, snapshot and applied edits were made at one offset is never reused at
+      // another. A whole-tab key is as it always was.
+      if (scoped) parts.push('sel:' + args.offset + ':' + snapshotHash);
+      var key = deps.sha256(parts.join('|'));
 
       if (rec && rec.key === key && rec.reviewId) {
         var terminal = rec.state === 'completed' || rec.state === 'failed';
@@ -297,6 +352,12 @@ var LenzApi = (function () {
         reviewId: null, key: key, tabId: tabId, textHash: textHash, attempt: attempt,
         submittedAt: deps.now(), state: 'submitting', pollFailures: 0, submitFailures: 0
       };
+      if (scoped) {
+        next.offset = args.offset;
+        next.snapshotHash = snapshotHash;
+        next.scope = args.scope && typeof args.scope === 'object' ? args.scope : {};
+        deps.cache.put(scopeSnapshotKey(key), args.snapshot, CACHE_TTL_S);
+      }
       // Both written before the POST, so a lost reply can be replayed byte for byte (R1, O4).
       deps.cache.put(bodyKey(key), payload, CACHE_TTL_S);
       writeRecord(docId, next);
@@ -312,6 +373,9 @@ var LenzApi = (function () {
       rec.reviewId = null;
       rec.key = null;
       rec.state = 'idle';
+      delete rec.offset;
+      delete rec.snapshotHash;
+      delete rec.scope;
       rec.pollFailures = 0;
       rec.pollFailingSince = null;
       writeRecord(args.docId, rec);
@@ -368,6 +432,7 @@ var LenzApi = (function () {
       if (res.code === 200) {
         var body = parseJson(res.text);
         if (!body || typeof body.status !== 'string') return backoff(docId, rec, describeError(0, {}, ''));
+        if (isInt(rec.offset)) shiftBody(body, rec.offset);
         var terminal = body.status === 'completed' || body.status === 'failed';
         rec.state = terminal ? body.status : 'running';
         rec.pollFailures = 0;
@@ -446,7 +511,9 @@ var LenzApi = (function () {
     MESSAGES: MESSAGES,
     recordKey: recordKey,
     bodyKey: bodyKey,
-    snapshotKey: snapshotKey
+    snapshotKey: snapshotKey,
+    scopeSnapshotKey: scopeSnapshotKey,
+    shiftBody: shiftBody
   };
 })();
 if (typeof module !== 'undefined') { module.exports = LenzApi; }

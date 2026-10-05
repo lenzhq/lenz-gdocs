@@ -49,7 +49,7 @@ var LENZ_APPLIED_MESSAGE = 'Applied. Undo it here, or restore an earlier version
 // sha256(src/serialize.js), pinned by test/code.test.js: a serializer change
 // changes every key, so a deploy never reuses a map an older serializer made.
 var LENZ_READ_CACHE_V = 1;
-var LENZ_SERIALIZER_SHA = 'e421c4d029e1816d';
+var LENZ_SERIALIZER_SHA = '874d6d11f74eb8fd';
 var LENZ_READ_TTL_S = 21600;
 var LENZ_READ_MAX_CHARS = 3000000;
 // A replay refused for credits continues by itself once there are some.
@@ -230,6 +230,16 @@ function lenzStart() {
   return lenzSubmit_();
 }
 
+/**
+ * Check only the selected text: the whole paragraphs the selection in the active tab's body touches,
+ * as one review. Nothing selected (or only outside the body): a note, nothing sent. A request whose
+ * answer never arrived is replayed first, whatever is selected, as Check this Doc does.
+ */
+function lenzStartSelection() {
+  var ctx = lenzContext_();
+  return lenzScoped_(function () { return lenzSubmitScoped_(ctx, lenzSubmitSelectionLocked_); });
+}
+
 /** One GET of the review; the sidebar schedules the next. */
 function lenzPoll() {
   return lenzScoped_(function () {
@@ -287,6 +297,8 @@ function lenzWithStart_(ctx, client, reply) {
   if (reply && reply.phase === 'running') {
     var rec = client.record(ctx.docId, ctx.tabId);
     reply.startedAt = rec && typeof rec.submittedAt === 'number' ? rec.submittedAt : null;
+    // A selection check says so while it runs.
+    reply.selection = lenzIsSelection_(rec);
   }
   return reply;
 }
@@ -322,7 +334,7 @@ function lenzSelectNow_(reviewId, entryId, occurrence) {
   // Twice at most: a collaborator typing between the two reads fails the check once.
   var selected = false;
   for (var attempt = 0; attempt < 2 && !selected; attempt++) {
-    var read = lenzRead_(ctx);
+    var read = lenzReadFor_(ctx, fresh.record);
     var placed = lenzLocate_(fresh.client, fresh.record, read, target);
     if (!placed || placed.status !== 'placed' || !placed.ranges || !placed.ranges.length) {
       return lenzNote_('The words changed since the check, so they cannot be selected.');
@@ -553,7 +565,9 @@ function lenzSubmitIn_(ctx) {
   return lenzScoped_(function () { return lenzSubmitScoped_(ctx); });
 }
 
-function lenzSubmitScoped_(ctx) {
+// `locked`: what runs under the lock (Check this Doc's lenzSubmitLocked_ by default).
+function lenzSubmitScoped_(ctx, locked) {
+  locked = locked || lenzSubmitLocked_;
   if (!lenzSignedIn_()) return lenzSignedOut_(null);
   var client = null;
   var out;
@@ -564,7 +578,7 @@ function lenzSubmitScoped_(ctx) {
         // check above and this lock leaves no token and no dev key, and nothing may be written.
         if (!lenzSignedIn_()) return lenzSignedOut_(null);
         client = lenzClient_();
-        return lenzSubmitLocked_(ctx, client);
+        return locked(ctx, client);
       });
     });
   } finally {
@@ -574,7 +588,8 @@ function lenzSubmitScoped_(ctx) {
   if (out === null) {
     return lenzReply_('error', { error: { message: 'A check is already starting. Try again in a moment.', retryable: true } });
   }
-  if (!client) return out;
+  // A note (nothing selected, …): nothing was sent and the shown check stays.
+  if (!client || !out.phase) return out;
   return lenzRemember_(ctx, lenzWithStart_(ctx, client, out));
 }
 
@@ -598,6 +613,86 @@ function lenzSubmitLocked_(ctx, client) {
   if (rec && (LENZ_START_OVER[rec.state] || incomplete)) client.runAgain({ docId: ctx.docId, tabId: ctx.tabId });
   lenzSaveMeta_(ctx, read.live);
   return lenzSubmitted_(ctx, client, client.submit({ docId: ctx.docId, tabId: ctx.tabId, text: read.live.text, policy: LENZ_POLICY }));
+}
+
+function lenzSubmitSelectionLocked_(ctx, client) {
+  var rec = client.record(ctx.docId, ctx.tabId);
+  if (rec && !rec.reviewId && (rec.state === 'submitting' || rec.state === 'pending_conflict')) {
+    return lenzReplayLocked_(ctx, client);
+  }
+  var incomplete = rec && rec.state === 'completed' && rec.reviewId && lenzIncomplete_(rec.reviewId);
+  var pick = lenzPickSelection_(ctx);
+  if (pick.message) return lenzNote_(pick.message);
+  if (rec && (LENZ_START_OVER[rec.state] || incomplete)) client.runAgain({ docId: ctx.docId, tabId: ctx.tabId });
+  lenzSaveMeta_(ctx, { textHash: lenzSha256_(pick.text), notRead: null, truncated: false });
+  return lenzSubmitted_(ctx, client, client.submit({
+    docId: ctx.docId, tabId: ctx.tabId, text: pick.text, snapshot: pick.snapshot, offset: pick.offset,
+    scope: pick.scope, policy: LENZ_POLICY,
+  }));
+}
+
+var LENZ_SELECT_FIRST = 'Select the text to check first, then choose Check only the selected text.';
+var LENZ_SELECT_BODY = 'Select text in the body of this tab. Headers, footers and footnotes are not checked.';
+var LENZ_SELECT_EMPTY = 'The selected text has nothing Lenz can check.';
+var LENZ_SELECT_LONG = 'The selection is longer than Lenz reads in one check (50,000 characters). Select less.';
+var LENZ_SELECT_MOVING = 'The Doc is changing. Try again in a moment.';
+
+/**
+ * The selection as a review: { text, snapshot, offset, scope } or { message }. `text` is the whole
+ * paragraphs from the first to the last the selection touches, as the tab's text has them (a link's
+ * [..](..) whole; the blank line between paragraphs kept, none after the last); `snapshot` is the
+ * whole tab's text, uncapped; `offset` is where `text` starts in it (code points). The DocumentApp
+ * selection and the REST read are two reads: the selected paragraphs must read the same in both,
+ * else the mapping is built again from a new read, once.
+ */
+function lenzPickSelection_(ctx) {
+  for (var attempt = 0; attempt < 2; attempt++) {
+    var read = lenzRead_(ctx, { uncapped: true });
+    var sel = lenzSelectionParas_(ctx);
+    if (sel.reason === 'none') return { message: LENZ_SELECT_FIRST };
+    if (sel.reason === 'outside_body') return { message: LENZ_SELECT_BODY };
+    if (!lenzSameParas_(sel, read.paras)) continue;
+    return lenzSliceParas_(read.live, sel);
+  }
+  return { message: LENZ_SELECT_MOVING };
+}
+
+// The selected paragraphs' text in DocumentApp is what the REST read has for them.
+function lenzSameParas_(sel, restParas) {
+  for (var i = 0; i < sel.ordinals.length; i++) {
+    var k = sel.ordinals[i];
+    if (!restParas[k] || lenzAppShown_(sel.paragraphs[i]).shown !== restParas[k].text) return false;
+  }
+  return true;
+}
+
+/** Paragraphs first..last of a Serialized (uncapped) as the review text and its offset. */
+function lenzSliceParas_(live, sel) {
+  var cp = LenzSerialize.cpSlice;
+  var s = null;
+  var e = null;
+  var paras = {};
+  for (var i = 0; i < live.pieces.length; i++) {
+    var p = live.pieces[i];
+    if (p.para < sel.first || p.para > sel.last) continue;
+    // The blank line after a paragraph carries that paragraph's ordinal: it is between paragraphs,
+    // never a paragraph's own text.
+    if (p.kind === 'synthetic' && p.ds === null && cp(live.text, p.rs, p.re) === '\n\n') continue;
+    if (s === null) s = p.rs;
+    e = p.re;
+    paras[p.para] = true;
+  }
+  if (s === null) return { message: LENZ_SELECT_EMPTY };
+  var text = cp(live.text, s, e);
+  if (!/\S/.test(text)) return { message: LENZ_SELECT_EMPTY };
+  if (LenzSerialize.cpLength(text) > LenzSerialize.CAP) return { message: LENZ_SELECT_LONG };
+  var n = Object.keys(paras).length;
+  // Paragraphs with text inside the range that the selection did not touch (a table column):
+  // the sidebar says the check ran from the first to the last.
+  var touched = {};
+  sel.ordinals.forEach(function (k) { touched[k] = true; });
+  var gap = Object.keys(paras).some(function (k) { return !touched[k]; });
+  return { text: text, snapshot: live.text, offset: s, scope: { paragraphs: n, gap: gap } };
 }
 
 // A request whose answer never arrived: LenzApi replays its cached body with
@@ -666,6 +761,7 @@ function lenzReplyFromBody_(ctx, rec, poll, body, known) {
   var model = LenzView.build(body, {
     notRead: meta ? meta.notRead : null,
     truncated: meta ? meta.truncated : false,
+    scope: lenzIsSelection_(rec) ? (rec.scope || {}) : null,
     appliedEdits: records,
     unplaced: done ? lenzClockMark_('place', lenzPlaceAll_(ctx, rec, body, known)) : {},
   });
@@ -685,7 +781,7 @@ function lenzPlaceAll_(ctx, rec, body, known) {
   var out = {};
   try {
     var client = lenzClient_();
-    var read = known || lenzRead_(ctx);
+    var read = known || lenzReadFor_(ctx, rec);
     var targets = lenzPlaceTargets_(body);
     var prep = lenzPrepared_(client, rec);
     if (lenzTrialFirst_(ctx, rec.reviewId)) {
@@ -796,8 +892,9 @@ function lenzSnapshotNow_(client, rec, applied) {
 
 // The hash is kept with the applied edits, so an unchanged Doc still places
 // after the snapshot left the cache (6 h).
+// A selection check's snapshot is the whole tab, not the text sent: its own hash.
 function lenzSnapshotHash_(rec, state) {
-  return state.edits.length ? state.snapshotHash : rec.textHash;
+  return state.edits.length ? state.snapshotHash : (rec.snapshotHash || rec.textHash);
 }
 
 // ── suggested edits known by their content ───────────────────────────
@@ -904,7 +1001,7 @@ function lenzUndoLocked_(ctx, reviewId, ci, ei, fp) {
   if (!mine.replacement.length) return refuse('empty', 'This edit removed words; put them back by hand.');
   var target = { kind: 'edit', start: here.start, end: here.end, text: mine.replacement, replacement: mine.text, passage: here.passage };
   for (var attempt = 0; attempt < 2; attempt++) {
-    var read = lenzRead_(ctx);
+    var read = lenzReadFor_(ctx, fresh.record);
     clock.read(read);
     var placed = lenzLocateRebased_(fresh.client, fresh.record, state, read, target);
     if (!placed || placed.status !== 'placed') {
@@ -1090,7 +1187,7 @@ function lenzApplyLocked_(ctx, reviewId, ci, ei, fp) {
     return refuse('state_full', 'Lenz cannot keep track of more applied edits in this check. Make this one by hand.');
   }
   for (var attempt = 0; attempt < 2; attempt++) {
-    var read = lenzRead_(ctx);
+    var read = lenzReadFor_(ctx, fresh.record);
     clock.read(read);
     var placed = lenzLocate_(fresh.client, fresh.record, read, target);
     if (!placed || placed.status !== 'placed') {
@@ -1197,7 +1294,10 @@ function lenzDocUrl_(docId) {
  * write to words it no longer describes. `paras` is the REST paragraph index
  * Select aligns with DocumentApp.
  */
-function lenzRead_(ctx) {
+// `opts.uncapped`: the whole tab, never cut at 50,000 characters (a selection check: its slice and
+// its findings may lie past the cap). Its own cache entries; a capped read never sees them.
+function lenzRead_(ctx, opts) {
+  var uncapped = !!(opts && opts.uncapped);
   var t0 = Date.now();
   var head = lenzDocsCall_(function () {
     return Docs.Documents.get(ctx.docId, { fields: 'revisionId', suggestionsViewMode: 'SUGGESTIONS_INLINE' });
@@ -1206,30 +1306,40 @@ function lenzRead_(ctx) {
   var rev = head && head.revisionId ? head.revisionId : null;
   var cache = lenzCache_();
   if (rev) {
-    var hit = lenzParse_(lenzCacheGet_(lenzReadKey_(ctx, rev)));
+    var hit = lenzParse_(lenzCacheGet_(lenzReadKey_(ctx, rev, uncapped)));
     if (hit && hit.v === LENZ_READ_CACHE_V && hit.live && hit.live.revisionId === rev && Array.isArray(hit.paras)) {
       // Numbers only; never text.
       console.log('lenz_read mode=cached ms=' + (Date.now() - t0) + ' rev_ms=' + revMs + ' pieces=' + hit.live.pieces.length);
-      return { live: hit.live, paras: hit.paras, mode: 'cached', msRev: revMs, ms: Date.now() - t0 };
+      return { live: hit.live, paras: hit.paras, mode: 'cached', msRev: revMs, ms: Date.now() - t0, uncapped: uncapped };
     }
   }
   var doc = lenzDocsCall_(function () {
     return Docs.Documents.get(ctx.docId, { includeTabsContent: true, suggestionsViewMode: 'SUGGESTIONS_INLINE' });
   });
-  var live = LenzSerialize.serialize(doc, ctx.tabId);
+  var live = LenzSerialize.serialize(doc, ctx.tabId, uncapped ? { cap: Infinity } : undefined);
   live.textHash = lenzSha256_(live.text);
   var tab = lenzFindTab_(doc.tabs, ctx.tabId);
   var paras = lenzRestParagraphs_(tab && tab.documentTab && tab.documentTab.body ? tab.documentTab.body.content : []);
   // Keyed by the revision the full read returned (the Doc may have moved on since the head).
-  lenzReadStore_(ctx, live, paras);
+  lenzReadStore_(ctx, live, paras, uncapped);
   console.log('lenz_read mode=full ms=' + (Date.now() - t0) + ' rev_ms=' + revMs + ' pieces=' + live.pieces.length);
-  return { live: live, paras: paras, mode: 'full', msRev: revMs, ms: Date.now() - t0 };
+  return { live: live, paras: paras, mode: 'full', msRev: revMs, ms: Date.now() - t0, uncapped: uncapped };
 }
 
-function lenzReadStore_(ctx, live, paras) {
+// The read a review's findings are placed on: the whole tab for a selection check (its findings may
+// lie past the cap), else the tab as Check this Doc reads it.
+function lenzReadFor_(ctx, rec) {
+  return lenzRead_(ctx, { uncapped: lenzIsSelection_(rec) });
+}
+
+function lenzIsSelection_(rec) {
+  return !!rec && typeof rec.offset === 'number';
+}
+
+function lenzReadStore_(ctx, live, paras, uncapped) {
   try {
     var json = JSON.stringify({ v: LENZ_READ_CACHE_V, live: live, paras: paras });
-    if (live.revisionId && json.length <= LENZ_READ_MAX_CHARS) lenzCachePut_(lenzReadKey_(ctx, live.revisionId), json, LENZ_READ_TTL_S);
+    if (live.revisionId && json.length <= LENZ_READ_MAX_CHARS) lenzCachePut_(lenzReadKey_(ctx, live.revisionId, uncapped), json, LENZ_READ_TTL_S);
   } catch (err) {
     console.warn('lenz_read_cache_put_failed');
   }
@@ -1278,8 +1388,9 @@ function lenzMapAfterWrite_(read, placed, replacement, revisionId) {
     return q;
   });
   var text = slice(live.text, 0, placed.rs) + replacement + slice(live.text, placed.re);
-  // Past the cap a fresh read would cut the text (and mark it truncated): read it then.
-  if (cp(text) > LenzSerialize.CAP) return null;
+  // Past the cap a fresh read would cut the text (and mark it truncated): read it then. An uncapped
+  // map is never cut.
+  if (!read.uncapped && cp(text) > LenzSerialize.CAP) return null;
   var paras = [];
   var found = false;
   for (var k = 0; k < read.paras.length; k++) {
@@ -1303,7 +1414,7 @@ function lenzMapAfterWrite_(read, placed, replacement, revisionId) {
   next.textHash = lenzSha256_(text);
   next.revisionId = revisionId;
   next.pieces = pieces;
-  return { live: next, paras: paras, mode: 'written', msRev: 0, ms: 0 };
+  return { live: next, paras: paras, mode: 'written', msRev: 0, ms: 0, uncapped: !!read.uncapped };
 }
 
 // After our own write: the map moved in place and cached at the new revision, or null.
@@ -1311,7 +1422,7 @@ function lenzAfterWrite_(ctx, read, placed, replacement, written) {
   var rev = written && written.writeControl ? written.writeControl.requiredRevisionId : null;
   try {
     var next = lenzMapAfterWrite_(read, placed, replacement, rev);
-    if (next) lenzReadStore_(ctx, next.live, next.paras);
+    if (next) lenzReadStore_(ctx, next.live, next.paras, next.uncapped);
     return next;
   } catch (err) {
     console.warn('lenz_map_after_write_failed');
@@ -1319,8 +1430,10 @@ function lenzAfterWrite_(ctx, read, placed, replacement, written) {
   }
 }
 
-function lenzReadKey_(ctx, revisionId) {
-  return 'lenz:read:' + lenzSha256_([ctx.docId, ctx.tabId || '', revisionId, LENZ_SERIALIZER_SHA, LENZ_READ_CACHE_V].join('|'));
+function lenzReadKey_(ctx, revisionId, uncapped) {
+  var parts = [ctx.docId, ctx.tabId || '', revisionId, LENZ_SERIALIZER_SHA, LENZ_READ_CACHE_V];
+  if (uncapped) parts.push('uncapped');
+  return 'lenz:read:' + lenzSha256_(parts.join('|'));
 }
 
 function lenzFindTab_(tabs, tabId) {
@@ -1421,25 +1534,98 @@ function lenzChildSegments_(children, start, end) {
 }
 
 /** DocumentApp: the same paragraph walk as lenzRestParagraphs_. */
-function lenzAppParagraphs_(container, out) {
+// `paths` (optional): each paragraph's child indexes from the body, beside it (a table's row and
+// cell are its children, as getParent/getChildIndex see them).
+function lenzAppParagraphs_(container, out, paths, at) {
   out = out || [];
+  at = at || [];
   var T = DocumentApp.ElementType;
   for (var i = 0; i < container.getNumChildren(); i++) {
     var child = container.getChild(i);
     var type = child.getType();
+    var here = at.concat([i]);
     if (type === T.PARAGRAPH || type === T.LIST_ITEM) {
       out.push(child);
+      if (paths) paths.push(here);
     } else if (type === T.TABLE) {
       var table = child.asTable();
       for (var r = 0; r < table.getNumRows(); r++) {
         var row = table.getRow(r);
-        for (var c = 0; c < row.getNumCells(); c++) lenzAppParagraphs_(row.getCell(c), out);
+        for (var c = 0; c < row.getNumCells(); c++) lenzAppParagraphs_(row.getCell(c), out, paths, here.concat([r, c]));
       }
     } else if (type === T.TABLE_OF_CONTENTS) {
-      lenzAppParagraphs_(child.asTableOfContents(), out);
+      lenzAppParagraphs_(child.asTableOfContents(), out, paths, here);
     }
   }
   return out;
+}
+
+/** An element's child indexes from the tab's body; null when it is not in the body. */
+function lenzBodyPath_(el) {
+  var T = DocumentApp.ElementType;
+  var path = [];
+  for (var guard = 0; el && guard < 64; guard++) {
+    if (el.getType() === T.BODY_SECTION) return path;
+    var parent = el.getParent();
+    if (!parent) return null;
+    path.unshift(parent.getChildIndex(el));
+    el = parent;
+  }
+  return null;
+}
+
+function lenzPathPrefix_(a, b) {
+  if (a.length > b.length) return false;
+  for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/**
+ * The paragraphs the selection in the active tab touches, as ordinals of the walk Select aligns
+ * with REST: { first, last, ordinals, paragraphs } (ordinals touched, in order, with their
+ * DocumentApp paragraphs), or { reason: 'none' | 'outside_body' }. Text inside a paragraph touches
+ * it; a whole table, row or cell touches every paragraph in it.
+ */
+function lenzSelectionParas_(ctx) {
+  var range = ctx.app.getSelection();
+  var elements = range ? range.getRangeElements() : [];
+  if (!elements || !elements.length) return { reason: 'none' };
+  var body = ctx.tab ? ctx.tab.asDocumentTab().getBody() : ctx.app.getBody();
+  var paths = [];
+  var appParas = lenzAppParagraphs_(body, [], paths);
+  var touched = {};
+  var inBody = false;
+  elements.forEach(function (re) {
+    var path = lenzBodyPath_(re.getElement());
+    if (!path) return;
+    inBody = true;
+    for (var k = 0; k < paths.length; k++) {
+      if (lenzPathPrefix_(path, paths[k]) || lenzPathPrefix_(paths[k], path)) touched[k] = true;
+    }
+  });
+  var ordinals = Object.keys(touched).map(Number).sort(function (a, b) { return a - b; });
+  if (!ordinals.length) return { reason: inBody ? 'none' : 'outside_body' };
+  return {
+    first: ordinals[0],
+    last: ordinals[ordinals.length - 1],
+    ordinals: ordinals,
+    paragraphs: ordinals.map(function (k) { return appParas[k]; }),
+  };
+}
+
+/** A DocumentApp paragraph as both APIs show it (lenzRestParagraphText_), with its children. */
+function lenzAppShown_(para) {
+  var T = DocumentApp.ElementType;
+  var kids = [];
+  var shown = '';
+  for (var i = 0; i < para.getNumChildren(); i++) {
+    var k = para.getChild(i);
+    var isText = k.getType() === T.TEXT;
+    var t = isText ? k.asText().getText() : '\ufffc';
+    shown += t;
+    kids.push({ el: k, text: isText, length: t.length });
+  }
+  return { kids: kids, shown: lenzParaNorm_(shown) };
 }
 
 /**
@@ -1452,22 +1638,14 @@ function lenzSetSelection_(ctx, restParas, ranges) {
   if (!spans) return false;
   var body = ctx.tab ? ctx.tab.asDocumentTab().getBody() : ctx.app.getBody();
   var appParas = lenzAppParagraphs_(body);
-  var T = DocumentApp.ElementType;
   var pieces = [];
   for (var n = 0; n < spans.length; n++) {
     var sp = spans[n];
     var para = appParas[sp.para];
     if (!para) return false;
-    var kids = [];
-    var shown = '';
-    for (var i = 0; i < para.getNumChildren(); i++) {
-      var k = para.getChild(i);
-      var isText = k.getType() === T.TEXT;
-      var t = isText ? k.asText().getText() : '￼';
-      shown += t;
-      kids.push({ el: k, text: isText, length: t.length });
-    }
-    if (lenzParaNorm_(shown) !== restParas[sp.para].text) return false;
+    var app = lenzAppShown_(para);
+    var kids = app.kids;
+    if (app.shown !== restParas[sp.para].text) return false;
     lenzChildSegments_(kids, sp.start, sp.end).forEach(function (seg) { pieces.push({ el: kids[seg.child].el, seg: seg }); });
   }
   var builder = ctx.app.newRange();
@@ -1521,6 +1699,7 @@ function lenzApiKey_() {
   return typeof lenzDevApiKey_ === 'function' ? lenzDevApiKey_() : null;
 }
 
+// A selection check saves no not-read counts: they are the tab's, not the selection's.
 function lenzSaveMeta_(ctx, live) {
   lenzUserProps_().setProperty(
     'lenz:meta:' + ctx.docId + ':' + ctx.tabId,

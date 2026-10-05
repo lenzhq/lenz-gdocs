@@ -12,6 +12,8 @@ Lenz checks the draft you are writing. Open Extensions â†’ Lenz Fact-Checking â†
 current tab, checks each factual claim against independent sources, and checks whether each cited
 page says what the draft attributes to it.
 
+To check one part of a long Doc, select it and choose Check only the selected text.
+
 The findings appear in a sidebar in the order they occur in the Doc. Click one to select its words.
 Where Lenz suggests a correction, you see the old and new wording side by side, and Apply makes
 that one change; nothing in your Doc changes unless you click.
