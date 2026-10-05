@@ -246,7 +246,11 @@ var LenzApi = (function () {
         // A selection check: the whole tab as it was, never the slice (whose offsets are not the
         // body's once shifted). Lost meanwhile: no snapshot, placement then needs the same text.
         var whole = deps.cache.get(scopeSnapshotKey(rec.key));
-        if (typeof whole === 'string') deps.cache.put(snapshotKey(reviewId), whole, CACHE_TTL_S);
+        if (typeof whole === 'string') {
+          deps.cache.put(snapshotKey(reviewId), whole, CACHE_TTL_S);
+          // Kept only while the request is pending: the review's snapshot holds it now.
+          if (typeof deps.cache.del === 'function') deps.cache.del(scopeSnapshotKey(rec.key));
+        }
       } else {
         var sent = parseJson(deps.cache.get(bodyKey(rec.key)));
         if (sent && typeof sent.text === 'string') deps.cache.put(snapshotKey(reviewId), sent.text, CACHE_TTL_S);

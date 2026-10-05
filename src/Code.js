@@ -173,7 +173,11 @@ function lenzForgetAll_() {
   keys.forEach(function (k) {
     if (k.indexOf('lenz:rec:') === 0) {
       var rec = lenzParse_(all[k]);
-      if (rec && typeof rec.key === 'string' && rec.key) cached[LenzApi.bodyKey(rec.key)] = true;
+      if (rec && typeof rec.key === 'string' && rec.key) {
+        cached[LenzApi.bodyKey(rec.key)] = true;
+        // A selection check still waiting for its answer: the whole tab's text, kept for accept.
+        cached[LenzApi.scopeSnapshotKey(rec.key)] = true;
+      }
       if (rec) review(rec.reviewId);
       var docTab = k.slice('lenz:rec:'.length);
       cached['lenz:open:' + docTab] = true;

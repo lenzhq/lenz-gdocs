@@ -257,8 +257,8 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   can never be accepted and becomes `unknown` (Run again). While pending, `nextPollS` is when to
   submit again: 5, 10, 20, 40, then 60 s, or a longer Retry-After. Same key with a `reviewId` → that review, no request. A 202 or a 409 carrying
   `review_id` stores it and copies the sent text to `lenz:snap:<reviewId>`; for a selection check,
-  the whole tab's text, cached before the POST under `lenz:scopesnap:<key>` (6 h). Evicted by
-  then: no snapshot (never the slice). `runAgain` drops `offset`, `snapshotHash` and `scope`.
+  the whole tab's text, cached before the POST under `lenz:scopesnap:<key>` (6 h; deleted once
+  copied, and by sign-out while pending). Evicted by then: no snapshot (never the slice). `runAgain` drops `offset`, `snapshotHash` and `scope`.
 - Selection check: a poll moves every draft position of a 200 body by the record's `offset`
   (`shiftBody`, once, as the body arrives), so the glue, the kept done body, the applied records
   and the fingerprints all work in the whole tab's coordinates. The fields: `claims[].positions[]`,

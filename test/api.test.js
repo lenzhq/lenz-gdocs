@@ -1035,3 +1035,11 @@ test('a whole-tab check: polls never move a position', () => {
   sub(w, DRAFT);
   assert.deepEqual(w.client.poll(DOC.docId, DOC.tabId).body, REVIEW);
 });
+
+test('selection: once accepted, the whole tab is the review snapshot and the pending copy is gone', () => {
+  const w = world({ replies: [accepted('r1')] });
+  sub(w, DRAFT, selection());
+  const key = w.client.record(DOC.docId, DOC.tabId).key;
+  assert.equal(w.cache.has(LenzApi.scopeSnapshotKey(key)), false);
+  assert.equal(w.client.snapshot('r1'), WHOLE);
+});

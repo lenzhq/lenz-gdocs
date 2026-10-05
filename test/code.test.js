@@ -2878,3 +2878,17 @@ test('selection then Check this Doc: the whole tab, and the selection line is go
   w.state.polls = POLLS.slice();
   assert.equal(pollToEnd(w).model.scope, null);
 });
+
+test('selection: signing out with a selection check still pending forgets the whole tab\'s text', () => {
+  const w = world({ oauth: true });
+  signIn(w);
+  w.state.text = OPENING + '\n\n' + TEXT;
+  w.state.selectParas = [1, paraCount(w.state.text) - 1];
+  w.state.down = true;
+  w.ctx.lenzStartSelection();
+  const held = () => [...w.cache.m.keys()].filter((k) => k.indexOf('lenz:scopesnap:') === 0);
+  assert.ok(held().length > 0, 'kept while the answer is unknown');
+  w.state.down = false;
+  w.ctx.lenzSignOut();
+  assert.deepEqual(held(), []);
+});
