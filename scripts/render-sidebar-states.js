@@ -26,6 +26,7 @@ const review = JSON.parse(fs.readFileSync(path.join(FIX, 'draft-a.review.json'),
 const polls = JSON.parse(fs.readFileSync(path.join(FIX, 'draft-a.polls.json'), 'utf8'));
 const thin = JSON.parse(fs.readFileSync(path.join(FIX, 'deep-failed-thin.review.json'), 'utf8'));
 const mixed = JSON.parse(fs.readFileSync(path.join(FIX, 'deep-failed-mixed.review.json'), 'utf8'));
+const fixture = (name) => JSON.parse(fs.readFileSync(path.join(FIX, name + '.review.json'), 'utf8'));
 const AUTH = { mode: 'oauth', signedIn: true };
 const reply = (phase, extra) => Object.assign({ phase, auth: AUTH, model: null, nextPollS: null, error: null }, extra || {});
 
@@ -60,6 +61,14 @@ const STATES = {
   clean: { height: 900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: cleanModel() }) } },
   'deep-failed-thin': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(thin) }) } },
   'deep-failed-mixed': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(mixed) }) } },
+  'failed-no-claim': { height: 420, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('failed-no-claim')) }) } },
+  'failed-credits': { height: 900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('failed-insufficient-credits')) }) } },
+  'failed-unavailable': { height: 420, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('failed-assessment')) }) } },
+  'failed-ours': { height: 420, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('failed-internal')) }) } },
+  'quick-check-failed': { height: 1900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('quick-check-failed')) }) } },
+  'deep-failed-internal': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('deep-failed-internal')) }) } },
+  stalled: { height: 520, replies: { lenzOpen: reply('running'), lenzOpenState: reply('stalled', {
+    error: { code: 0, message: "Couldn't reach Lenz. Check your connection and try again.", retryable: true }, reviewId: '4881a880' }) } },
   error: { height: 520, replies: { lenzOpen: reply('idle'), lenzOpenState: reply('error', {
     error: { code: 0, message: "Couldn't reach Lenz. Check your connection and try again.", retryable: true } }) } },
   footer: { height: 420, replies: { lenzOpen: reply('idle'), lenzOpenState: reply('idle') } },

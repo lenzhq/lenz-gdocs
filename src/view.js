@@ -95,6 +95,34 @@ var LenzView = (function () {
     insufficient_credits: 'Citations were not checked: not enough credits.',
   };
 
+  // The one page outside the claim pages the sidebar links to, on Lenz's own host.
+  var BILLING_URL = 'https://lenz.io/billing';
+  var NOT_CHECKED = 'Could not be checked this time.';
+  var QUICK_FAILED = NOT_CHECKED + ' Nothing was charged for it.';
+  var RUN_AGAIN = 'Choose Check this Doc to check it again; the new check is charged.';
+
+  // A review that failed as a whole, by what Lenz says failed (failure_reason, and failure_class where the
+  // reason alone does not tell). Never the API's `hint`: it is written for integrators and names endpoints
+  // and request headers. The sidebar adds a link for `credits`.
+  var FAILED_WORDS = {
+    no_claim: 'Lenz found no factual claim to check in this tab.',
+    credits: 'Not enough credits to check this tab. Nothing was charged.',
+    unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
+    ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
+  };
+  var FAILED_KEYS = {
+    no_claim: 'no_claim',
+    insufficient_credits: 'credits',
+    upstream_unavailable: 'unavailable',
+    assessment_failed: 'unavailable',
+  };
+
+  function failedKey(f) {
+    var reason = str(f.failure_reason) || '';
+    if (has(FAILED_KEYS, reason)) return FAILED_KEYS[reason];
+    return f.failure_class === 'upstream_unavailable' ? 'unavailable' : 'ours';
+  }
+
   var NOT_READ = [
     ['footnotes', 'footnote', 'footnotes'],
     ['headers', 'header', 'headers'],
@@ -119,6 +147,9 @@ var LenzView = (function () {
   }
   function str(x) {
     return typeof x === 'string' && x.length ? x : null;
+  }
+  function has(o, k) {
+    return Object.prototype.hasOwnProperty.call(o, k);
   }
   function plural(n, one, many) {
     return n + ' ' + (n === 1 ? one : many);
@@ -244,17 +275,27 @@ var LenzView = (function () {
 
 
 
+  // The classes the API names (failure_class); any other value is a class this add-on does not know.
+  var KNOWN_CLASSES = { upstream_unavailable: true, insufficient_evidence: true, invalid_input: true, cancelled: true, internal: true };
+
   // Why a row's deep check failed, by the failure's class; a failure without one keeps the plain line.
   // Search is named only where the check stopped looking for sources (a `research_` reason): an outage
-  // at another stage was not search.
+  // at another stage was not search. A failure on Lenz's side (or of a kind this add-on does not know)
+  // says so; an input problem or a stop by the user keeps the plain line.
   function deepFailureText(verification) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
+    var cls = str(f.failure_class);
     var research = (str(f.failure_reason) || '').indexOf('research_') === 0;
-    if (f.failure_class === 'insufficient_evidence') {
+    if (cls === 'insufficient_evidence') {
       return 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
     }
-    if (f.failure_class === 'upstream_unavailable' && research) {
-      return 'The deep check could not run because search was unavailable, so this is the quick verdict.';
+    if (cls === 'upstream_unavailable') {
+      return research
+        ? 'The deep check could not run because search was unavailable, so this is the quick verdict.'
+        : 'The deep check could not run because a service Lenz relies on was unavailable, so this is the quick verdict.';
+    }
+    if (cls === 'internal' || (cls !== null && !has(KNOWN_CLASSES, cls))) {
+      return 'The deep check stopped on our side, so this is the quick verdict.';
     }
     return 'The deep check did not finish, so this is the quick verdict.';
   }
@@ -331,7 +372,8 @@ var LenzView = (function () {
     } else if (checking) {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {
-      lines.push({ lead: null, text: str(assessment.hint) || 'Could not be checked this time.' });
+      // A failed quick check was refunded (never the API's hint: that is written for integrators).
+      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(assessment.hint) || NOT_CHECKED });
     } else {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (str(assessment.dissent)) lines.push({ lead: 'A reviewer disagreed: ', text: assessment.dissent });
@@ -505,7 +547,7 @@ var LenzView = (function () {
       if (typeof k === 'number' && k > 0) parts.push(plural(k, n[1], n[2]));
     });
     if (parts.length) out.push('Not read: ' + parts.join(', ') + '.');
-    if (retryHelps(body)) out.push('Some checks did not finish. Choose Check this Doc to try them again.');
+    if (retryHelps(body)) out.push(RUN_AGAIN);
     return out;
   }
 
@@ -555,10 +597,11 @@ var LenzView = (function () {
     return out;
   }
 
-  function failureText(body) {
-    if (body.status !== 'failed') return null;
-    var f = isObj(body.failure) ? body.failure : {};
-    return str(f.hint) || 'Lenz could not finish this check. Choose Check this Doc to try again.';
+  // What a failed review says, and the link it offers (only for credits).
+  function failureView(body) {
+    if (body.status !== 'failed') return { text: null, link: null };
+    var key = failedKey(isObj(body.failure) ? body.failure : {});
+    return { text: FAILED_WORDS[key], link: key === 'credits' ? { href: BILLING_URL, words: 'Add credits' } : null };
   }
 
   function build(body, opts) {
@@ -596,6 +639,7 @@ var LenzView = (function () {
     var quick = entries.some(function (e) {
       return e.group !== 'ok' && e.check === 'Quick check';
     });
+    var failed = failureView(body);
     var charged = isObj(body.credits) && typeof body.credits.charged === 'number' ? body.credits.charged : null;
     return {
       reviewId: str(body.review_id),
@@ -604,7 +648,8 @@ var LenzView = (function () {
       progress: progress(body),
       stages: stages(body),
       headline: headline(body, groups, coverage),
-      failure: failureText(body),
+      failure: failed.text,
+      failureLink: failed.link,
       groups: GROUPS.map(function (g) {
         // "Checks out" folds only behind something to look at; a clean Doc shows what was checked.
         var fold = g === 'ok' && (groups.issue.length > 0 || groups.look.length > 0);

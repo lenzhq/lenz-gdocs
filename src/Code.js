@@ -108,7 +108,7 @@ function lenzOpenState() {
  */
 function lenzAutoStart() {
   var r = lenzState();
-  if (!r || r.phase === 'running' || r.phase === 'signed_out' || r.phase === 'needs_file_access') return r;
+  if (!r || r.phase === 'running' || r.phase === 'stalled' || r.phase === 'signed_out' || r.phase === 'needs_file_access') return r;
   return lenzStart();
 }
 
@@ -245,9 +245,24 @@ function lenzPollNow_() {
   return lenzPollIn_(lenzContext_());
 }
 
+/**
+ * After the sidebar stopped polling a check that went on failing to answer (phase `stalled`): the
+ * saved review is polled again, with a fresh window. Never reads the Doc to start anything and never
+ * sends a review: the review id stays, and a request still waiting to be replayed is replayed as ever.
+ */
+function lenzResume() {
+  return lenzScoped_(function () {
+    try {
+      return lenzFileAccess_(function () { return lenzPollIn_(lenzContext_(), { resume: true }); });
+    } finally {
+      lenzTrialFlush_();
+    }
+  });
+}
+
 // One poll of `ctx`'s check: the sidebar's (the active tab) and the headless
-// e2e's (a Doc by id, src/dev-e2e.js) share it.
-function lenzPollIn_(ctx) {
+// e2e's (a Doc by id, src/dev-e2e.js) share it. `opts.resume`: a new window of failed polls first.
+function lenzPollIn_(ctx, opts) {
   if (!lenzSignedIn_()) return lenzSignedOut_(null);
   var client = lenzClient_();
   var step = lenzWithLock_(function () {
@@ -258,6 +273,7 @@ function lenzPollIn_(ctx) {
       return { reply: lenzReplayLocked_(ctx, client) };
     }
     if (!rec || !rec.reviewId) return { rec: rec, poll: null };
+    if (opts && opts.resume) client.resume(ctx.docId, ctx.tabId);
     return { rec: rec, poll: client.poll(ctx.docId, ctx.tabId) };
   });
   if (step === null) return lenzWithStart_(ctx, client, lenzReply_('running', { nextPollS: 5 }));
@@ -629,6 +645,8 @@ function lenzFromPoll_(ctx, rec, poll) {
   // The record changed during the GET (a new check elsewhere): read it again.
   if (poll.terminal && !poll.error) return lenzReply_('running', { nextPollS: 3 });
   var err = lenzError_(poll.error);
+  // Lenz has not answered for minutes: no more polls until the user chooses Resume; the review id is kept.
+  if (poll.gaveUp) return lenzReply_('stalled', { error: err, reviewId: rec.reviewId });
   if (!poll.terminal) return lenzReply_('running', { error: err, nextPollS: lenzPollDelay_(poll.nextPollS) });
   if (err.code === 401) return lenzUnauthorized_(err);
   return lenzReply_('error', { error: err });
@@ -1995,7 +2013,7 @@ function lenzOpenKey_(ctx) {
 }
 
 function lenzRemember_(ctx, reply) {
-  if (!reply || !reply.phase || reply.phase === 'signed_out' || reply.phase === 'needs_file_access') return reply;
+  if (!reply || !reply.phase || reply.phase === 'signed_out' || reply.phase === 'needs_file_access' || reply.phase === 'stalled') return reply;
   // A running placeholder (busy lock, a record changing) would hide the list kept before it.
   if (reply.phase === 'running' && !reply.model) return reply;
   try {
@@ -2241,8 +2259,9 @@ function lenzHex_(bytes) {
 /**
  * The state of the active tab's check:
  * { phase, auth, model, nextPollS, error, startedAt, notice? }
- * phase: signed_out | idle | running | done | error. auth: { mode: 'oauth' | 'key', signedIn }.
- * `error` is shown as text; with phase `running` it is a passing problem and polling goes on.
+ * phase: signed_out | idle | running | stalled | done | error. auth: { mode: 'oauth' | 'key', signedIn }.
+ * `error` is shown as text; with phase `running` it is a passing problem and polling goes on. `stalled`:
+ * the check is kept but Lenz stopped answering for minutes, so polling stopped until lenzResume.
  */
 function lenzReply_(phase, extra) {
   var out = {

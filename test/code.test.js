@@ -914,6 +914,135 @@ for (const code of [403, 404, 410]) {
   });
 }
 
+// ── a poll that keeps failing gives up after five minutes; Resume polls the saved review again ──
+
+const STALLED_FOR = 5 * 60 * 1000;
+const recOf = (w) => JSON.parse(w.state.props.get('lenz:rec:doc-1:t.0'));
+// Time passing, as the record sees it: the failed polls began `ms` ago.
+function failingFor(w, ms) {
+  const rec = recOf(w);
+  rec.pollFailingSince = Date.now() - ms;
+  w.state.props.set('lenz:rec:doc-1:t.0', JSON.stringify(rec));
+}
+
+test('a check whose polls fail for five minutes stalls: no more polling, the review id kept', () => {
+  const w = started();
+  w.state.getReply = { code: 503, body: { detail: 'down' } };
+  const first = w.ctx.lenzPoll();
+  assert.equal(first.phase, 'running');
+  assert.ok(first.nextPollS > 0);
+  failingFor(w, STALLED_FOR);
+  const r = w.ctx.lenzPoll();
+  assert.equal(r.phase, 'stalled');
+  assert.equal(r.nextPollS, null);
+  assert.equal(r.reviewId, RID);
+  assert.match(r.error.message, /problem on its side/);
+  assert.equal(recOf(w).reviewId, RID);
+  assert.equal(recOf(w).state, 'running');
+  assert.equal(posts(w).length, 1);
+});
+
+test('a stalled reply is not kept for the next open', () => {
+  const w = started();
+  w.ctx.lenzPoll(); // a running reply with a model is kept
+  const keptBefore = openSnapshot(w);
+  w.state.getReply = { code: 0, body: '' };
+  w.state.down = true;
+  failingFor(w, 0);
+  failingFor(w, STALLED_FOR);
+  assert.equal(w.ctx.lenzPoll().phase, 'stalled');
+  assert.equal(openSnapshot(w), keptBefore);
+});
+
+test('the open after a stall polls once: still failing is stalled at once, an answer clears it', () => {
+  const w = started();
+  w.state.getReply = { code: 502, body: 'bad gateway' };
+  w.ctx.lenzPoll();
+  failingFor(w, STALLED_FOR);
+  assert.equal(w.ctx.lenzOpenState().phase, 'stalled');
+  w.state.getReply = null;
+  assert.equal(w.ctx.lenzOpenState().phase, 'running');
+  assert.equal(recOf(w).pollFailingSince, null);
+});
+
+test('opening on a stalled check with the Doc allowed does not start a check (auto-start leaves it)', () => {
+  const w = started();
+  w.state.getReply = { code: 503, body: { detail: 'down' } };
+  w.ctx.lenzPoll();
+  failingFor(w, STALLED_FOR);
+  const r = w.ctx.lenzAutoStart();
+  assert.equal(r.phase, 'stalled');
+  assert.equal(posts(w).length, 1);
+});
+
+test('Resume polls the saved review id: no new review, no read of the Doc', () => {
+  const w = started();
+  w.state.getReply = { code: 503, body: { detail: 'down' } };
+  w.ctx.lenzPoll();
+  failingFor(w, STALLED_FOR);
+  assert.equal(w.ctx.lenzPoll().phase, 'stalled');
+  const docReads = w.state.gets;
+  const heads = w.state.heads;
+  const fetches = w.state.fetches.length;
+  w.state.getReply = null;
+  const r = w.ctx.lenzResume();
+  assert.equal(r.phase, 'running');
+  assert.ok(r.model, 'the poll answered');
+  const sent = w.state.fetches.slice(fetches);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].o.method, 'get');
+  assert.equal(sent[0].url, 'https://lenz.io/api/v1/reviews/' + RID);
+  assert.equal(posts(w).length, 1, 'the only POST is the first submission');
+  assert.equal(w.state.gets, docReads);
+  assert.equal(w.state.heads, heads);
+  assert.equal(recOf(w).reviewId, RID);
+  assert.equal(recOf(w).pollFailingSince, null);
+});
+
+test('Resume that finds Lenz still down gets a fresh five minutes, then stalls again', () => {
+  const w = started();
+  w.state.getReply = { code: 503, body: { detail: 'down' } };
+  w.ctx.lenzPoll();
+  failingFor(w, STALLED_FOR);
+  assert.equal(w.ctx.lenzPoll().phase, 'stalled');
+  const r = w.ctx.lenzResume();
+  assert.equal(r.phase, 'running');
+  assert.ok(r.error);
+  assert.ok(r.nextPollS > 0);
+  failingFor(w, STALLED_FOR);
+  assert.equal(w.ctx.lenzPoll().phase, 'stalled');
+  assert.equal(recOf(w).reviewId, RID);
+  assert.equal(posts(w).length, 1);
+});
+
+test('Resume on a check that finished meanwhile shows the results', () => {
+  const w = started();
+  w.state.getReply = { code: 502, body: 'x' };
+  w.ctx.lenzPoll();
+  failingFor(w, STALLED_FOR);
+  w.ctx.lenzPoll();
+  w.state.getReply = null;
+  w.state.polls = [POLLS[POLLS.length - 1]];
+  const r = w.ctx.lenzResume();
+  assert.equal(r.phase, 'done');
+  assert.equal(posts(w).length, 1);
+});
+
+test('Resume with no saved check is just a poll: idle, nothing sent', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  const r = w.ctx.lenzResume();
+  assert.equal(r.phase, 'idle');
+  assert.equal(w.state.fetches.length, 0);
+});
+
+test('Resume signed out says to sign in, and sends nothing', () => {
+  const w = world({ oauth: true });
+  const r = w.ctx.lenzResume();
+  assert.equal(r.phase, 'signed_out');
+  assert.equal(w.state.fetches.length, 0);
+});
+
 test('Check this Doc: an unconfirmed request (unknown) starts a new review on the click', () => {
   const w = world({ transportDown: true });
   w.ctx.lenzSaveKey(KEY);
@@ -1463,7 +1592,7 @@ test('Check this Doc: a completed but incomplete review starts over (a new revie
   w.state.polls = [completedWith('incomplete')];
   const done = w.ctx.lenzPoll();
   assert.equal(done.phase, 'done');
-  assert.ok(done.model.coverage.includes('Some checks did not finish. Choose Check this Doc to try them again.'));
+  assert.ok(done.model.coverage.includes('Choose Check this Doc to check it again; the new check is charged.'));
   w.state.polls = POLLS.slice();
   const r = w.ctx.lenzStart();
   assert.equal(r.phase, 'running');
@@ -1480,7 +1609,7 @@ test('Check this Doc: an incomplete review whose deep checks all found too few s
   w.state.polls = [body];
   const done = w.ctx.lenzPoll();
   assert.equal(done.phase, 'done');
-  assert.ok(!done.model.coverage.includes('Some checks did not finish. Choose Check this Doc to try them again.'));
+  assert.ok(!done.model.coverage.includes('Choose Check this Doc to check it again; the new check is charged.'));
   const r = w.ctx.lenzStart();
   assert.equal(r.phase, 'done');
   assert.equal(r.notice, 'No changes since the last check.');

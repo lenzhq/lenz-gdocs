@@ -16,6 +16,8 @@ var LenzApi = (function () {
   var POLL_S = 15; // poll_after_seconds when a running review carries none
   var MIN_POLL_S = 3;
   var MAX_BACKOFF_S = 60;
+  // A poll that has failed this long without one success stops: the sidebar offers Resume.
+  var GIVE_UP_MS = 5 * 60 * 1000;
   var CONFLICT_RETRY_S = 5;
   var RATE_RETRY_S = 60;
   var CAPACITY_RETRY_S = 90;
@@ -197,6 +199,7 @@ var LenzApi = (function () {
       rec.reviewId = reviewId;
       rec.state = 'running';
       rec.pollFailures = 0;
+      rec.pollFailingSince = null;
       rec.submitFailures = 0;
       writeRecord(docId, rec);
       var sent = parseJson(deps.cache.get(bodyKey(rec.key)));
@@ -310,19 +313,42 @@ var LenzApi = (function () {
       rec.key = null;
       rec.state = 'idle';
       rec.pollFailures = 0;
+      rec.pollFailingSince = null;
       writeRecord(args.docId, rec);
     }
 
-    function pollResult(ok, status, body, terminal, nextPollS, error) {
-      return { ok: ok, status: status, body: body, terminal: terminal, nextPollS: nextPollS, error: error };
+    // Polling again after a give-up: the same review id, a fresh window. Nothing is sent and the
+    // Doc is not read; the next poll is the GET.
+    function resume(docId, tabId) {
+      var rec = readRecord(docId, tabId);
+      if (!rec || !rec.reviewId) return false;
+      rec.pollFailures = 0;
+      rec.pollFailingSince = null;
+      writeRecord(docId, rec);
+      return true;
+    }
+
+    function pollResult(ok, status, body, terminal, nextPollS, error, gaveUp) {
+      return { ok: ok, status: status, body: body, terminal: terminal, nextPollS: nextPollS, error: error, gaveUp: !!gaveUp };
+    }
+
+    // A failed poll that goes on being retried: its start is kept, so a streak lasting GIVE_UP_MS ends
+    // (gaveUp: the record keeps its review id; a later poll that fails again is still past the window).
+    function failedPoll(docId, rec, error, wait) {
+      rec.pollFailures = (isInt(rec.pollFailures) ? rec.pollFailures : 0) + 1;
+      var now = deps.now();
+      if (typeof rec.pollFailingSince !== 'number') rec.pollFailingSince = now;
+      writeRecord(docId, rec);
+      if (now - rec.pollFailingSince >= GIVE_UP_MS) return pollResult(false, null, null, false, null, error, true);
+      return pollResult(false, null, null, false, wait(rec.pollFailures), error);
     }
 
     function backoff(docId, rec, error) {
-      rec.pollFailures = (isInt(rec.pollFailures) ? rec.pollFailures : 0) + 1;
-      writeRecord(docId, rec);
-      var wait = Math.min(MAX_BACKOFF_S, 5 * Math.pow(2, rec.pollFailures - 1));
-      if (error.retryAfterS !== null) wait = Math.max(wait, Math.min(MAX_BACKOFF_S, error.retryAfterS));
-      return pollResult(false, null, null, false, wait, error);
+      return failedPoll(docId, rec, error, function (failures) {
+        var wait = Math.min(MAX_BACKOFF_S, 5 * Math.pow(2, failures - 1));
+        if (error.retryAfterS !== null) wait = Math.max(wait, Math.min(MAX_BACKOFF_S, error.retryAfterS));
+        return wait;
+      });
     }
 
     // One GET of the review; the caller schedules the next after nextPollS.
@@ -345,6 +371,7 @@ var LenzApi = (function () {
         var terminal = body.status === 'completed' || body.status === 'failed';
         rec.state = terminal ? body.status : 'running';
         rec.pollFailures = 0;
+        rec.pollFailingSince = null;
         writeRecord(docId, rec);
         var after = seconds(body.poll_after_seconds);
         return pollResult(true, body.status, body, terminal,
@@ -359,7 +386,7 @@ var LenzApi = (function () {
         return pollResult(false, null, null, true, null, error);
       }
       if (res.code === 429) {
-        return pollResult(false, null, null, false, Math.max(MIN_POLL_S, error.retryAfterS || RATE_RETRY_S), error);
+        return failedPoll(docId, rec, error, function () { return Math.max(MIN_POLL_S, error.retryAfterS || RATE_RETRY_S); });
       }
       if (error.retryable) return backoff(docId, rec, error);
       return pollResult(false, null, null, true, null, error);
@@ -374,7 +401,7 @@ var LenzApi = (function () {
       return deps.cache.get(snapshotKey(reviewId));
     }
 
-    return { submit: submit, runAgain: runAgain, poll: poll, record: record, snapshot: snapshot, edit: edit };
+    return { submit: submit, runAgain: runAgain, resume: resume, poll: poll, record: record, snapshot: snapshot, edit: edit };
   }
 
   // ── edit: read from a review body the server just returned ─────────────
