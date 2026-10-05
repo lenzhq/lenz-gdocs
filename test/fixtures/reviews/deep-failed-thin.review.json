@@ -100,7 +100,7 @@
       "rationale": "NASA explicitly says the Great Wall is not visible from the Moon, directly contradicting the claim about what NASA says. The European Space Agency likewise notes that even from the much closer International Space Station, seeing it requires a zoomed photograph rather than the naked eye.",
       "suggested_rewrite": "The Great Wall of China is not visible to the naked eye from the Moon, according to NASA.",
       "failure": {
-        "failure_reason": "insufficient_evidence",
+        "failure_reason": "research_insufficient",
         "failure_class": "insufficient_evidence",
         "retryable": false,
         "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
@@ -129,7 +129,7 @@
       "rationale": "Buzz Aldrin walked on the Moon during Apollo 11 in July 1969, but he was the second person to do so. Neil Armstrong stepped onto the lunar surface first, on July 20, 1969, so the claim’s central assertion is false.",
       "suggested_rewrite": "Neil Armstrong was the first person to walk on the Moon in July 1969.",
       "failure": {
-        "failure_reason": "insufficient_evidence",
+        "failure_reason": "research_insufficient",
         "failure_class": "insufficient_evidence",
         "retryable": false,
         "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
@@ -144,7 +144,7 @@
       "claim": "Water boils at 100 degrees Celsius at sea level, according to Britannica.",
       "stage": "verification",
       "failure": {
-        "failure_reason": "insufficient_evidence",
+        "failure_reason": "research_insufficient",
         "failure_class": "insufficient_evidence",
         "retryable": false,
         "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
@@ -209,7 +209,7 @@
         "verification_url": null,
         "url": null,
         "failure": {
-          "failure_reason": "insufficient_evidence",
+          "failure_reason": "research_insufficient",
           "failure_class": "insufficient_evidence",
           "retryable": false,
           "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
@@ -272,7 +272,7 @@
         "verification_url": null,
         "url": null,
         "failure": {
-          "failure_reason": "insufficient_evidence",
+          "failure_reason": "research_insufficient",
           "failure_class": "insufficient_evidence",
           "retryable": false,
           "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",
@@ -412,7 +412,7 @@
         "verification_url": null,
         "url": null,
         "failure": {
-          "failure_reason": "insufficient_evidence",
+          "failure_reason": "research_insufficient",
           "failure_class": "insufficient_evidence",
           "retryable": false,
           "hint": "Research found fewer than two sources for this claim, so no verdict is possible.",

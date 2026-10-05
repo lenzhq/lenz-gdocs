@@ -599,6 +599,13 @@ test('failed deep checks: a failure of another class, or none, keeps the plain l
   assert.ok(rowLines(LenzView.build(none), 'claim:1').includes(PLAIN_ROW));
 });
 
+test('failed deep checks: an outage outside the search for sources does not name search', () => {
+  const later = JSON.parse(JSON.stringify(MIXED));
+  const row = later.claims.find((c) => c.verification && c.verification.failure && c.verification.failure.failure_class === 'upstream_unavailable');
+  row.verification.failure.failure_reason = 'conclusion_failed';
+  assert.ok(rowLines(LenzView.build(later), 'claim:' + row.index).includes(PLAIN_ROW));
+});
+
 test('failed deep checks: coverage counts the too-few-sources ones apart from the rest', () => {
   assert.deepEqual(LenzView.build(THIN).coverage.slice(0, 1), ['3 claims had too few public sources for a deep check; they show the quick verdict.']);
   assert.deepEqual(LenzView.build(MIXED).coverage.slice(0, 2), [

@@ -244,19 +244,19 @@ var LenzView = (function () {
 
 
 
-  var DEEP_FAILURE_TEXT = {
-    insufficient_evidence: 'The deep check found too few public sources to give a verdict, so this is the quick verdict.',
-    upstream_unavailable: 'The deep check could not run because search was unavailable, so this is the quick verdict.',
-  };
-
   // Why a row's deep check failed, by the failure's class; a failure without one keeps the plain line.
-  function deepFailureClass(verification) {
-    var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
-    return str(f.failure_class);
-  }
-
+  // Search is named only where the check stopped looking for sources (a `research_` reason): an outage
+  // at another stage was not search.
   function deepFailureText(verification) {
-    return DEEP_FAILURE_TEXT[deepFailureClass(verification)] || 'The deep check did not finish, so this is the quick verdict.';
+    var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
+    var research = (str(f.failure_reason) || '').indexOf('research_') === 0;
+    if (f.failure_class === 'insufficient_evidence') {
+      return 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
+    }
+    if (f.failure_class === 'upstream_unavailable' && research) {
+      return 'The deep check could not run because search was unavailable, so this is the quick verdict.';
+    }
+    return 'The deep check did not finish, so this is the quick verdict.';
   }
 
   // The failed deep checks no rerun can change: too few public sources, and not marked retryable.
