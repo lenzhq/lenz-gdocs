@@ -208,14 +208,27 @@ function lenzOAuthCallback(request) {
 }
 
 // The page the sign-in window ends on. It says what happened; after a sign-in it closes itself (the
-// sidebar opened it, so it may) and the sidebar notices on its next look.
+// sidebar opened it, so it may) and the sidebar notices on its next look. It looks like the Lenz pages
+// the window passed through (lenz.io /auth and the consent page):
+// the Lenz mark, one column, the message large in ink. System fonts (the page fetches nothing), and it
+// follows the device's light or dark setting, since it cannot read the theme chosen on lenz.io.
+var LENZ_MARK_SVG_ = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4540 1512" role="img" aria-label="Lenz"><path fill="currentColor" transform="translate(0,1490) scale(1,-1)" d="M428 1490V0H128V1490Z"/><path fill="currentColor" transform="translate(500,1490) scale(1,-1)" d="M633 -22Q462 -22 338.0 48.0Q214 118 147.5 247.0Q81 376 81 553Q81 726 147.5 856.0Q214 986 334.5 1059.0Q455 1132 618 1132Q764 1132 883.0 1070.0Q1002 1008 1072.5 882.0Q1143 756 1143 565V481H378Q383 344 454.0 274.0Q525 204 638 204Q717 204 773.5 237.5Q830 271 854 336L1126 285Q1085 146 956.5 62.0Q828 -22 633 -22ZM380 669H854Q843 778 784.0 842.0Q725 906 621 906Q513 906 451.0 839.5Q389 773 380 669Z"/><path fill="currentColor" transform="translate(1665,1490) scale(1,-1)" d="M428 647V0H128V1118H411L415 887Q462 1004 548.0 1068.0Q634 1132 763 1132Q937 1132 1042.0 1020.0Q1147 908 1147 711V0H847V659Q847 763 793.5 822.0Q740 881 645 881Q549 881 488.5 819.5Q428 758 428 647Z"/><path fill="currentColor" transform="translate(2885,1490) scale(1,-1)" d="M120 0V182L671 868V876H137V1118H1034V919L514 250V242H1053V0Z"/><circle class="d" cx="4345" cy="1337" r="173"/></svg>';
+
 function lenzCallbackPage_(r) {
   var msg = String((r && r.message) || LenzOAuth.MESSAGES.failed)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + LENZ_ADDON_NAME + '</title>' +
-    '<style>body{margin:0;padding:24px;background:#FFFDF7;color:#3D3935;font:14px/1.5 \'Helvetica Neue\',Arial,sans-serif}' +
-    'h1{font:500 12px ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:#6F6A64;margin:0 0 12px}</style>' +
-    '</head><body><h1>' + LENZ_ADDON_NAME + '</h1><p>' + msg + '</p>' +
+  return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark">' +
+    '<title>' + LENZ_ADDON_NAME + '</title><style>' +
+    ':root{--bg:#FFFDF7;--ink:#1A1816;--muted:#635E59;--dot:#3D65BC}' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#1A1816;--ink:#FFFDF7;--muted:#D4CFC6;--dot:#7BA3F0}}' +
+    'html,body{background:var(--bg)}' +
+    'body{margin:0;color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,\'Segoe UI\',Roboto,\'Helvetica Neue\',Arial,sans-serif;-webkit-font-smoothing:antialiased}' +
+    'main{max-width:36rem;margin:0 auto;padding:clamp(40px,7vh,88px) clamp(20px,4vw,56px)}' +
+    'svg{display:block;height:22px;width:auto;margin:0 0 clamp(32px,6vw,56px)}svg path{fill:var(--ink)}svg .d{fill:var(--dot)}' +
+    'h1{font:500 12px ui-monospace,\'SF Mono\',Menlo,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 16px}' +
+    'p{font-size:clamp(20px,1.2vw + 14px,26px);font-weight:500;line-height:1.4;letter-spacing:-.01em;margin:0}' +
+    '</style></head><body><main>' + LENZ_MARK_SVG_ + '<h1>' + LENZ_ADDON_NAME + '</h1><p>' + msg + '</p></main>' +
     (r && r.ok ? '<script>setTimeout(function(){try{window.top.close();}catch(e){}},1500);</script>' : '') +
     '</body></html>';
 }
