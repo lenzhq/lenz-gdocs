@@ -38,11 +38,25 @@ class Node {
     this._text = String(v);
   }
   get firstChild() { return this.children[0] || null; }
-  appendChild(c) { this.children.push(c); return c; }
-  removeChild(c) { this.children = this.children.filter((x) => x !== c); return c; }
+  appendChild(c) { c.parent = this; this.children.push(c); return c; }
+  removeChild(c) { c.parent = null; this.children = this.children.filter((x) => x !== c); return c; }
   addEventListener(type, fn) { this.handlers[type] = fn; }
   setAttribute(k, v) { this.attrs[k] = v; }
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   click() { this.handlers.click(); }
+  // <details>: opening or closing fires `toggle`, as the browser does.
+  get open() { return !!this._open; }
+  set open(v) { this._open = !!v; if (this.handlers.toggle) this.handlers.toggle(); }
+  // The selectors the script uses on a node: `li.entry` up, `button, a` down.
+  closest(sel) {
+    for (let n = this; n; n = n.parent) if (sel === 'li.entry' && n.tag === 'li' && n.className === 'entry') return n;
+    return null;
+  }
+  querySelectorAll(sel) {
+    return sel === 'button, a' ? walk(this).filter((n) => n !== this && (n.tag === 'button' || n.tag === 'a')) : [];
+  }
+  focus() { Node.page.document.activeElement = this; }
+  getBoundingClientRect() { return Node.page.box(this); }
 }
 
 // Loads the sidebar's script. `replies`: server function name -> reply (a function gets the arguments).
@@ -57,8 +71,31 @@ function sidebar(replies) {
     getElementById: (id) => ids[id],
     createElement: (tag) => new Node(tag),
     createTextNode: (text) => { const n = new Node('#text'); n.textContent = text; return n; },
-    querySelectorAll: () => [],
+    activeElement: null,
+    querySelectorAll: (sel) => (sel === '#groups li.entry' ? entries() : []),
   };
+  // A toy layout, enough to see a list move: the running block takes 100 px while shown, a heading or
+  // a summary 20, an entry 10 per node it holds (it grows as its check fills in), and nothing inside a
+  // closed group. The window is 600 px high; scrolling moves every box.
+  const win = { addEventListener() {}, open: () => null, scrollY: 0, innerHeight: 600,
+    scrollBy(x, y) { win.scrollY = Math.max(0, win.scrollY + y); } };
+  function entries() { return walk(ids.groups).filter((n) => n.tag === 'li' && n.className === 'entry'); }
+  function box(node) {
+    let y = ids.running.hidden ? 0 : 100;
+    let found = null;
+    (function lay(n, shown) {
+      if (n.tag === 'li' && n.className === 'entry') {
+        const h = shown ? 10 * walk(n).length : 0;
+        if (n === node) found = { top: y - win.scrollY, bottom: y + h - win.scrollY, height: h };
+        y += h;
+        return;
+      }
+      if (shown && (n.tag === 'h2' || n.tag === 'summary')) y += 20;
+      n.children.forEach((c) => lay(c, shown && (n.tag !== 'details' || n.open || c.tag === 'summary')));
+    })(ids.groups, true);
+    return found || { top: 0, bottom: 0, height: 0 };
+  }
+  Node.page = { document, box };
   function runner(ok) {
     return new Proxy({}, {
       get(_, name) {
@@ -75,7 +112,7 @@ function sidebar(replies) {
   }
   const ctx = vm.createContext({
     document,
-    window: { addEventListener() {}, open: () => null },
+    window: win,
     google: { script: { run: runner(function () {}) } },
     setTimeout: (fn, ms) => { timeouts.push({ fn, ms }); return timeouts.length; },
     clearTimeout: () => {},
@@ -85,7 +122,7 @@ function sidebar(replies) {
     console,
   });
   vm.runInContext(SCRIPT, ctx, { filename: 'sidebar.html' });
-  return { ids, calls, timeouts, names: () => calls.map((c) => c.name) };
+  return { ids, calls, timeouts, document, window: win, entries, names: () => calls.map((c) => c.name) };
 }
 
 const stalledReply = reply('stalled', {
@@ -228,4 +265,57 @@ test('a deep check still running is a line of its own with moving dots, not a gr
   assert.ok(walk(first).includes(notes[0]), 'under the first claim whose deep check runs');
   // The meta line no longer carries it.
   assert.ok(!nodes.some((n) => n.className === 'meta' && /deep check running/.test(n.textContent)));
+});
+
+// Reading one claim while the others update (a user's report: the content jumped). Poll 3 of the
+// captured review runs with deep checks still going on the claims above claim:1; poll 5 is done, so
+// those claims grow with their results and the running lines above the list go.
+function readingAcrossAPoll(setUp) {
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: LenzView.build(POLLS[3]), nextPollS: 15 }),
+    lenzPoll: reply('done', { model: LenzView.build(POLLS[5]) }),
+    lenzLogOpen: null,
+  });
+  const entry = (id) => s.entries().find((n) => n.getAttribute('data-id') === id);
+  setUp(s, entry);
+  s.timeouts.filter((t) => t.ms === 15000).pop().fn(); // the poll
+  return { s, entry };
+}
+
+test('the claim being read keeps its place on screen when a poll re-renders the list', () => {
+  let before;
+  const { entry } = readingAcrossAPoll((s, entry) => {
+    s.window.scrollBy(0, entry('claim:1').getBoundingClientRect().top - 40);
+    before = entry('claim:1').getBoundingClientRect().top;
+  });
+  assert.equal(before, 40);
+  assert.equal(entry('claim:1').getBoundingClientRect().top, 40, 'still 40 px from the top');
+});
+
+test('the focused claim is the one held, and focus comes back to the same control', () => {
+  const { s, entry } = readingAcrossAPoll((s, entry) => {
+    s.window.scrollBy(0, entry('claim:0').getBoundingClientRect().top - 10); // claim:1 lower down, focused
+    entry('claim:1').querySelectorAll('button, a')[0].focus();
+    assert.ok(entry('claim:1').getBoundingClientRect().top > 10);
+    s.held = entry('claim:1').getBoundingClientRect().top;
+  });
+  assert.equal(entry('claim:1').getBoundingClientRect().top, s.held);
+  const focused = s.document.activeElement;
+  assert.equal(focused, entry('claim:1').querySelectorAll('button, a')[0], 'the new title button has focus');
+});
+
+test('at the top of the panel nothing is held, so new results show', () => {
+  const { s } = readingAcrossAPoll(() => {});
+  assert.equal(s.window.scrollY, 0);
+});
+
+test('a folded group the reader opened stays open across polls', () => {
+  const { s } = readingAcrossAPoll((s) => {
+    const d = walk(s.ids.groups).find((n) => n.tag === 'details');
+    assert.ok(d && !d.open, 'Checks out starts folded behind the issues');
+    d.open = true;
+  });
+  const d = walk(s.ids.groups).find((n) => n.tag === 'details');
+  assert.ok(d.open, 'still open after the poll');
 });

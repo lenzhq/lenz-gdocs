@@ -196,6 +196,7 @@
   var last = null; // the last state rendered, to fall back on when a call fails
   var shown = null; // the review id the list shows; Select and Apply name it
   var steps = {}; // entry id -> occurrence shown ("1 of N")
+  var folds = {}; // group key -> open, once the reader opened or closed that group
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -257,12 +258,13 @@
     // Lenz may not read this Doc yet: ask, keep the list as it was, and read the state again once allowed.
     // An action already waiting for the grant (Select, Apply, Undo, Check) keeps its place.
     if (r.phase === 'needs_file_access') { askAccess(access.retry || function () { call('lenzState', [], render); }); return; }
+    var place = readingPlace();
     show($('access'), false);
     stopAccessWait();
     last = r;
     phase = r.phase;
     var id = r.model && r.model.reviewId ? r.model.reviewId : null;
-    if (id !== shown) steps = {}; // entry ids repeat across reviews
+    if (id !== shown) { steps = {}; folds = {}; place = null; } // entry ids repeat across reviews
     shown = id;
     var signedOut = r.phase === 'signed_out';
     show($('signin'), signedOut);
@@ -316,8 +318,56 @@
     setText('footnote', m ? m.footnote : '');
 
     setText('updating', r.stale ? 'Updating…' : '');
+    keepPlace(place);
     // A remembered reply is shown only until the real one arrives; it schedules nothing.
     if (running && r.nextPollS && !r.stale) schedule(r.nextPollS);
+  }
+
+  // Every poll rebuilds the list while the reader may be reading it: rows above grow as their deep
+  // checks finish, the running lines go when the check ends. The entry being read keeps its place
+  // on screen (the focused one if it is in view, else the one being read), and focus comes back to
+  // the same control. At the top of the panel nothing is held, so new results show (the browser's
+  // own scroll anchoring does the same).
+  function readingPlace() {
+    var place = { at: [], focus: null };
+    var a = document.activeElement;
+    var li = a && a.closest ? a.closest('li.entry') : null;
+    if (li && li.getAttribute('data-id')) {
+      var controls = li.querySelectorAll('button, a');
+      place.focus = { id: li.getAttribute('data-id'), i: Array.prototype.indexOf.call(controls, a) };
+    }
+    if (window.scrollY <= 0) return place;
+    // A reader scrolls the entry they read to the top: the first entry that starts in view, not one
+    // scrolled mostly out of view above it (which grows when its own deep check ends).
+    var h = window.innerHeight;
+    Array.prototype.forEach.call(document.querySelectorAll('#groups li.entry'), function (n) {
+      var box = n.getBoundingClientRect();
+      if (box.height && box.bottom > 0 && box.top < h) place.at.push({ id: n.getAttribute('data-id'), top: box.top });
+    });
+    function rank(x) { return place.focus && x.id === place.focus.id ? 0 : x.top >= 0 ? 1 : 2; }
+    place.at.sort(function (x, y) { return rank(x) - rank(y); }); // stable: document order within a rank
+    return place;
+  }
+
+  function keepPlace(place) {
+    if (!place) return;
+    // The first one still shown (an entry may have moved into a closed group).
+    for (var i = 0; i < place.at.length; i++) {
+      var n = entryNode(place.at[i].id);
+      var box = n && n.getBoundingClientRect();
+      if (box && box.height) { window.scrollBy(0, box.top - place.at[i].top); break; }
+    }
+    if (place.focus && place.focus.i >= 0) {
+      var li = entryNode(place.focus.id);
+      var c = li && li.querySelectorAll('button, a')[place.focus.i];
+      if (c && !c.disabled) c.focus({ preventScroll: true });
+    }
+  }
+
+  function entryNode(id) {
+    var all = document.querySelectorAll('#groups li.entry');
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-id') === id) return all[i];
+    return null;
   }
 
   // 1:42, 12:05, 1:02:05.
@@ -360,6 +410,9 @@
       });
       if (g.collapsed) {
         var d = el('details');
+        // Open as the reader left it: a poll never folds a group they opened.
+        if (folds[g.key] === true) d.open = true;
+        d.addEventListener('toggle', function () { folds[g.key] = d.open; });
         d.appendChild(el('summary', null, g.title + ' (' + g.count + ')'));
         d.appendChild(list);
         box.appendChild(d);
@@ -372,6 +425,7 @@
 
   function renderEntry(e, note) {
     var li = el('li', 'entry');
+    li.setAttribute('data-id', e.id);
     var head = el('div', 'head');
     head.appendChild(el('span', 'stamp' + (e.token ? ' v-' + e.token : ''), e.label));
     var meta = [];
