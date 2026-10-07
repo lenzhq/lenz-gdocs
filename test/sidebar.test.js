@@ -342,3 +342,14 @@ test('the access prompt takes Updating… away: the real state has answered', ()
     assert.ok(s.ids.updating.hidden, 'and no Updating… under it');
   }
 });
+
+// The three dots follow their word with no space, like a typed ellipsis ("Deep check running..."),
+// as on every Lenz page that shows them (DESIGN.md § Motion). A flex gap on their line is a space.
+test('the animated dots follow their words with no gap', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  for (const cls of ['run-line', 'deep-run']) {
+    const rule = css.match(new RegExp('\\.' + cls + '\\s*\\{([^}]*)\\}'))[1];
+    assert.doesNotMatch(rule, /(^|[;\s])gap\s*:/, '.' + cls + ' puts no gap before the dots');
+  }
+  assert.doesNotMatch(css.match(/\.dots\s*\{([^}]*)\}/)[1], /margin|padding/, 'nor does .dots itself');
+});
