@@ -333,7 +333,9 @@
   function readingPlace() {
     var place = { at: [], focus: null };
     var a = document.activeElement;
-    var li = a && a.closest ? a.closest('li.entry') : null;
+    // Only while the sidebar has focus: a reader typing in the Doc leaves activeElement set here, and
+    // focusing it again would take the keyboard away from the editor.
+    var li = a && a.closest && document.hasFocus() ? a.closest('li.entry') : null;
     if (li && li.getAttribute('data-id') && a.getAttribute('data-focus')) {
       place.focus = { id: li.getAttribute('data-id'), key: a.getAttribute('data-focus') };
     }

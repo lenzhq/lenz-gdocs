@@ -72,6 +72,8 @@ function sidebar(replies) {
     createElement: (tag) => new Node(tag),
     createTextNode: (text) => { const n = new Node('#text'); n.textContent = text; return n; },
     activeElement: null,
+    focused: true, // the sidebar's own document has focus (false: the reader is typing in the Doc)
+    hasFocus: () => document.focused,
     querySelectorAll: (sel) => (sel === '#groups li.entry' ? entries() : []),
   };
   // A toy layout, enough to see a list move: the running block takes 100 px while shown, a heading or
@@ -379,4 +381,14 @@ test('focus stays on the same correction when a poll adds an edit above it', () 
   assert.equal(applies().length, 2);
   assert.equal(s.document.activeElement, applies()[1], 'the same edit, now second');
   assert.equal(s.document.activeElement.getAttribute('data-focus'), want);
+});
+
+test('a poll never takes the keyboard from the Doc: no focus restored when the sidebar lacks it', () => {
+  let title;
+  const { s } = readingAcrossAPoll((s, entry) => {
+    title = entry('claim:1').querySelectorAll('button, a')[0];
+    title.focus();
+    s.document.focused = false; // the reader went back to editing; activeElement stays on the title
+  });
+  assert.equal(s.document.activeElement, title, 'focus() was not called on the new title button');
 });
