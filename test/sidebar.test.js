@@ -220,7 +220,12 @@ test('a deep check still running is a line of its own with moving dots, not a gr
   const line = lines[0];
   assert.match(line.textContent, /^Deep check running/);
   assert.ok(walk(line).some((n) => n.className === 'dots'), 'the line carries the animated dots');
-  assert.ok(nodes.some((n) => n.className === 'deep-run-note' && /corrections/.test(n.textContent)), 'says what to wait for');
+  // What to wait for is said once, under the first such claim, not under every one.
+  const notes = nodes.filter((n) => n.className === 'deep-run-note');
+  assert.equal(notes.length, 1, 'the note once, however many deep checks run');
+  assert.match(notes[0].textContent, /corrections/);
+  const first = nodes.find((n) => n.className === 'entry' && walk(n).includes(line));
+  assert.ok(walk(first).includes(notes[0]), 'under the first claim whose deep check runs');
   // The meta line no longer carries it.
   assert.ok(!nodes.some((n) => n.className === 'meta' && /deep check running/.test(n.textContent)));
 });
