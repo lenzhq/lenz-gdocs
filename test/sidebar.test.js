@@ -319,3 +319,26 @@ test('a folded group the reader opened stays open across polls', () => {
   const d = walk(s.ids.groups).find((n) => n.tag === 'details');
   assert.ok(d.open, 'still open after the poll');
 });
+
+// "Updating…" says a list kept from last time is shown while the real state loads. On opening a Doc
+// with no kept list it said so over nothing, and the per-Doc access prompt never took it away.
+test('opening with no kept list says nothing is updating', () => {
+  const s = sidebar({ lenzOpen: reply('idle', { stale: true }), lenzOpenState: () => undefined, lenzLogOpen: null });
+  assert.ok(s.ids.updating.hidden, 'no Updating… over an empty panel');
+});
+
+test('a kept list says Updating… until the real state arrives', () => {
+  const model = LenzView.build(POLLS[5]);
+  const s = sidebar({ lenzOpen: reply('done', { model, stale: true }), lenzOpenState: () => undefined, lenzLogOpen: null });
+  assert.equal(s.ids.updating.textContent, 'Updating…');
+  assert.ok(!s.ids.updating.hidden);
+});
+
+test('the access prompt takes Updating… away: the real state has answered', () => {
+  const model = LenzView.build(POLLS[5]);
+  for (const first of [reply('idle', { stale: true }), reply('done', { model, stale: true })]) {
+    const s = sidebar({ lenzOpen: first, lenzOpenState: reply('needs_file_access', { ok: false, message: null }), lenzLogOpen: null });
+    assert.ok(!s.ids.access.hidden, 'the prompt shows');
+    assert.ok(s.ids.updating.hidden, 'and no Updating… under it');
+  }
+});

@@ -233,6 +233,7 @@
           setCheck(false);
         }
         setText(last && last.phase === 'signed_out' ? 'signin-error' : 'error', GLUE_FAILED);
+        setText('updating', ''); // the kept list is not being updated: the call failed
         if (phase === 'running' && !timer) schedule(15);
         drain();
       })[fn].apply(null, args);
@@ -317,7 +318,8 @@
     show($('coverage-box'), !!(m && m.coverage.length));
     setText('footnote', m ? m.footnote : '');
 
-    setText('updating', r.stale ? 'Updating…' : '');
+    // Only over a list kept from last time; with none, there is nothing to update.
+    setText('updating', r.stale && m ? 'Updating…' : '');
     keepPlace(place);
     // A remembered reply is shown only until the real one arrives; it schedules nothing.
     if (running && r.nextPollS && !r.stale) schedule(r.nextPollS);
@@ -653,6 +655,7 @@
     show($('main'), true);
     setText('access-line', ACCESS_LINE);
     setText('access-error', '');
+    setText('updating', ''); // the real state answered: Lenz needs this Doc first
     $('access-go').disabled = false;
     show($('access'), true);
   }
