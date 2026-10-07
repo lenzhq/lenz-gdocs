@@ -111,8 +111,8 @@
   .stage-count { font-family: var(--font-mono); font-size: 12px; color: var(--warm-400); font-variant-numeric: tabular-nums; }
   .stage-done { color: var(--true); }
   /* A quick verdict whose deep check runs says so in body text, with the same dots: in the meta line
-     it was read as nothing happening (and no corrections coming). */
-  .deep-run { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 500; color: var(--primary);
+     it was read as nothing happening (and no corrections coming). Ink, not blue: it is not a link. */
+  .deep-run { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 500; color: var(--warm-800);
               margin: 2px 0 4px; }
   .deep-run-note { font-size: 12px; color: var(--warm-500); margin: 0 0 6px; }
   .foot { margin-top: 24px; border-top: 1px solid var(--warm-200); padding-top: 12px; }
@@ -351,9 +351,13 @@
     var box = $('groups');
     clear(box);
     if (!m) return;
+    var noted = false; // the deep check's note goes under the first claim whose deep check runs
     m.groups.forEach(function (g) {
       var list = el('ol', 'entries');
-      g.entries.forEach(function (e) { list.appendChild(renderEntry(e)); });
+      g.entries.forEach(function (e) {
+        list.appendChild(renderEntry(e, e.deepRunning && !noted));
+        if (e.deepRunning) noted = true;
+      });
       if (g.collapsed) {
         var d = el('details');
         d.appendChild(el('summary', null, g.title + ' (' + g.count + ')'));
@@ -366,7 +370,7 @@
     });
   }
 
-  function renderEntry(e) {
+  function renderEntry(e, note) {
     var li = el('li', 'entry');
     var head = el('div', 'head');
     head.appendChild(el('span', 'stamp' + (e.token ? ' v-' + e.token : ''), e.label));
@@ -403,7 +407,7 @@
       run.appendChild(el('span', null, 'Deep check running'));
       run.appendChild(dots());
       li.appendChild(run);
-      li.appendChild(el('p', 'deep-run-note', 'Sources and any corrections appear here when it finishes.'));
+      if (note) li.appendChild(el('p', 'deep-run-note', 'Sources and any corrections appear here when it finishes.'));
     }
 
     if (e.rewrite) li.appendChild(line('Suggested rewrite: ', e.rewrite));
