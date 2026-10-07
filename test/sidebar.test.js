@@ -38,11 +38,25 @@ class Node {
     this._text = String(v);
   }
   get firstChild() { return this.children[0] || null; }
-  appendChild(c) { this.children.push(c); return c; }
-  removeChild(c) { this.children = this.children.filter((x) => x !== c); return c; }
+  appendChild(c) { c.parent = this; this.children.push(c); return c; }
+  removeChild(c) { c.parent = null; this.children = this.children.filter((x) => x !== c); return c; }
   addEventListener(type, fn) { this.handlers[type] = fn; }
   setAttribute(k, v) { this.attrs[k] = v; }
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
   click() { this.handlers.click(); }
+  // <details>: opening or closing fires `toggle`, as the browser does.
+  get open() { return !!this._open; }
+  set open(v) { this._open = !!v; if (this.handlers.toggle) this.handlers.toggle(); }
+  // The selectors the script uses on a node: `li.entry` up, `button, a` down.
+  closest(sel) {
+    for (let n = this; n; n = n.parent) if (sel === 'li.entry' && n.tag === 'li' && n.className === 'entry') return n;
+    return null;
+  }
+  querySelectorAll(sel) {
+    return sel === 'button, a' ? walk(this).filter((n) => n !== this && (n.tag === 'button' || n.tag === 'a')) : [];
+  }
+  focus() { Node.page.document.activeElement = this; }
+  getBoundingClientRect() { return Node.page.box(this); }
 }
 
 // Loads the sidebar's script. `replies`: server function name -> reply (a function gets the arguments).
@@ -57,8 +71,33 @@ function sidebar(replies) {
     getElementById: (id) => ids[id],
     createElement: (tag) => new Node(tag),
     createTextNode: (text) => { const n = new Node('#text'); n.textContent = text; return n; },
-    querySelectorAll: () => [],
+    activeElement: null,
+    focused: true, // the sidebar's own document has focus (false: the reader is typing in the Doc)
+    hasFocus: () => document.focused,
+    querySelectorAll: (sel) => (sel === '#groups li.entry' ? entries() : []),
   };
+  // A toy layout, enough to see a list move: the running block takes 100 px while shown, a heading or
+  // a summary 20, an entry 10 per node it holds (it grows as its check fills in), and nothing inside a
+  // closed group. The window is 600 px high; scrolling moves every box.
+  const win = { addEventListener() {}, open: () => null, scrollY: 0, innerHeight: 600,
+    scrollBy(x, y) { win.scrollY = Math.max(0, win.scrollY + y); } };
+  function entries() { return walk(ids.groups).filter((n) => n.tag === 'li' && n.className === 'entry'); }
+  function box(node) {
+    let y = ids.running.hidden ? 0 : 100;
+    let found = null;
+    (function lay(n, shown) {
+      if (n.tag === 'li' && n.className === 'entry') {
+        const h = shown ? 10 * walk(n).length : 0;
+        if (n === node) found = { top: y - win.scrollY, bottom: y + h - win.scrollY, height: h };
+        y += h;
+        return;
+      }
+      if (shown && (n.tag === 'h2' || n.tag === 'summary')) y += 20;
+      n.children.forEach((c) => lay(c, shown && (n.tag !== 'details' || n.open || c.tag === 'summary')));
+    })(ids.groups, true);
+    return found || { top: 0, bottom: 0, height: 0 };
+  }
+  Node.page = { document, box };
   function runner(ok) {
     return new Proxy({}, {
       get(_, name) {
@@ -75,7 +114,7 @@ function sidebar(replies) {
   }
   const ctx = vm.createContext({
     document,
-    window: { addEventListener() {}, open: () => null },
+    window: win,
     google: { script: { run: runner(function () {}) } },
     setTimeout: (fn, ms) => { timeouts.push({ fn, ms }); return timeouts.length; },
     clearTimeout: () => {},
@@ -85,7 +124,7 @@ function sidebar(replies) {
     console,
   });
   vm.runInContext(SCRIPT, ctx, { filename: 'sidebar.html' });
-  return { ids, calls, timeouts, names: () => calls.map((c) => c.name) };
+  return { ids, calls, timeouts, document, window: win, entries, names: () => calls.map((c) => c.name) };
 }
 
 const stalledReply = reply('stalled', {
@@ -228,4 +267,128 @@ test('a deep check still running is a line of its own with moving dots, not a gr
   assert.ok(walk(first).includes(notes[0]), 'under the first claim whose deep check runs');
   // The meta line no longer carries it.
   assert.ok(!nodes.some((n) => n.className === 'meta' && /deep check running/.test(n.textContent)));
+});
+
+// Reading one claim while the others update (a user's report: the content jumped). Poll 3 of the
+// captured review runs with deep checks still going on the claims above claim:1; poll 5 is done, so
+// those claims grow with their results and the running lines above the list go.
+function readingAcrossAPoll(setUp) {
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: LenzView.build(POLLS[3]), nextPollS: 15 }),
+    lenzPoll: reply('done', { model: LenzView.build(POLLS[5]) }),
+    lenzLogOpen: null,
+  });
+  const entry = (id) => s.entries().find((n) => n.getAttribute('data-id') === id);
+  setUp(s, entry);
+  s.timeouts.filter((t) => t.ms === 15000).pop().fn(); // the poll
+  return { s, entry };
+}
+
+test('the claim being read keeps its place on screen when a poll re-renders the list', () => {
+  let before;
+  const { entry } = readingAcrossAPoll((s, entry) => {
+    s.window.scrollBy(0, entry('claim:1').getBoundingClientRect().top - 40);
+    before = entry('claim:1').getBoundingClientRect().top;
+  });
+  assert.equal(before, 40);
+  assert.equal(entry('claim:1').getBoundingClientRect().top, 40, 'still 40 px from the top');
+});
+
+test('the focused claim is the one held, and focus comes back to the same control', () => {
+  const { s, entry } = readingAcrossAPoll((s, entry) => {
+    s.window.scrollBy(0, entry('claim:0').getBoundingClientRect().top - 10); // claim:1 lower down, focused
+    entry('claim:1').querySelectorAll('button, a')[0].focus();
+    assert.ok(entry('claim:1').getBoundingClientRect().top > 10);
+    s.held = entry('claim:1').getBoundingClientRect().top;
+  });
+  assert.equal(entry('claim:1').getBoundingClientRect().top, s.held);
+  const focused = s.document.activeElement;
+  assert.equal(focused, entry('claim:1').querySelectorAll('button, a')[0], 'the new title button has focus');
+});
+
+test('at the top of the panel nothing is held, so new results show', () => {
+  const { s } = readingAcrossAPoll(() => {});
+  assert.equal(s.window.scrollY, 0);
+});
+
+test('a folded group the reader opened stays open across polls', () => {
+  const { s } = readingAcrossAPoll((s) => {
+    const d = walk(s.ids.groups).find((n) => n.tag === 'details');
+    assert.ok(d && !d.open, 'Checks out starts folded behind the issues');
+    d.open = true;
+  });
+  const d = walk(s.ids.groups).find((n) => n.tag === 'details');
+  assert.ok(d.open, 'still open after the poll');
+});
+
+// "Updating…" says a list kept from last time is shown while the real state loads. On opening a Doc
+// with no kept list it said so over nothing, and the per-Doc access prompt never took it away.
+test('opening with no kept list says nothing is updating', () => {
+  const s = sidebar({ lenzOpen: reply('idle', { stale: true }), lenzOpenState: () => undefined, lenzLogOpen: null });
+  assert.ok(s.ids.updating.hidden, 'no Updating… over an empty panel');
+});
+
+test('a kept list says Updating… until the real state arrives', () => {
+  const model = LenzView.build(POLLS[5]);
+  const s = sidebar({ lenzOpen: reply('done', { model, stale: true }), lenzOpenState: () => undefined, lenzLogOpen: null });
+  assert.equal(s.ids.updating.textContent, 'Updating…');
+  assert.ok(!s.ids.updating.hidden);
+});
+
+test('the access prompt takes Updating… away: the real state has answered', () => {
+  const model = LenzView.build(POLLS[5]);
+  for (const first of [reply('idle', { stale: true }), reply('done', { model, stale: true })]) {
+    const s = sidebar({ lenzOpen: first, lenzOpenState: reply('needs_file_access', { ok: false, message: null }), lenzLogOpen: null });
+    assert.ok(!s.ids.access.hidden, 'the prompt shows');
+    assert.ok(s.ids.updating.hidden, 'and no Updating… under it');
+  }
+});
+
+// The three dots follow their word with no space, like a typed ellipsis ("Deep check running..."),
+// as on every Lenz page that shows them (DESIGN.md § Motion). A flex gap on their line is a space.
+test('the animated dots follow their words with no gap', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  for (const cls of ['run-line', 'deep-run']) {
+    const rule = css.match(new RegExp('\\.' + cls + '\\s*\\{([^}]*)\\}'))[1];
+    assert.doesNotMatch(rule, /(^|[;\s])gap\s*:/, '.' + cls + ' puts no gap before the dots');
+  }
+  assert.doesNotMatch(css.match(/\.dots\s*\{([^}]*)\}/)[1], /margin|padding/, 'nor does .dots itself');
+});
+
+// Focus follows the control, not its position: a poll that adds an edit above the focused Apply must
+// not hand focus (and the next Enter) to a different correction.
+test('focus stays on the same correction when a poll adds an edit above it', () => {
+  const withEdits = (edits) => {
+    const m = LenzView.build(POLLS[5]);
+    const entry = m.groups.flatMap((g) => g.entries).find((e) => e.edits.length);
+    entry.edits = edits(entry.edits[0]);
+    return { m, entry };
+  };
+  const extra = (e) => Object.assign({}, e, { id: e.id + ':other', fp: 'other', from: 'first person', to: 'second person' });
+  const before = withEdits((e) => [e]);
+  const after = withEdits((e) => [extra(e), e]);
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: before.m, nextPollS: 15 }),
+    lenzPoll: reply('done', { model: after.m }),
+    lenzLogOpen: null,
+  });
+  const applies = () => walk(s.ids.groups).filter((n) => n.tag === 'button' && n.textContent === 'Apply');
+  applies()[0].focus();
+  const want = applies()[0].getAttribute('data-focus');
+  s.timeouts.filter((t) => t.ms === 15000).pop().fn();
+  assert.equal(applies().length, 2);
+  assert.equal(s.document.activeElement, applies()[1], 'the same edit, now second');
+  assert.equal(s.document.activeElement.getAttribute('data-focus'), want);
+});
+
+test('a poll never takes the keyboard from the Doc: no focus restored when the sidebar lacks it', () => {
+  let title;
+  const { s } = readingAcrossAPoll((s, entry) => {
+    title = entry('claim:1').querySelectorAll('button, a')[0];
+    title.focus();
+    s.document.focused = false; // the reader went back to editing; activeElement stays on the title
+  });
+  assert.equal(s.document.activeElement, title, 'focus() was not called on the new title button');
 });

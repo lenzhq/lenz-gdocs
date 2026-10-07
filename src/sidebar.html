@@ -98,7 +98,7 @@
   ul.coverage li { margin-bottom: 4px; }
   /* The running state: the Workbench's three dots, still under reduced motion. */
   .running { margin: 4px 0 12px; }
-  .run-line { display: flex; gap: 6px; align-items: baseline; font-size: 13px; color: var(--warm-800); margin: 0 0 6px; }
+  .run-line { display: flex; align-items: baseline; font-size: 13px; color: var(--warm-800); margin: 0 0 6px; }
   .dots { display: inline-block; letter-spacing: 1px; }
   .dots i { font-style: normal; opacity: 0; animation: lenz-dot 1.4s infinite; }
   .dots i:nth-child(2) { animation-delay: 0.2s; }
@@ -112,7 +112,7 @@
   .stage-done { color: var(--true); }
   /* A quick verdict whose deep check runs says so in body text, with the same dots: in the meta line
      it was read as nothing happening (and no corrections coming). Ink, not blue: it is not a link. */
-  .deep-run { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 500; color: var(--warm-800);
+  .deep-run { display: flex; align-items: baseline; font-size: 13px; font-weight: 500; color: var(--warm-800);
               margin: 2px 0 4px; }
   .deep-run-note { font-size: 12px; color: var(--warm-500); margin: 0 0 6px; }
   .foot { margin-top: 24px; border-top: 1px solid var(--warm-200); padding-top: 12px; }
@@ -196,6 +196,7 @@
   var last = null; // the last state rendered, to fall back on when a call fails
   var shown = null; // the review id the list shows; Select and Apply name it
   var steps = {}; // entry id -> occurrence shown ("1 of N")
+  var folds = {}; // group key -> open, once the reader opened or closed that group
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -232,6 +233,7 @@
           setCheck(false);
         }
         setText(last && last.phase === 'signed_out' ? 'signin-error' : 'error', GLUE_FAILED);
+        setText('updating', ''); // the kept list is not being updated: the call failed
         if (phase === 'running' && !timer) schedule(15);
         drain();
       })[fn].apply(null, args);
@@ -257,12 +259,13 @@
     // Lenz may not read this Doc yet: ask, keep the list as it was, and read the state again once allowed.
     // An action already waiting for the grant (Select, Apply, Undo, Check) keeps its place.
     if (r.phase === 'needs_file_access') { askAccess(access.retry || function () { call('lenzState', [], render); }); return; }
+    var place = readingPlace();
     show($('access'), false);
     stopAccessWait();
     last = r;
     phase = r.phase;
     var id = r.model && r.model.reviewId ? r.model.reviewId : null;
-    if (id !== shown) steps = {}; // entry ids repeat across reviews
+    if (id !== shown) { steps = {}; folds = {}; place = null; } // entry ids repeat across reviews
     shown = id;
     var signedOut = r.phase === 'signed_out';
     show($('signin'), signedOut);
@@ -315,9 +318,61 @@
     show($('coverage-box'), !!(m && m.coverage.length));
     setText('footnote', m ? m.footnote : '');
 
-    setText('updating', r.stale ? 'Updating…' : '');
+    // Only over a list kept from last time; with none, there is nothing to update.
+    setText('updating', r.stale && m ? 'Updating…' : '');
+    keepPlace(place);
     // A remembered reply is shown only until the real one arrives; it schedules nothing.
     if (running && r.nextPollS && !r.stale) schedule(r.nextPollS);
+  }
+
+  // Every poll rebuilds the list while the reader may be reading it: rows above grow as their deep
+  // checks finish, the running lines go when the check ends. The entry being read keeps its place
+  // on screen (the focused one if it is in view, else the one being read), and focus comes back to
+  // the same control. At the top of the panel nothing is held, so new results show (the browser's
+  // own scroll anchoring does the same).
+  function readingPlace() {
+    var place = { at: [], focus: null };
+    var a = document.activeElement;
+    // Only while the sidebar has focus: a reader typing in the Doc leaves activeElement set here, and
+    // focusing it again would take the keyboard away from the editor.
+    var li = a && a.closest && document.hasFocus() ? a.closest('li.entry') : null;
+    if (li && li.getAttribute('data-id') && a.getAttribute('data-focus')) {
+      place.focus = { id: li.getAttribute('data-id'), key: a.getAttribute('data-focus') };
+    }
+    if (window.scrollY <= 0) return place;
+    // A reader scrolls the entry they read to the top: the first entry that starts in view, not one
+    // scrolled mostly out of view above it (which grows when its own deep check ends).
+    var h = window.innerHeight;
+    Array.prototype.forEach.call(document.querySelectorAll('#groups li.entry'), function (n) {
+      var box = n.getBoundingClientRect();
+      if (box.height && box.bottom > 0 && box.top < h) place.at.push({ id: n.getAttribute('data-id'), top: box.top });
+    });
+    function rank(x) { return place.focus && x.id === place.focus.id ? 0 : x.top >= 0 ? 1 : 2; }
+    place.at.sort(function (x, y) { return rank(x) - rank(y); }); // stable: document order within a rank
+    return place;
+  }
+
+  function keepPlace(place) {
+    if (!place) return;
+    // The first one still shown (an entry may have moved into a closed group).
+    for (var i = 0; i < place.at.length; i++) {
+      var n = entryNode(place.at[i].id);
+      var box = n && n.getBoundingClientRect();
+      if (box && box.height) { window.scrollBy(0, box.top - place.at[i].top); break; }
+    }
+    // By what the control is, never by where it sits: a poll can add an edit above the focused one,
+    // and Enter must not then apply a different correction.
+    var li = place.focus && entryNode(place.focus.id);
+    var c = li && Array.prototype.filter.call(li.querySelectorAll('button, a'), function (n) {
+      return n.getAttribute('data-focus') === place.focus.key;
+    })[0];
+    if (c && !c.disabled) c.focus({ preventScroll: true });
+  }
+
+  function entryNode(id) {
+    var all = document.querySelectorAll('#groups li.entry');
+    for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-id') === id) return all[i];
+    return null;
   }
 
   // 1:42, 12:05, 1:02:05.
@@ -360,6 +415,9 @@
       });
       if (g.collapsed) {
         var d = el('details');
+        // Open as the reader left it: a poll never folds a group they opened.
+        if (folds[g.key] === true) d.open = true;
+        d.addEventListener('toggle', function () { folds[g.key] = d.open; });
         d.appendChild(el('summary', null, g.title + ' (' + g.count + ')'));
         d.appendChild(list);
         box.appendChild(d);
@@ -372,6 +430,7 @@
 
   function renderEntry(e, note) {
     var li = el('li', 'entry');
+    li.setAttribute('data-id', e.id);
     var head = el('div', 'head');
     head.appendChild(el('span', 'stamp' + (e.token ? ' v-' + e.token : ''), e.label));
     var meta = [];
@@ -395,6 +454,7 @@
       var t = el('button', 'title', e.title);
       t.type = 'button';
       t.title = 'Select these words in the Doc';
+      t.setAttribute('data-focus', 'title');
       t.addEventListener('click', function () { select(e.id, steps[e.id] || 0); });
       li.appendChild(t);
     } else {
@@ -440,6 +500,7 @@
     a.href = href;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
+    a.setAttribute('data-focus', 'link:' + href);
     p.appendChild(a);
     return p;
   }
@@ -449,6 +510,8 @@
     var prev = el('button', null, 'Previous');
     var next = el('button', null, 'Next');
     prev.type = next.type = 'button';
+    prev.setAttribute('data-focus', 'previous');
+    next.setAttribute('data-focus', 'next');
     prev.disabled = occ === 0;
     next.disabled = occ >= e.occurrences - 1;
     var label = el('span', null, (occ + 1) + ' of ' + e.occurrences);
@@ -512,6 +575,7 @@
       u.type = 'button';
       u.disabled = writing || !x.undo;
       u.setAttribute('aria-label', 'Undo: put back “' + x.from + '”');
+      u.setAttribute('data-focus', 'edit:' + x.id); // Apply and its Undo: the same edit
       u.addEventListener('click', function () { writeEdit('lenzUndo', u, 'Undoing…', x.undo); });
       row.appendChild(u);
       return wrap;
@@ -524,6 +588,7 @@
     b.type = 'button';
     b.disabled = writing;
     b.setAttribute('aria-label', 'Apply: replace “' + x.from + '” with “' + x.to + '”');
+    b.setAttribute('data-focus', 'edit:' + x.id);
     b.addEventListener('click', function () { writeEdit('lenzApply', b, 'Applying…', x); });
     row.appendChild(b);
     return wrap;
@@ -599,6 +664,7 @@
     show($('main'), true);
     setText('access-line', ACCESS_LINE);
     setText('access-error', '');
+    setText('updating', ''); // the real state answered: Lenz needs this Doc first
     $('access-go').disabled = false;
     show($('access'), true);
   }
