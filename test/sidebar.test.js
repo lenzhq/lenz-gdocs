@@ -353,3 +353,30 @@ test('the animated dots follow their words with no gap', () => {
   }
   assert.doesNotMatch(css.match(/\.dots\s*\{([^}]*)\}/)[1], /margin|padding/, 'nor does .dots itself');
 });
+
+// Focus follows the control, not its position: a poll that adds an edit above the focused Apply must
+// not hand focus (and the next Enter) to a different correction.
+test('focus stays on the same correction when a poll adds an edit above it', () => {
+  const withEdits = (edits) => {
+    const m = LenzView.build(POLLS[5]);
+    const entry = m.groups.flatMap((g) => g.entries).find((e) => e.edits.length);
+    entry.edits = edits(entry.edits[0]);
+    return { m, entry };
+  };
+  const extra = (e) => Object.assign({}, e, { id: e.id + ':other', fp: 'other', from: 'first person', to: 'second person' });
+  const before = withEdits((e) => [e]);
+  const after = withEdits((e) => [extra(e), e]);
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: before.m, nextPollS: 15 }),
+    lenzPoll: reply('done', { model: after.m }),
+    lenzLogOpen: null,
+  });
+  const applies = () => walk(s.ids.groups).filter((n) => n.tag === 'button' && n.textContent === 'Apply');
+  applies()[0].focus();
+  const want = applies()[0].getAttribute('data-focus');
+  s.timeouts.filter((t) => t.ms === 15000).pop().fn();
+  assert.equal(applies().length, 2);
+  assert.equal(s.document.activeElement, applies()[1], 'the same edit, now second');
+  assert.equal(s.document.activeElement.getAttribute('data-focus'), want);
+});

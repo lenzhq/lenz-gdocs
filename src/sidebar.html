@@ -334,9 +334,8 @@
     var place = { at: [], focus: null };
     var a = document.activeElement;
     var li = a && a.closest ? a.closest('li.entry') : null;
-    if (li && li.getAttribute('data-id')) {
-      var controls = li.querySelectorAll('button, a');
-      place.focus = { id: li.getAttribute('data-id'), i: Array.prototype.indexOf.call(controls, a) };
+    if (li && li.getAttribute('data-id') && a.getAttribute('data-focus')) {
+      place.focus = { id: li.getAttribute('data-id'), key: a.getAttribute('data-focus') };
     }
     if (window.scrollY <= 0) return place;
     // A reader scrolls the entry they read to the top: the first entry that starts in view, not one
@@ -359,11 +358,13 @@
       var box = n && n.getBoundingClientRect();
       if (box && box.height) { window.scrollBy(0, box.top - place.at[i].top); break; }
     }
-    if (place.focus && place.focus.i >= 0) {
-      var li = entryNode(place.focus.id);
-      var c = li && li.querySelectorAll('button, a')[place.focus.i];
-      if (c && !c.disabled) c.focus({ preventScroll: true });
-    }
+    // By what the control is, never by where it sits: a poll can add an edit above the focused one,
+    // and Enter must not then apply a different correction.
+    var li = place.focus && entryNode(place.focus.id);
+    var c = li && Array.prototype.filter.call(li.querySelectorAll('button, a'), function (n) {
+      return n.getAttribute('data-focus') === place.focus.key;
+    })[0];
+    if (c && !c.disabled) c.focus({ preventScroll: true });
   }
 
   function entryNode(id) {
@@ -451,6 +452,7 @@
       var t = el('button', 'title', e.title);
       t.type = 'button';
       t.title = 'Select these words in the Doc';
+      t.setAttribute('data-focus', 'title');
       t.addEventListener('click', function () { select(e.id, steps[e.id] || 0); });
       li.appendChild(t);
     } else {
@@ -496,6 +498,7 @@
     a.href = href;
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
+    a.setAttribute('data-focus', 'link:' + href);
     p.appendChild(a);
     return p;
   }
@@ -505,6 +508,8 @@
     var prev = el('button', null, 'Previous');
     var next = el('button', null, 'Next');
     prev.type = next.type = 'button';
+    prev.setAttribute('data-focus', 'previous');
+    next.setAttribute('data-focus', 'next');
     prev.disabled = occ === 0;
     next.disabled = occ >= e.occurrences - 1;
     var label = el('span', null, (occ + 1) + ' of ' + e.occurrences);
@@ -568,6 +573,7 @@
       u.type = 'button';
       u.disabled = writing || !x.undo;
       u.setAttribute('aria-label', 'Undo: put back “' + x.from + '”');
+      u.setAttribute('data-focus', 'edit:' + x.id); // Apply and its Undo: the same edit
       u.addEventListener('click', function () { writeEdit('lenzUndo', u, 'Undoing…', x.undo); });
       row.appendChild(u);
       return wrap;
@@ -580,6 +586,7 @@
     b.type = 'button';
     b.disabled = writing;
     b.setAttribute('aria-label', 'Apply: replace “' + x.from + '” with “' + x.to + '”');
+    b.setAttribute('data-focus', 'edit:' + x.id);
     b.addEventListener('click', function () { writeEdit('lenzApply', b, 'Applying…', x); });
     row.appendChild(b);
     return wrap;
