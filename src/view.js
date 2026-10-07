@@ -381,8 +381,8 @@ var LenzView = (function () {
         lines.push({ lead: null, text: deepFailureText(verification) });
       }
     }
-    // Re-rendered whenever the block changes; no line while edits are worked out: the verdict's
-    // "deep check running" says enough.
+    // Re-rendered whenever the block changes; no line while edits are worked out: the entry's
+    // "Deep check running" line says enough.
     var ed = editsOf(row, opts);
     e.edits = ed.edits;
     e.editsNote = ed.note;

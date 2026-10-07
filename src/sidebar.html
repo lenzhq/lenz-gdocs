@@ -110,6 +110,11 @@
   ul.stages li:first-child { border-top: 0; }
   .stage-count { font-family: var(--font-mono); font-size: 12px; color: var(--warm-400); font-variant-numeric: tabular-nums; }
   .stage-done { color: var(--true); }
+  /* A quick verdict whose deep check runs says so in body text, with the same dots: in the meta line
+     it was read as nothing happening (and no corrections coming). */
+  .deep-run { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 500; color: var(--primary);
+              margin: 2px 0 4px; }
+  .deep-run-note { font-size: 12px; color: var(--warm-500); margin: 0 0 6px; }
   .foot { margin-top: 24px; border-top: 1px solid var(--warm-200); padding-top: 12px; }
   .foot .home-link { float: right; }
 </style>
@@ -368,9 +373,8 @@
     var meta = [];
     if (e.check) meta.push(e.check);
     if (e.confidence) meta.push('confidence ' + e.confidence);
-    if (e.deepRunning) meta.push('deep check running');
     if (typeof e.score === 'number') meta.push(e.score + '/10');
-    // Each segment stays whole ("deep check running"); the line breaks only between segments.
+    // Each segment stays whole ("confidence medium"); the line breaks only between segments.
     if (meta.length) {
       var mt = el('span', 'meta');
       meta.forEach(function (m, i) {
@@ -394,6 +398,13 @@
     }
     if (e.placed && e.occurrences > 1) li.appendChild(stepper(e, occ));
     if (e.placeNote) li.appendChild(el('p', 'line muted', e.placeNote));
+    if (e.deepRunning) {
+      var run = el('p', 'deep-run');
+      run.appendChild(el('span', null, 'Deep check running'));
+      run.appendChild(dots());
+      li.appendChild(run);
+      li.appendChild(el('p', 'deep-run-note', 'Sources and any corrections appear here when it finishes.'));
+    }
 
     if (e.rewrite) li.appendChild(line('Suggested rewrite: ', e.rewrite));
     e.lines.forEach(function (l) { li.appendChild(line(l.lead, l.text)); });
@@ -402,6 +413,14 @@
     if (e.editsNote) li.appendChild(el('p', 'line muted', e.editsNote));
     if (e.link) li.appendChild(link(e.link.href, e.link.words));
     return li;
+  }
+
+  // The three dots of the running state (decorative: the words say it).
+  function dots() {
+    var d = el('span', 'dots');
+    d.setAttribute('aria-hidden', 'true');
+    for (var i = 0; i < 3; i++) d.appendChild(el('i', null, '.'));
+    return d;
   }
 
   function line(lead, text) {

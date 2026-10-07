@@ -13,6 +13,7 @@ const HTML = fs.readFileSync(path.join(__dirname, '..', 'src', 'sidebar.html'), 
 const SCRIPT = [...HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])[0];
 const NO_CREDITS = require('./fixtures/reviews/failed-insufficient-credits.review.json');
 const NO_CLAIM = require('./fixtures/reviews/failed-no-claim.review.json');
+const POLLS = require('./fixtures/reviews/draft-a.polls.json');
 
 const STALLED = 'Lenz is not answering. Your check is kept; choose Resume to look again.';
 const AUTH = { mode: 'oauth', signedIn: true };
@@ -198,4 +199,28 @@ test('a finished selection check shows what it covered', () => {
   const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model }), lenzLogOpen: null });
   assert.equal(s.ids.scope.textContent, model.scope);
   assert.equal(s.ids.scope.hidden, false);
+});
+
+// Every node under `n`, depth first.
+function walk(n, out) {
+  out = out || [];
+  out.push(n);
+  n.children.forEach((c) => walk(c, out));
+  return out;
+}
+
+test('a deep check still running is a line of its own with moving dots, not a grey meta segment', () => {
+  const model = LenzView.build(POLLS[0]);
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('running', { model, nextPollS: 15 }), lenzLogOpen: null });
+  const nodes = walk(s.ids.groups);
+  const lines = nodes.filter((n) => n.className === 'deep-run');
+  const running = model.groups.flatMap((g) => g.entries).filter((e) => e.deepRunning).length;
+  assert.ok(running > 0, 'the fixture has a deep check running');
+  assert.equal(lines.length, running, 'one line per claim whose deep check runs');
+  const line = lines[0];
+  assert.match(line.textContent, /^Deep check running/);
+  assert.ok(walk(line).some((n) => n.className === 'dots'), 'the line carries the animated dots');
+  assert.ok(nodes.some((n) => n.className === 'deep-run-note' && /corrections/.test(n.textContent)), 'says what to wait for');
+  // The meta line no longer carries it.
+  assert.ok(!nodes.some((n) => n.className === 'meta' && /deep check running/.test(n.textContent)));
 });
