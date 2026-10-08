@@ -101,7 +101,8 @@ var LenzView = (function () {
   var QUICK_FAILED = NOT_CHECKED + ' Nothing was charged for it.';
   var RUN_AGAIN = 'Choose Check this Doc to check it again; the new check is charged.';
 
-  // A review that failed as a whole, by what Lenz says failed (failure_reason, and failure_class where the
+  // A review that failed as a whole, by what Lenz says failed (failure.code, or failure_reason as older
+  // answers name it, and failure_class where the
   // reason alone does not tell). Never the API's `hint`: it is written for integrators and names endpoints
   // and request headers. The sidebar adds a link for `credits`.
   var FAILED_WORDS = {
@@ -111,14 +112,21 @@ var LenzView = (function () {
     ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
   };
   var FAILED_KEYS = {
+    no_checkable_claim: 'no_claim',
     no_claim: 'no_claim',
+    not_a_claim: 'no_claim',
     insufficient_credits: 'credits',
     upstream_unavailable: 'unavailable',
     assessment_failed: 'unavailable',
   };
 
+  // What failed, as a code: `code` in the current shape, `failure_reason` in the older one.
+  function failureCode(f) {
+    return isObj(f) ? str(f.code) || str(f.failure_reason) : null;
+  }
+
   function failedKey(f) {
-    var reason = str(f.failure_reason) || '';
+    var reason = failureCode(f) || '';
     if (has(FAILED_KEYS, reason)) return FAILED_KEYS[reason];
     return f.failure_class === 'upstream_unavailable' ? 'unavailable' : 'ours';
   }
@@ -156,6 +164,7 @@ var LenzView = (function () {
   }
 
   // lenz-check-states.js forClaim.
+  // A row with no verdict: `verdict` null (current shape; the row says `status: failed`) or "Error" (older).
   function claimState(verdict, confidence) {
     if (!verdict || verdict === 'Error') return 'none';
     if (confidence === 'low') return 'look';
@@ -285,7 +294,7 @@ var LenzView = (function () {
   function deepFailureText(verification) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
     var cls = str(f.failure_class);
-    var research = (str(f.failure_reason) || '').indexOf('research_') === 0;
+    var research = (failureCode(f) || '').indexOf('research_') === 0;
     if (cls === 'insufficient_evidence') {
       return 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
     }
@@ -373,7 +382,8 @@ var LenzView = (function () {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {
       // A failed quick check was refunded (never the API's hint: that is written for integrators).
-      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(assessment.hint) || NOT_CHECKED });
+      var aHint = str(assessment.hint) || (isObj(assessment.failure) ? str(assessment.failure.hint) : null);
+      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : aHint || NOT_CHECKED });
     } else {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (str(assessment.dissent)) lines.push({ lead: 'A reviewer disagreed: ', text: assessment.dissent });

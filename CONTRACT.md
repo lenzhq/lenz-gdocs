@@ -277,7 +277,14 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
 - `describeError` covers 401, 402, 403, 404, 409, 410, 422 (`idempotency_body_mismatch` and the rest),
   429 (`review_in_flight`, `extract_daily_limit`, the Cloud Armor non-JSON body), 503 `capacity`,
   other 5xx, transport failure. Messages live in `LenzApi.MESSAGES`: plain, short, no blame, say
-  what to do.
+  what to do. The wait: the `Retry-After` header first, then the body's `retry_after`, then the older
+  names (`retry_after_seconds` on `review_in_flight`, `reset_in_seconds` on `extract_daily_limit`).
+- Both answer shapes of the API are read (the add-on sends no version header): the current one
+  (`failure.code` + `failure.detail`, `no_checkable_claim`, a failed row as `status: failed` with a
+  null verdict, `more_claims` on rows, `retry_after`) and the older one (`failure.failure_reason`,
+  `no_claim` / `not_a_claim`, verdict `"Error"`, `identified_claims`, `retry_after_seconds` /
+  `reset_in_seconds`). `test/api-shapes.test.js` holds the same answers in both shapes
+  (`test/fixtures/api-shapes/`) and checks the sidebar and the errors come out the same.
 - `edit` finds the claim by its `index` field (`issues[].claim_index` on `view=issues`), and returns
   null for anything not a settled, well-formed edit; it never trusts client text.
 - Body sent: `{text, webhook_url: '', visibility: 'private', escalate: {suggest_edits: true,
@@ -365,7 +372,7 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   `citations_skipped`, findings not in the Doc as it is now, `notRead`, `outcome: incomplete`.
 - A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s);
   and `failureLink` (`https://lenz.io/billing`, "Add credits") on a review that failed for credits.
-- A failed review's `failure` is Docs words chosen by `failure.failure_reason` / `failure_class`, never
+- A failed review's `failure` is Docs words chosen by `failure.code` (or `failure.failure_reason`) / `failure_class`, never
   the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not check
   just now (an outage, or every quick check failed), else "on our side". A failed deep check's row says
   too few sources, search unavailable, a service unavailable, or stopped on our side, by the same
