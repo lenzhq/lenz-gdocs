@@ -1,0 +1,88 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "failed",
+    "done": true,
+    "progress": null,
+    "stages": null,
+    "headline": "The check did not finish.",
+    "failure": "Lenz could not check this tab just now. Nothing was charged. Try again in a minute.",
+    "failureLink": null,
+    "groups": [
+      {
+        "key": "none",
+        "title": "Not checked",
+        "collapsed": false,
+        "count": 2,
+        "entries": [
+          {
+            "id": "claim:0",
+            "kind": "claim",
+            "group": "none",
+            "state": "none",
+            "stateWords": "Not checked",
+            "title": "The EU AI Act took effect in March 2024.",
+            "label": "Not checked",
+            "token": null,
+            "check": null,
+            "deepRunning": false,
+            "confidence": null,
+            "score": null,
+            "rewrite": null,
+            "lines": [
+              {
+                "lead": null,
+                "text": "Could not be checked this time. Nothing was charged for it."
+              }
+            ],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          },
+          {
+            "id": "claim:1",
+            "kind": "claim",
+            "group": "none",
+            "state": "none",
+            "stateWords": "Not checked",
+            "title": "Water boils at 100 C at sea level.",
+            "label": "Not checked",
+            "token": null,
+            "check": null,
+            "deepRunning": false,
+            "confidence": null,
+            "score": null,
+            "rewrite": null,
+            "lines": [
+              {
+                "lead": null,
+                "text": "Could not be checked this time. Nothing was charged for it."
+              }
+            ],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      "2 claims could not be checked this time.",
+      "2 findings are not in the Doc as it is now, so they cannot be selected.",
+      "Choose Check this Doc to check it again; the new check is charged."
+    ],
+    "scope": null,
+    "footnote": null,
+    "charged": "Charged 0 credits."
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "verifying",
+    "done": false,
+    "progress": "Running 1 deep check (0 done)",
+    "stages": [
+      {
+        "key": "quick",
+        "label": "Quick checks",
+        "done": 2,
+        "total": 2,
+        "complete": true
+      },
+      {
+        "key": "deep",
+        "label": "Deep checks",
+        "done": 0,
+        "total": 1,
+        "complete": false
+      }
+    ],
+    "headline": null,
+    "failure": null,
+    "failureLink": null,
+    "groups": [
+      {
+        "key": "issue",
+        "title": "Issues",
+        "collapsed": false,
+        "count": 1,
+        "entries": [
+          {
+            "id": "claim:0",
+            "kind": "claim",
+            "group": "issue",
+            "state": "bad",
+            "stateWords": "Doesn't check out",
+            "title": "The EU AI Act took effect in March 2024.",
+            "label": "False",
+            "token": "false",
+            "check": "Quick check",
+            "deepRunning": true,
+            "confidence": "high",
+            "score": null,
+            "rewrite": null,
+            "lines": [],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      },
+      {
+        "key": "ok",
+        "title": "Checks out",
+        "collapsed": true,
+        "count": 1,
+        "entries": [
+          {
+            "id": "claim:1",
+            "kind": "claim",
+            "group": "ok",
+            "state": "ok",
+            "stateWords": "Checks out",
+            "title": "Water boils at 100 C at sea level.",
+            "label": "True",
+            "token": "true",
+            "check": "Quick check",
+            "deepRunning": false,
+            "confidence": "high",
+            "score": null,
+            "rewrite": null,
+            "lines": [],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      "2 findings are not in the Doc as it is now, so they cannot be selected."
+    ],
+    "scope": null,
+    "footnote": "A quick verdict is a first read. A deep check shows the sources and can change it.",
+    "charged": "Charged 2 credits."
+  }
+}

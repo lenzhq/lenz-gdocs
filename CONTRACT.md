@@ -277,11 +277,24 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
 - `describeError` covers 401, 402, 403, 404, 409, 410, 422 (`idempotency_body_mismatch` and the rest),
   429 (`review_in_flight`, `extract_daily_limit`, the Cloud Armor non-JSON body), 503 `capacity`,
   other 5xx, transport failure. Messages live in `LenzApi.MESSAGES`: plain, short, no blame, say
-  what to do.
+  what to do. The wait: the `Retry-After` header first, then the body's `retry_after`, then the older
+  names (`retry_after_seconds` on `review_in_flight`, `reset_in_seconds` on `extract_daily_limit`).
+- Both answer shapes of the API are read (the add-on sends no version header). Of the fields read,
+  these differ: what failed is `failure.code` (current) or `failure.failure_reason` (older), on the
+  review and on a deep check; the current `no_checkable_claim` reads as the older word for that place
+  (`no_claim` on a review, `not_a_claim` on a deep check); a quick check with no verdict has `verdict`
+  null (current) or `"Error"` (older); an unfinished quick check's own hint is the row's `hint` (older)
+  or its `failure.hint` (current), shown only where the older answer's was; a 429's wait is named as above. `more_claims` on the review body
+  is the same in both. `test/api-shapes.test.js` runs both shapes of each answer in
+  `test/fixtures/api-shapes/` against `expected.*.json`, what the add-on produced from the older answer
+  before it read the current one (written by `test/helpers/api-shapes-oracle.js` from commit
+  cea222bcc01170a5abfec085584bd62d6897f957 only).
 - `edit` finds the claim by its `index` field (`issues[].claim_index` on `view=issues`), and returns
   null for anything not a settled, well-formed edit; it never trusts client text.
 - Body sent: `{text, webhook_url: '', visibility: 'private', escalate: {suggest_edits: true,
-  max_citations: 20, max_assessments: 20, max_verifications: 5, depth: 'standard'}}`.
+  max_citations: 20, max_assessments: 20, max_verifications: 5, depth: 'standard'}}`. The empty
+  `webhook_url` is deliberate: on /review it means no webhook for this review; leaving it out would
+  use the key's default webhook.
 
 - Signed in (`getToken`): each request's bearer is `getToken({force: false})`. A 401 is answered by
   ONE `getToken({force: true})` and the same request again (a 401 comes before Lenz does anything);
@@ -365,7 +378,7 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   `citations_skipped`, findings not in the Doc as it is now, `notRead`, `outcome: incomplete`.
 - A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s);
   and `failureLink` (`https://lenz.io/billing`, "Add credits") on a review that failed for credits.
-- A failed review's `failure` is Docs words chosen by `failure.failure_reason` / `failure_class`, never
+- A failed review's `failure` is Docs words chosen by what failed (`failure.code`, or `failure.failure_reason` in the older shape) / `failure_class`, never
   the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not check
   just now (an outage, or every quick check failed), else "on our side". A failed deep check's row says
   too few sources, search unavailable, a service unavailable, or stopped on our side, by the same

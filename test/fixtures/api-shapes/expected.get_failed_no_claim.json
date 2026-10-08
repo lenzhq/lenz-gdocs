@@ -1,0 +1,17 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "failed",
+    "done": true,
+    "progress": null,
+    "stages": null,
+    "headline": "The check did not finish.",
+    "failure": "Lenz found no factual claim to check in this tab.",
+    "failureLink": null,
+    "groups": [],
+    "coverage": [],
+    "scope": null,
+    "footnote": null,
+    "charged": "Charged 0 credits."
+  }
+}

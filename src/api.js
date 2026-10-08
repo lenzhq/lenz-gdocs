@@ -154,13 +154,15 @@ var LenzApi = (function () {
       return err(code, apiCode, apiCode === 'idempotency_body_mismatch' ? MESSAGES.body_mismatch : MESSAGES.invalid,
         false, null);
     }
+    // The wait in the body: `retry_after` (current), else the older names this endpoint used
+    // (`retry_after_seconds`, `reset_in_seconds`). The Retry-After header comes first.
     if (code === 429) {
       if (apiCode === 'review_in_flight') {
         return err(code, apiCode, MESSAGES.in_flight, true,
-          firstSeconds(ra, json.retry_after_seconds, RATE_RETRY_S));
+          firstSeconds(ra, json.retry_after, json.retry_after_seconds, RATE_RETRY_S));
       }
       if (apiCode === 'extract_daily_limit') {
-        return err(code, apiCode, MESSAGES.link_limit, false, firstSeconds(ra, json.reset_in_seconds));
+        return err(code, apiCode, MESSAGES.link_limit, false, firstSeconds(ra, json.retry_after, json.reset_in_seconds));
       }
       // Cloud Armor's per-IP throttle answers before the app, with no JSON.
       return err(code, apiCode, MESSAGES.rate_limited, true, firstSeconds(ra, RATE_RETRY_S));
@@ -348,6 +350,8 @@ var LenzApi = (function () {
 
       var payload = JSON.stringify({
         text: args.text,
+        // Sent on purpose: on /review an empty webhook_url means "no webhook" for this review.
+        // Leaving it out would send the key's default webhook, if the account has one.
         webhook_url: '',
         visibility: 'private',
         escalate: JSON.parse(policyJson)

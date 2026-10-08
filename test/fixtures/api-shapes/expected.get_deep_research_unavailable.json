@@ -1,0 +1,156 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "completed",
+    "done": true,
+    "progress": null,
+    "stages": null,
+    "headline": "2 issues to look at.",
+    "failure": null,
+    "failureLink": null,
+    "groups": [
+      {
+        "key": "issue",
+        "title": "Issues",
+        "collapsed": false,
+        "count": 2,
+        "entries": [
+          {
+            "id": "claim:0",
+            "kind": "claim",
+            "group": "issue",
+            "state": "bad",
+            "stateWords": "Doesn't check out",
+            "title": "The EU AI Act took effect in March 2024.",
+            "label": "False",
+            "token": "false",
+            "check": "Deep check",
+            "deepRunning": false,
+            "confidence": null,
+            "score": 2,
+            "rewrite": "Fixed: The EU AI Act took effect in March 2024.",
+            "lines": [],
+            "link": {
+              "href": "https://lenz.io/c/the-earth-is-round-b4e2e99d",
+              "words": "See sources in Lenz"
+            },
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          },
+          {
+            "id": "claim:2",
+            "kind": "claim",
+            "group": "issue",
+            "state": "bad",
+            "stateWords": "Doesn't check out",
+            "title": "The Eiffel Tower is in Berlin.",
+            "label": "False",
+            "token": "false",
+            "check": "Quick check",
+            "deepRunning": false,
+            "confidence": "high",
+            "score": null,
+            "rewrite": null,
+            "lines": [
+              {
+                "lead": null,
+                "text": "The deep check could not run because search was unavailable, so this is the quick verdict."
+              }
+            ],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      },
+      {
+        "key": "none",
+        "title": "Not checked",
+        "collapsed": false,
+        "count": 1,
+        "entries": [
+          {
+            "id": "claim:1",
+            "kind": "claim",
+            "group": "none",
+            "state": "none",
+            "stateWords": "Not checked",
+            "title": "Water boils at 100 C at sea level.",
+            "label": "Not checked",
+            "token": null,
+            "check": null,
+            "deepRunning": false,
+            "confidence": null,
+            "score": null,
+            "rewrite": null,
+            "lines": [
+              {
+                "lead": null,
+                "text": "Could not be checked this time. Nothing was charged for it."
+              }
+            ],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      },
+      {
+        "key": "ok",
+        "title": "Checks out",
+        "collapsed": true,
+        "count": 1,
+        "entries": [
+          {
+            "id": "claim:3",
+            "kind": "claim",
+            "group": "ok",
+            "state": "ok",
+            "stateWords": "Checks out",
+            "title": "Paris is the capital of France.",
+            "label": "True",
+            "token": "true",
+            "check": "Quick check",
+            "deepRunning": false,
+            "confidence": "high",
+            "score": null,
+            "rewrite": null,
+            "lines": [],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      "1 claim could not be checked this time.",
+      "1 deep check did not finish; that claim shows its quick verdict.",
+      "4 findings are not in the Doc as it is now, so they cannot be selected.",
+      "Choose Check this Doc to check it again; the new check is charged."
+    ],
+    "scope": null,
+    "footnote": "A quick verdict is a first read. A deep check shows the sources and can change it.",
+    "charged": "Charged 13 credits."
+  }
+}

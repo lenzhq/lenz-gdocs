@@ -101,7 +101,8 @@ var LenzView = (function () {
   var QUICK_FAILED = NOT_CHECKED + ' Nothing was charged for it.';
   var RUN_AGAIN = 'Choose Check this Doc to check it again; the new check is charged.';
 
-  // A review that failed as a whole, by what Lenz says failed (failure_reason, and failure_class where the
+  // A review that failed as a whole, by what Lenz says failed (failure.code, or failure_reason as older
+  // answers name it, and failure_class where the
   // reason alone does not tell). Never the API's `hint`: it is written for integrators and names endpoints
   // and request headers. The sidebar adds a link for `credits`.
   var FAILED_WORDS = {
@@ -117,8 +118,24 @@ var LenzView = (function () {
     assessment_failed: 'unavailable',
   };
 
+  // What failed, as the older answer's word for it. The current shape names it `code`, and says
+  // `no_checkable_claim` where the older one said `no_claim` on a review and `not_a_claim` on a deep
+  // check (`nothingWord`); the older shape names it `failure_reason`. Everything after reads the older word.
+  function failureCode(f, nothingWord) {
+    if (!isObj(f)) return null;
+    if (has(f, 'code') && str(f.code)) return f.code === 'no_checkable_claim' ? nothingWord : f.code;
+    return str(f.failure_reason);
+  }
+
+  // A quick check's own hint: the row's `hint` in the older answer, its `failure.hint` in the current one
+  // (which has no row `hint`). Read only where the older answer's row hint was read.
+  function rowHint(assessment) {
+    if (has(assessment, 'hint')) return assessment.hint;
+    return isObj(assessment.failure) ? assessment.failure.hint : null;
+  }
+
   function failedKey(f) {
-    var reason = str(f.failure_reason) || '';
+    var reason = failureCode(f, 'no_claim') || '';
     if (has(FAILED_KEYS, reason)) return FAILED_KEYS[reason];
     return f.failure_class === 'upstream_unavailable' ? 'unavailable' : 'ours';
   }
@@ -156,6 +173,7 @@ var LenzView = (function () {
   }
 
   // lenz-check-states.js forClaim.
+  // A row with no verdict: `verdict` null (current shape; the row says `status: failed`) or "Error" (older).
   function claimState(verdict, confidence) {
     if (!verdict || verdict === 'Error') return 'none';
     if (confidence === 'low') return 'look';
@@ -285,7 +303,7 @@ var LenzView = (function () {
   function deepFailureText(verification) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
     var cls = str(f.failure_class);
-    var research = (str(f.failure_reason) || '').indexOf('research_') === 0;
+    var research = (failureCode(f, 'not_a_claim') || '').indexOf('research_') === 0;
     if (cls === 'insufficient_evidence') {
       return 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
     }
@@ -373,7 +391,7 @@ var LenzView = (function () {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {
       // A failed quick check was refunded (never the API's hint: that is written for integrators).
-      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(assessment.hint) || NOT_CHECKED });
+      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED });
     } else {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (str(assessment.dissent)) lines.push({ lead: 'A reviewer disagreed: ', text: assessment.dissent });

@@ -1,0 +1,76 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "completed",
+    "done": true,
+    "progress": null,
+    "stages": null,
+    "headline": "No issues among what was checked.",
+    "failure": null,
+    "failureLink": null,
+    "groups": [
+      {
+        "key": "ok",
+        "title": "Checks out",
+        "collapsed": false,
+        "count": 2,
+        "entries": [
+          {
+            "id": "claim:0",
+            "kind": "claim",
+            "group": "ok",
+            "state": "ok",
+            "stateWords": "Checks out",
+            "title": "The EU AI Act took effect in March 2024.",
+            "label": "True",
+            "token": "true",
+            "check": "Quick check",
+            "deepRunning": false,
+            "confidence": "high",
+            "score": null,
+            "rewrite": null,
+            "lines": [],
+            "link": null,
+            "source": null,
+            "start": 0,
+            "occurrences": 1,
+            "placed": true,
+            "placeNote": null,
+            "edits": [],
+            "editsNote": null
+          },
+          {
+            "id": "claim:1",
+            "kind": "claim",
+            "group": "ok",
+            "state": "ok",
+            "stateWords": "Checks out",
+            "title": "Water boils at 100 C at sea level.",
+            "label": "True",
+            "token": "true",
+            "check": "Quick check",
+            "deepRunning": false,
+            "confidence": "high",
+            "score": null,
+            "rewrite": null,
+            "lines": [],
+            "link": null,
+            "source": null,
+            "start": 50,
+            "occurrences": 1,
+            "placed": true,
+            "placeNote": null,
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      "1 more claim was found and not checked (the limit is 2 per check)."
+    ],
+    "scope": null,
+    "footnote": null,
+    "charged": "Charged 2 credits."
+  }
+}

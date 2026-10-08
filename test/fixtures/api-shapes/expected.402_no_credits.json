@@ -1,0 +1,9 @@
+{
+  "describeError": {
+    "code": 402,
+    "apiCode": "no_credits",
+    "message": "Your account is out of credits. Add credits at lenz.io/plans, then run the check again.",
+    "retryable": false,
+    "retryAfterS": null
+  }
+}

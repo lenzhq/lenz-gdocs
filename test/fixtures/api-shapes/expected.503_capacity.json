@@ -1,0 +1,9 @@
+{
+  "describeError": {
+    "code": 503,
+    "apiCode": "capacity",
+    "message": "Lenz is at capacity. Nothing was charged. Try again in a minute.",
+    "retryable": true,
+    "retryAfterS": 90
+  }
+}

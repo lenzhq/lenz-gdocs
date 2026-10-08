@@ -1,0 +1,25 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "queued",
+    "done": false,
+    "progress": "Waiting to start",
+    "stages": [
+      {
+        "key": "reading",
+        "label": "Finding the claims",
+        "done": null,
+        "total": null,
+        "complete": false
+      }
+    ],
+    "headline": null,
+    "failure": null,
+    "failureLink": null,
+    "groups": [],
+    "coverage": [],
+    "scope": null,
+    "footnote": null,
+    "charged": "Charged 0 credits."
+  }
+}
