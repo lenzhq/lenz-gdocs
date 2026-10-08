@@ -208,6 +208,7 @@ deps = {
   store: { get(k) -> string|null, set(k, v), del(k) }      // User properties (small values)
   cache: { get(k) -> string|null, put(k, v, ttlS), del(k) } // User cache; chunking is the glue's job
   sha256(s) -> hex, now() -> ms, base: 'https://lenz.io/api/v1', userAgent: string,
+                                                   // (every request also carries X-Lenz-API-Version)
   getToken({force}) -> {token|null, signedOut}     // signed in with Lenz (src/oauth.js), or:
   apiKey: string                                   // the dev key
 }
@@ -279,7 +280,11 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   other 5xx, transport failure. Messages live in `LenzApi.MESSAGES`: plain, short, no blame, say
   what to do. The wait: the `Retry-After` header first, then the body's `retry_after`, then the older
   names (`retry_after_seconds` on `review_in_flight`, `reset_in_seconds` on `extract_daily_limit`).
-- Both answer shapes of the API are read (the add-on sends no version header). Of the fields read,
+- Every request to `/review` (the POST and each poll) sends `X-Lenz-API-Version: 2026-10-11`
+  (`LenzApi.API_VERSION`), also when sent again with a rotated token or as a replay of a lost POST.
+  The header is not part of the Idempotency-Key or the body, so a replay across an add-on update is
+  still the same request. The sign-in calls (`src/oauth.js`) are the OAuth endpoints and carry none.
+- Both answer shapes of the API are read, whichever the header selects. Of the fields read,
   these differ: what failed is `failure.code` (current) or `failure.failure_reason` (older), on the
   review and on a deep check; the current `no_checkable_claim` reads as the older word for that place
   (`no_claim` on a review, `not_a_claim` on a deep check); a quick check with no verdict has `verdict`
