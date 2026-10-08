@@ -1,0 +1,9 @@
+{
+  "describeError": {
+    "code": 429,
+    "apiCode": "review_in_flight",
+    "message": "Your account already has the most checks running at once. Try again in a minute.",
+    "retryable": true,
+    "retryAfterS": 60
+  }
+}

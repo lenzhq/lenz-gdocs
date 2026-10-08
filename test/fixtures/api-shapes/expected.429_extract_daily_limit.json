@@ -1,0 +1,9 @@
+{
+  "describeError": {
+    "code": 429,
+    "apiCode": "extract_daily_limit",
+    "message": "Your account reached today's limit for reading links. Try again tomorrow.",
+    "retryable": false,
+    "retryAfterS": 60
+  }
+}

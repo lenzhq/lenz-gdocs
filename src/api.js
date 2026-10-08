@@ -350,6 +350,8 @@ var LenzApi = (function () {
 
       var payload = JSON.stringify({
         text: args.text,
+        // Sent on purpose: on /review an empty webhook_url means "no webhook" for this review.
+        // Leaving it out would send the key's default webhook, if the account has one.
         webhook_url: '',
         visibility: 'private',
         escalate: JSON.parse(policyJson)
