@@ -127,6 +127,13 @@ var LenzView = (function () {
     return str(f.failure_reason);
   }
 
+  // A quick check's own hint: the row's `hint` in the older answer, its `failure.hint` in the current one
+  // (which has no row `hint`). Read only where the older answer's row hint was read.
+  function rowHint(assessment) {
+    if (has(assessment, 'hint')) return assessment.hint;
+    return isObj(assessment.failure) ? assessment.failure.hint : null;
+  }
+
   function failedKey(f) {
     var reason = failureCode(f, 'no_claim') || '';
     if (has(FAILED_KEYS, reason)) return FAILED_KEYS[reason];
@@ -384,7 +391,7 @@ var LenzView = (function () {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {
       // A failed quick check was refunded (never the API's hint: that is written for integrators).
-      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(assessment.hint) || NOT_CHECKED });
+      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED });
     } else {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (str(assessment.dissent)) lines.push({ lead: 'A reviewer disagreed: ', text: assessment.dissent });

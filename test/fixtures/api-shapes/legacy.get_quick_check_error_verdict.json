@@ -184,21 +184,21 @@
         "positions": null,
         "result": null,
         "assessment": {
-          "status": "queued",
-          "verdict": null,
-          "confidence": null,
+          "status": "failed",
+          "verdict": "Error",
+          "confidence": "low",
           "rationale": null,
           "dissent": null,
           "verification_url": null,
-          "error_code": "timeout",
+          "error_code": "upstream_unavailable",
           "identified_claims": [],
-          "hint": "This item was not processed in time; send it again.",
+          "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
           "suggested_rewrite": null,
           "failure": {
-            "failure_reason": "timeout",
+            "failure_reason": "upstream_unavailable",
             "failure_class": "upstream_unavailable",
             "retryable": true,
-            "hint": "This item was not processed in time; send it again."
+            "hint": "A model provider was unavailable for this item. Retry it; nothing was charged."
           }
         },
         "escalation": null,

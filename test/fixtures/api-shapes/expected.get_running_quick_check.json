@@ -1,0 +1,65 @@
+{
+  "build": {
+    "reviewId": "d6b2bd72",
+    "status": "assessing",
+    "done": false,
+    "progress": "Checking the claims",
+    "stages": [
+      {
+        "key": "quick",
+        "label": "Quick checks",
+        "done": 0,
+        "total": 1,
+        "complete": false
+      }
+    ],
+    "headline": null,
+    "failure": null,
+    "failureLink": null,
+    "groups": [
+      {
+        "key": "pending",
+        "title": "Checking",
+        "collapsed": false,
+        "count": 1,
+        "entries": [
+          {
+            "id": "claim:0",
+            "kind": "claim",
+            "group": "pending",
+            "state": "none",
+            "stateWords": "Not checked",
+            "title": "The EU AI Act took effect in March 2024.",
+            "label": "Checking",
+            "token": null,
+            "check": null,
+            "deepRunning": false,
+            "confidence": null,
+            "score": null,
+            "rewrite": null,
+            "lines": [
+              {
+                "lead": null,
+                "text": "Checking."
+              }
+            ],
+            "link": null,
+            "source": null,
+            "start": null,
+            "occurrences": 0,
+            "placed": false,
+            "placeNote": "Lenz could not match this claim to words in the text.",
+            "edits": [],
+            "editsNote": null
+          }
+        ]
+      }
+    ],
+    "coverage": [
+      "1 finding is not in the Doc as it is now, so it cannot be selected."
+    ],
+    "scope": null,
+    "footnote": null,
+    "charged": "Charged 1 credit."
+  }
+}

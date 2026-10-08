@@ -283,10 +283,12 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   these differ: what failed is `failure.code` (current) or `failure.failure_reason` (older), on the
   review and on a deep check; the current `no_checkable_claim` reads as the older word for that place
   (`no_claim` on a review, `not_a_claim` on a deep check); a quick check with no verdict has `verdict`
-  null (current) or `"Error"` (older); a 429's wait is named as above. `more_claims` on the review body
+  null (current) or `"Error"` (older); an unfinished quick check's own hint is the row's `hint` (older)
+  or its `failure.hint` (current), shown only where the older answer's was; a 429's wait is named as above. `more_claims` on the review body
   is the same in both. `test/api-shapes.test.js` runs both shapes of each answer in
   `test/fixtures/api-shapes/` against `expected.*.json`, what the add-on produced from the older answer
-  before it read the current one.
+  before it read the current one (written by `test/helpers/api-shapes-oracle.js` from commit
+  cea222bcc01170a5abfec085584bd62d6897f957 only).
 - `edit` finds the claim by its `index` field (`issues[].claim_index` on `view=issues`), and returns
   null for anything not a settled, well-formed edit; it never trusts client text.
 - Body sent: `{text, webhook_url: '', visibility: 'private', escalate: {suggest_edits: true,

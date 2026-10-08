@@ -1,28 +1,36 @@
 {
   "build": {
     "reviewId": "d6b2bd72",
-    "status": "failed",
-    "done": true,
-    "progress": null,
-    "stages": null,
-    "headline": "The check did not finish.",
-    "failure": "Lenz could not check this tab just now. Nothing was charged. Try again in a minute.",
+    "status": "assessing",
+    "done": false,
+    "progress": "Checking the claims",
+    "stages": [
+      {
+        "key": "quick",
+        "label": "Quick checks",
+        "done": 0,
+        "total": 2,
+        "complete": false
+      }
+    ],
+    "headline": null,
+    "failure": null,
     "failureLink": null,
     "groups": [
       {
-        "key": "none",
-        "title": "Not checked",
+        "key": "pending",
+        "title": "Checking",
         "collapsed": false,
         "count": 2,
         "entries": [
           {
             "id": "claim:0",
             "kind": "claim",
-            "group": "none",
+            "group": "pending",
             "state": "none",
             "stateWords": "Not checked",
             "title": "The EU AI Act took effect in March 2024.",
-            "label": "Not checked",
+            "label": "Checking",
             "token": null,
             "check": null,
             "deepRunning": false,
@@ -32,7 +40,7 @@
             "lines": [
               {
                 "lead": null,
-                "text": "Could not be checked this time. Nothing was charged for it."
+                "text": "Checking."
               }
             ],
             "link": null,
@@ -47,11 +55,11 @@
           {
             "id": "claim:1",
             "kind": "claim",
-            "group": "none",
+            "group": "pending",
             "state": "none",
             "stateWords": "Not checked",
             "title": "Water boils at 100 C at sea level.",
-            "label": "Not checked",
+            "label": "Checking",
             "token": null,
             "check": null,
             "deepRunning": false,
@@ -61,7 +69,7 @@
             "lines": [
               {
                 "lead": null,
-                "text": "Could not be checked this time. Nothing was charged for it."
+                "text": "Checking."
               }
             ],
             "link": null,
@@ -77,12 +85,10 @@
       }
     ],
     "coverage": [
-      "2 claims could not be checked this time.",
-      "2 findings are not in the Doc as it is now, so they cannot be selected.",
-      "Choose Check this Doc to check it again; the new check is charged."
+      "2 findings are not in the Doc as it is now, so they cannot be selected."
     ],
     "scope": null,
     "footnote": null,
-    "charged": "Charged 0 credits."
+    "charged": "Charged 2 credits."
   }
 }

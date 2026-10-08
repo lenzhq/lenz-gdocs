@@ -24,9 +24,10 @@
       "suggest_edits": false
     },
     "summary": {
+      "claims_found": 4,
       "claims_selected": 4,
       "claim_limit": 20,
-      "claim_limit_reached": false,
+      "claim_limit_exceeded": false,
       "input_truncated": false,
       "assessments": {
         "completed": 3,
@@ -41,7 +42,7 @@
       "citations_found": null,
       "citations_selected": null,
       "citation_limit": null,
-      "citation_limit_reached": null,
+      "citation_limit_exceeded": null,
       "citation_checks": null,
       "citation_issues": 0,
       "citations_skipped": null
@@ -95,10 +96,11 @@
         "rationale": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "research_empty",
+          "code": "research_empty",
+          "detail": "No sources about the claim were found.",
+          "hint": null,
           "failure_class": "insufficient_evidence",
           "retryable": false,
-          "hint": null,
           "docs_url": "https://lenz.io/docs/errors#insufficient-evidence"
         },
         "suggested_edits": null
@@ -110,10 +112,11 @@
         "claim": "Water boils at 100 C at sea level.",
         "stage": "assessment",
         "failure": {
-          "failure_reason": "upstream_unavailable",
+          "code": "upstream_unavailable",
+          "detail": "A service the check depends on was unavailable.",
+          "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
           "failure_class": "upstream_unavailable",
           "retryable": true,
-          "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
           "docs_url": "https://lenz.io/docs/errors#upstream-unavailable"
         }
       }
@@ -135,13 +138,11 @@
           "status": "completed",
           "verdict": "Mostly False",
           "confidence": "medium",
+          "verification_url": null,
           "rationale": null,
           "dissent": null,
-          "verification_url": null,
-          "error_code": null,
-          "identified_claims": [],
-          "hint": null,
           "suggested_rewrite": null,
+          "more_claims": [],
           "failure": null
         },
         "escalation": {
@@ -171,7 +172,7 @@
             "w1"
           ],
           "created_at": "2026-10-08T09:16:00.123456+00:00",
-          "modified_at": null,
+          "completed_at": "2026-10-08T09:17:00.123456+00:00",
           "verification_url": "https://lenz.io/api/v1/verifications/b4e2e99d",
           "url": "https://lenz.io/c/the-earth-is-round-b4e2e99d",
           "failure": null
@@ -184,21 +185,21 @@
         "positions": null,
         "result": null,
         "assessment": {
-          "status": "queued",
+          "status": "failed",
           "verdict": null,
           "confidence": null,
+          "verification_url": null,
           "rationale": null,
           "dissent": null,
-          "verification_url": null,
-          "error_code": "timeout",
-          "identified_claims": [],
-          "hint": "This item was not processed in time; send it again.",
           "suggested_rewrite": null,
+          "more_claims": [],
           "failure": {
-            "failure_reason": "timeout",
+            "code": "upstream_unavailable",
+            "detail": "A service the check depends on was unavailable.",
+            "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
             "failure_class": "upstream_unavailable",
             "retryable": true,
-            "hint": "This item was not processed in time; send it again."
+            "docs_url": "https://lenz.io/docs/errors#upstream-unavailable"
           }
         },
         "escalation": null,
@@ -219,13 +220,11 @@
           "status": "completed",
           "verdict": "False",
           "confidence": "high",
+          "verification_url": null,
           "rationale": null,
           "dissent": null,
-          "verification_url": null,
-          "error_code": null,
-          "identified_claims": [],
-          "hint": null,
           "suggested_rewrite": null,
+          "more_claims": [],
           "failure": null
         },
         "escalation": {
@@ -236,7 +235,7 @@
         },
         "verification": {
           "verification_id": null,
-          "task_id": "5ccac77f53ff49328ec134fb29d66542",
+          "task_id": "4634b89821fd877f1edf8aaeb82b7ee5",
           "claim": null,
           "language": null,
           "visibility": null,
@@ -251,14 +250,15 @@
           "suggested_rewrite": null,
           "warnings": [],
           "created_at": null,
-          "modified_at": null,
+          "completed_at": null,
           "verification_url": null,
           "url": null,
           "failure": {
-            "failure_reason": "research_empty",
+            "code": "research_empty",
+            "detail": "No sources about the claim were found.",
+            "hint": null,
             "failure_class": "insufficient_evidence",
             "retryable": false,
-            "hint": null,
             "docs_url": "https://lenz.io/docs/errors#insufficient-evidence"
           },
           "status": "failed",
@@ -280,13 +280,11 @@
           "status": "completed",
           "verdict": "True",
           "confidence": "high",
+          "verification_url": null,
           "rationale": null,
           "dissent": null,
-          "verification_url": null,
-          "error_code": null,
-          "identified_claims": [],
-          "hint": null,
           "suggested_rewrite": null,
+          "more_claims": [],
           "failure": null
         },
         "escalation": {
