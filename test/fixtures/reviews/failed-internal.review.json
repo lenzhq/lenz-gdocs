@@ -48,7 +48,7 @@
   "claims": [],
   "citations": [],
   "failure": {
-    "failure_reason": "internal",
+    "code": "internal",
     "failure_class": "internal",
     "retryable": false,
     "hint": null,

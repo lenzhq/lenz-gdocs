@@ -51,7 +51,7 @@
       "claim": "The Great Wall of China is visible to the naked eye from the Moon, according to NASA.",
       "stage": "assessment",
       "failure": {
-        "failure_reason": "upstream_unavailable",
+        "code": "upstream_unavailable",
         "failure_class": "upstream_unavailable",
         "retryable": true,
         "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -63,7 +63,7 @@
       "claim": "Buzz Aldrin was the first person to walk on the Moon in July 1969.",
       "stage": "assessment",
       "failure": {
-        "failure_reason": "timeout",
+        "code": "timeout",
         "failure_class": "upstream_unavailable",
         "retryable": true,
         "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -75,7 +75,7 @@
       "claim": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in central Paris.",
       "stage": "assessment",
       "failure": {
-        "failure_reason": "upstream_unavailable",
+        "code": "upstream_unavailable",
         "failure_class": "upstream_unavailable",
         "retryable": true,
         "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -87,7 +87,7 @@
       "claim": "Water boils at 100 degrees Celsius at sea level, according to Britannica.",
       "stage": "assessment",
       "failure": {
-        "failure_reason": "timeout",
+        "code": "timeout",
         "failure_class": "upstream_unavailable",
         "retryable": true,
         "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -99,7 +99,7 @@
       "claim": "Mount Everest is the tallest mountain above sea level.",
       "stage": "assessment",
       "failure": {
-        "failure_reason": "upstream_unavailable",
+        "code": "upstream_unavailable",
         "failure_class": "upstream_unavailable",
         "retryable": true,
         "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -133,7 +133,7 @@
         "hint": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "upstream_unavailable",
+          "code": "upstream_unavailable",
           "failure_class": "upstream_unavailable",
           "retryable": true,
           "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -167,7 +167,7 @@
         "hint": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "timeout",
+          "code": "timeout",
           "failure_class": "upstream_unavailable",
           "retryable": true,
           "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -201,7 +201,7 @@
         "hint": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "upstream_unavailable",
+          "code": "upstream_unavailable",
           "failure_class": "upstream_unavailable",
           "retryable": true,
           "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -235,7 +235,7 @@
         "hint": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "timeout",
+          "code": "timeout",
           "failure_class": "upstream_unavailable",
           "retryable": true,
           "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -269,7 +269,7 @@
         "hint": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "upstream_unavailable",
+          "code": "upstream_unavailable",
           "failure_class": "upstream_unavailable",
           "retryable": true,
           "hint": "A model provider was unavailable for this item. Retry it; nothing was charged.",
@@ -283,7 +283,7 @@
   ],
   "citations": [],
   "failure": {
-    "failure_reason": "assessment_failed",
+    "code": "assessment_failed",
     "failure_class": "upstream_unavailable",
     "retryable": true,
     "hint": "No claim could be assessed. Retry the review with a new Idempotency-Key; nothing was charged.",
