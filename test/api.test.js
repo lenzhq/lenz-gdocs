@@ -98,6 +98,7 @@ test('submit POSTs the contract body with the key, the bearer and the user agent
     text: DRAFT,
     webhook_url: '',
     visibility: 'private',
+    language: 'auto',
     escalate: {
       suggest_edits: true, max_citations: 20, max_assessments: 20, max_verifications: 5, depth: 'standard',
     },
@@ -122,6 +123,43 @@ test('every request names the API version: the POST, a replay, the poll, a rotat
   const o = oauthWorld([json(401, { detail: 'Unauthorized' }), accepted('r3')], [tok('lat_old'), tok('lat_new')]);
   sub(o, DRAFT);
   assert.deepEqual(o.calls.map((c) => c.req.headers['X-Lenz-API-Version']), ['2026-10-11', '2026-10-11']);
+});
+
+// The review comes back in the Doc's language when every POST asks for it. The body is stored before
+// the first send and replayed byte for byte, so a retry asks for the same thing and the key still binds.
+test('every review POST carries language auto: a Doc, a selection, a replay, a rotated retry, Run again', () => {
+  const languageOf = (c) => JSON.parse(c.req.payload).language;
+  // The whole tab, then a selection (a slice of it).
+  const w = world({ replies: [accepted('r1'), accepted('r2')] });
+  sub(w, DRAFT);
+  sub(w, DRAFT, { snapshot: 'An opening paragraph.\n\n' + DRAFT, offset: 23, scope: { paragraphs: 3 } });
+  assert.equal(w.calls.length, 2);
+  assert.deepEqual(w.calls.map(languageOf), ['auto', 'auto']);
+  // Run again is a new review: still asks for it.
+  w.client.runAgain({ docId: DOC.docId, tabId: DOC.tabId });
+  w.replies.push(accepted('r3'));
+  sub(w, DRAFT);
+  assert.equal(w.calls.length, 3);
+  assert.equal(languageOf(w.calls[2]), 'auto');
+  // A lost reply: the replay sends the stored body, identical, with the same key.
+  const r = world({ replies: [transportFail(), accepted('r4')] });
+  sub(r, DRAFT);
+  sub(r, DRAFT);
+  assert.equal(r.calls.length, 2);
+  assert.deepEqual(r.calls.map(languageOf), ['auto', 'auto']);
+  assert.equal(r.calls[1].req.payload, r.calls[0].req.payload);
+  assert.equal(keyOf(r.calls[1]), keyOf(r.calls[0]));
+  // A selection replay too.
+  const s = world({ replies: [transportFail(), accepted('r5')] });
+  sub(s, DRAFT, { snapshot: 'An opening paragraph.\n\n' + DRAFT, offset: 23, scope: { paragraphs: 3 } });
+  sub(s, 'whatever the Doc says now');
+  assert.deepEqual(s.calls.map(languageOf), ['auto', 'auto']);
+  assert.equal(s.calls[1].req.payload, s.calls[0].req.payload);
+  // The same request sent again with a rotated token.
+  const o = oauthWorld([json(401, { detail: 'Unauthorized' }), accepted('r6')], [tok('lat_old'), tok('lat_new')]);
+  sub(o, DRAFT);
+  assert.deepEqual(o.calls.map(languageOf), ['auto', 'auto']);
+  assert.equal(o.calls[1].req.payload, o.calls[0].req.payload);
 });
 
 test('the version header is not part of the idempotency key or the body', () => {
