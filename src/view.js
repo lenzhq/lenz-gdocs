@@ -100,6 +100,8 @@ var LenzView = (function () {
   var NOT_CHECKED = 'Could not be checked this time.';
   var QUICK_FAILED = NOT_CHECKED + ' Nothing was charged for it.';
   var RUN_AGAIN = 'Choose Check this Doc to check it again; the new check is charged.';
+  // A review the user stopped (status `cancelled`; LenzApi reads the older shape's cancelled failure as it).
+  var STOPPED = 'Not checked: you stopped the check.';
 
   // A review that failed as a whole, by what Lenz says failed (failure.code, or failure_reason as older
   // answers name it, and failure_class where the
@@ -300,10 +302,12 @@ var LenzView = (function () {
   // Search is named only where the check stopped looking for sources (a `research_` reason): an outage
   // at another stage was not search. A failure on Lenz's side (or of a kind this add-on does not know)
   // says so; an input problem or a stop by the user keeps the plain line.
-  function deepFailureText(verification) {
+  // `stopped`: the review was cancelled, so what did not finish stopped there.
+  function deepFailureText(verification, stopped) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
     var cls = str(f.failure_class);
     var research = (failureCode(f, 'not_a_claim') || '').indexOf('research_') === 0;
+    if (stopped && cls === 'cancelled') return 'You stopped the check before the deep check finished, so this is the quick verdict.';
     if (cls === 'insufficient_evidence') {
       return 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
     }
@@ -391,11 +395,15 @@ var LenzView = (function () {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {
       // A failed quick check was refunded (never the API's hint: that is written for integrators).
-      lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED });
+      var stopped = assessment.status === 'failed' && opts.cancelled;
+      lines.push({
+        lead: null,
+        text: stopped ? STOPPED : assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED,
+      });
     } else {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (verification !== null && verification.status === 'failed') {
-        lines.push({ lead: null, text: deepFailureText(verification) });
+        lines.push({ lead: null, text: deepFailureText(verification, opts.cancelled) });
       }
     }
     // Re-rendered whenever the block changes; no line while edits are worked out: the entry's
@@ -447,7 +455,7 @@ var LenzView = (function () {
       placeNote: null,
     };
     if (check.status === 'failed') {
-      lines.push({ lead: null, text: 'Could not be checked this time.' });
+      lines.push({ lead: null, text: opts.cancelled ? STOPPED : 'Could not be checked this time.' });
     } else if (result.finding === 'page_not_found') {
       lines.push({ lead: null, text: 'The link returned page not found.' });
     } else if (result.finding === 'doi_not_found') {
@@ -456,7 +464,7 @@ var LenzView = (function () {
       if (check.status === 'completed') {
         lines.push({ lead: null, text: str(check.hint) || REASONS[check.unchecked_reason] || FALLBACK_REASON });
       } else {
-        lines.push({ lead: null, text: checking ? 'Checking.' : 'Could not be checked this time.' });
+        lines.push({ lead: null, text: checking ? 'Checking.' : opts.cancelled ? STOPPED : 'Could not be checked this time.' });
       }
     }
     if (result.finding === 'quote_not_in_source' && str(check.missing_quote)) {
@@ -527,8 +535,18 @@ var LenzView = (function () {
       );
     }
     var a = isObj(s.assessments) ? s.assessments : {};
-    if (a.failed > 0) out.push(plural(a.failed, 'claim', 'claims') + ' could not be checked this time.');
     var v = isObj(s.verifications) ? s.verifications : {};
+    var c = isObj(s.citation_checks) ? s.citation_checks : {};
+    if (opts.cancelled) {
+      // Stopped by the user: what did not finish is said once, as the stop, never as a failure.
+      if (a.failed > 0) out.push(plural(a.failed, 'claim was', 'claims were') + ' not checked: you stopped the check.');
+      if (v.failed > 0) {
+        out.push(plural(v.failed, 'deep check', 'deep checks') + ' did not finish; ' + (v.failed === 1 ? 'that claim shows its' : 'those claims show their') + ' quick verdict.');
+      }
+      if (c.failed > 0) out.push(plural(c.failed, 'citation was', 'citations were') + ' not checked: you stopped the check.');
+      return out.concat(placeAndReadLines(entries, opts));
+    }
+    if (a.failed > 0) out.push(plural(a.failed, 'claim', 'claims') + ' could not be checked this time.');
     var thin = Math.min(countTooFewSources(body), v.failed > 0 ? v.failed : 0);
     if (thin > 0) {
       out.push(plural(thin, 'claim', 'claims') + ' had too few public sources for a deep check; ' + (thin === 1 ? 'it shows' : 'they show') + ' the quick verdict.');
@@ -537,7 +555,6 @@ var LenzView = (function () {
     if (rest > 0) {
       out.push(plural(rest, 'deep check', 'deep checks') + ' did not finish; ' + (rest === 1 ? 'that claim shows its' : 'those claims show their') + ' quick verdict.');
     }
-    var c = isObj(s.citation_checks) ? s.citation_checks : {};
     if (c.unchecked > 0) {
       out.push(plural(c.unchecked, 'citation', 'citations') + ' could not be checked: the reason is under each one.');
     }
@@ -545,6 +562,14 @@ var LenzView = (function () {
       out.push(plural(c.failed, 'citation check', 'citation checks') + ' failed this time.');
     }
     if (str(s.citations_skipped)) out.push(SKIPPED[s.citations_skipped] || 'Citations were not checked.');
+    out = out.concat(placeAndReadLines(entries, opts));
+    if (retryHelps(body)) out.push(RUN_AGAIN);
+    return out;
+  }
+
+  // What is not in the Doc as it is now, and what of the tab was not read.
+  function placeAndReadLines(entries, opts) {
+    var out = [];
     var unplaced = entries.filter(function (e) {
       return !e.placed;
     }).length;
@@ -564,7 +589,6 @@ var LenzView = (function () {
       if (typeof k === 'number' && k > 0) parts.push(plural(k, n[1], n[2]));
     });
     if (parts.length) out.push('Not read: ' + parts.join(', ') + '.');
-    if (retryHelps(body)) out.push(RUN_AGAIN);
     return out;
   }
 
@@ -578,6 +602,7 @@ var LenzView = (function () {
 
   function headline(body, groups, coverage) {
     if (body.status === 'failed') return 'The check did not finish.';
+    if (body.status === 'cancelled') return 'Check cancelled.';
     if (body.status !== 'completed') return null;
     var n = groups.issue.length;
     if (n) return plural(n, 'issue', 'issues') + ' to look at.';
@@ -587,7 +612,7 @@ var LenzView = (function () {
   }
 
   function progress(body) {
-    if (body.status === 'completed' || body.status === 'failed') return null;
+    if (isDone(body)) return null;
     var words = PROGRESS[body.status] || PROGRESS.queued;
     var v = isObj(body.summary) && isObj(body.summary.verifications) ? body.summary.verifications : null;
     if (body.status === 'verifying' && v && v.planned > 0) {
@@ -601,7 +626,7 @@ var LenzView = (function () {
   // citation checks. A stage appears once it applies; failures count as done
   // (the coverage lines report them). Null once the review is terminal.
   function stages(body) {
-    if (body.status === 'completed' || body.status === 'failed') return null;
+    if (isDone(body)) return null;
     var s = isObj(body.summary) ? body.summary : {};
     function stage(key, label, done, total) {
       return { key: key, label: label, done: done, total: total, complete: total > 0 && done >= total };
@@ -622,6 +647,25 @@ var LenzView = (function () {
     return out;
   }
 
+  function isDone(body) {
+    return body.status === 'completed' || body.status === 'failed' || body.status === 'cancelled';
+  }
+
+  // A finding a cancelled review delivered before it stopped (a verdict, or a citation's finding).
+  function delivered(entries) {
+    return entries.some(function (e) { return e.label !== 'Not checked'; });
+  }
+
+  // A cancelled review: what stays, and what Lenz says it charged (never worked out here).
+  function stoppedLine(body, entries, charged) {
+    if (body.status !== 'cancelled') return null;
+    var kept = delivered(entries);
+    var words = kept ? 'What it found before you stopped it stays below.' : 'It stopped before any results came in.';
+    if (charged === 0) return words + ' Nothing was charged.';
+    if (charged !== null) return words + ' Charged ' + plural(charged, 'credit', 'credits') + '.';
+    return words;
+  }
+
   // What a failed review says, and the link it offers (only for credits).
   function failureView(body) {
     if (body.status !== 'failed') return { text: null, link: null };
@@ -640,7 +684,8 @@ var LenzView = (function () {
     };
     var scope = isObj(opts.scope) ? opts.scope : null;
     body = isObj(body) ? body : {};
-    o.done = body.status === 'completed' || body.status === 'failed';
+    o.done = isDone(body);
+    o.cancelled = body.status === 'cancelled';
     o.suggestEdits = isObj(body.policy) && body.policy.suggest_edits === true;
     var claimRows = Array.isArray(body.claims) ? body.claims : claimRowsFromIssues(body);
     var entries = [];
@@ -662,21 +707,24 @@ var LenzView = (function () {
       groups[e.group].push(e);
     });
     var coverage = coverageLines(body, entries, o);
+    // Stopped before anything came in: no list of rows that all say "not checked", as if no check ran.
+    var empty = o.cancelled && !delivered(entries);
+    if (empty) coverage = [];
     var quick = entries.some(function (e) {
       return e.group !== 'ok' && e.check === 'Quick check';
     });
     var failed = failureView(body);
     var charged = isObj(body.credits) && typeof body.credits.charged === 'number' ? body.credits.charged : null;
-    return {
+    var model = {
       reviewId: str(body.review_id),
       status: str(body.status) || 'queued',
-      done: body.status === 'completed' || body.status === 'failed',
+      done: o.done,
       progress: progress(body),
       stages: stages(body),
       headline: headline(body, groups, coverage),
       failure: failed.text,
       failureLink: failed.link,
-      groups: GROUPS.map(function (g) {
+      groups: empty ? [] : GROUPS.map(function (g) {
         // "Checks out" folds only behind something to look at; a clean Doc shows what was checked.
         var fold = g === 'ok' && (groups.issue.length > 0 || groups.look.length > 0);
         return { key: g, title: GROUP_TITLES[g], collapsed: fold, count: groups[g].length, entries: groups[g] };
@@ -685,9 +733,16 @@ var LenzView = (function () {
       }),
       coverage: coverage,
       scope: scopeLine(scope),
-      footnote: quick ? 'A quick verdict is a first read. A deep check shows the sources and can change it.' : null,
+      footnote: quick && !empty ? 'A quick verdict is a first read. A deep check shows the sources and can change it.' : null,
       charged: charged === null ? null : 'Charged ' + plural(charged, 'credit', 'credits') + '.',
     };
+    // Only on a cancelled review, so every other model is exactly what it was (test/api-shapes.test.js
+    // holds them frozen).
+    if (o.cancelled) {
+      model.cancelled = true;
+      model.stopped = stoppedLine(body, entries, charged);
+    }
+    return model;
   }
 
   function parseId(entryId) {

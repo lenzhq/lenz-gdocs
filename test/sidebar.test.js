@@ -392,3 +392,98 @@ test('a poll never takes the keyboard from the Doc: no focus restored when the s
   });
   assert.equal(s.document.activeElement, title, 'focus() was not called on the new title button');
 });
+
+// ── Cancel ──────────────────────────────────────────────────
+
+const CANCELLED = require('./fixtures/reviews/cancelled-midway.review.json');
+const FINAL = POLLS[POLLS.length - 1];
+const runningReply = () => reply('running', { model: LenzView.build(POLLS[0]), nextPollS: 15, startedAt: Date.now() - 60000 });
+
+test('Cancel shows for the whole running state and is gone after it', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: runningReply(), lenzLogOpen: null });
+  assert.equal(s.ids.cancel.hidden, false);
+  assert.equal(s.ids['cancel-confirm'].hidden, true);
+  for (const r of [reply('done', { model: LenzView.build(FINAL) }), stalledReply, reply('idle'),
+    reply('error', { error: { code: 0, message: 'x', retryable: true } })]) {
+    const t = sidebar({ lenzOpen: reply('idle'), lenzOpenState: r, lenzLogOpen: null });
+    assert.equal(t.ids.cancel.hidden, true, r.phase);
+    assert.equal(t.ids['cancel-confirm'].hidden, true, r.phase);
+  }
+});
+
+test('Cancel asks first: Keep checking sends nothing and keeps polling', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: runningReply(), lenzLogOpen: null });
+  const before = s.calls.length;
+  s.ids.cancel.click();
+  assert.equal(s.ids.cancel.hidden, true);
+  assert.equal(s.ids['cancel-confirm'].hidden, false);
+  assert.match(HTML, /Stop this check\? Findings already shown stay\./);
+  s.ids['cancel-keep'].click();
+  assert.equal(s.ids.cancel.hidden, false);
+  assert.equal(s.ids['cancel-confirm'].hidden, true);
+  assert.equal(s.calls.length, before, 'no server call');
+  assert.equal(s.timeouts.length, 1, 'the poll is still scheduled');
+});
+
+test('Stop the check: one lenzCancel even when clicked again while it runs; the cancelled review shows', () => {
+  let s;
+  let during = null;
+  s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: runningReply(), lenzLogOpen: null,
+    lenzCancel: () => {
+      during = { disabled: s.ids['cancel-go'].disabled, words: s.ids['cancel-go'].textContent };
+      s.ids['cancel-go'].click(); // a second click while the first is in flight
+      return reply('done', { model: LenzView.build(CANCELLED) });
+    },
+  });
+  s.ids.cancel.click();
+  s.ids['cancel-go'].click();
+  assert.equal(s.names().filter((n) => n === 'lenzCancel').length, 1);
+  assert.deepEqual(s.calls.find((c) => c.name === 'lenzCancel').args, [POLLS[0].review_id], 'the review on screen');
+  assert.deepEqual(during, { disabled: true, words: 'Stopping…' });
+  assert.equal(s.ids.headline.textContent, 'Check cancelled.');
+  assert.equal(s.ids['stopped-line'].textContent, 'What it found before you stopped it stays below. Charged 25 credits.');
+  assert.equal(s.ids.cancel.hidden, true);
+  assert.equal(s.ids['cancel-confirm'].hidden, true);
+  assert.equal(s.ids.running.hidden, true);
+  assert.equal(s.ids.check.disabled, false);
+  assert.equal(s.ids['check-selection'].disabled, false);
+  assert.equal(s.ids['resume-row'].hidden, true);
+  assert.ok(s.entries().length > 0, 'the findings stay');
+});
+
+test('cancel vs complete: a check that finished first shows its results, nothing says cancelled', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: runningReply(), lenzLogOpen: null,
+    lenzCancel: reply('done', { model: LenzView.build(FINAL) }),
+  });
+  s.ids.cancel.click();
+  s.ids['cancel-go'].click();
+  assert.equal(s.ids.headline.textContent, '3 issues to look at.');
+  assert.equal(s.ids['stopped-line'].hidden, true);
+  assert.equal(s.ids.check.disabled, false);
+});
+
+test('a check that ends while the confirmation is open closes it', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: runningReply(), lenzLogOpen: null,
+    lenzPoll: reply('done', { model: LenzView.build(FINAL) }) });
+  s.ids.cancel.click();
+  s.timeouts.pop().fn(); // the scheduled poll
+  assert.equal(s.ids['cancel-confirm'].hidden, true);
+  assert.equal(s.ids.cancel.hidden, true);
+  assert.equal(s.ids.headline.textContent, '3 issues to look at.');
+});
+
+test('a cancel Lenz did not answer: still running with the error, and Cancel can be chosen again', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: runningReply(), lenzLogOpen: null,
+    lenzCancel: reply('running', { model: LenzView.build(POLLS[0]), nextPollS: 15,
+      error: { code: 0, message: "Couldn't reach Lenz. Check your connection and try again.", retryable: true } }),
+  });
+  s.ids.cancel.click();
+  s.ids['cancel-go'].click();
+  assert.equal(s.ids.error.textContent, "Couldn't reach Lenz. Check your connection and try again.");
+  assert.equal(s.ids.cancel.hidden, false);
+  assert.equal(s.ids['cancel-confirm'].hidden, true);
+  assert.equal(s.ids['cancel-go'].disabled, false);
+});

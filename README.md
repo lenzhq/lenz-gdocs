@@ -30,6 +30,8 @@ can build and deploy your own copy (below). Either way you need a Lenz account
 
 1. **Extensions → Lenz Fact-Checking → Check this Doc.** The sidebar reads the current tab and starts
    a check. A check takes two to four minutes; closing and reopening the sidebar resumes it.
+   **Cancel**, next to the running time, stops it: findings already shown stay, and checks that had
+   not finished are not charged.
 2. **Findings in the Doc's order:** claims Lenz found false or doubtful (verdict, confidence, the
    reviewers' reasoning), citations whose source does not say what the Doc attributes to it, and
    what was not covered (claims past the limit, sources that could not be read, parts of the Doc

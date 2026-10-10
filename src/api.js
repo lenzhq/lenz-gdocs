@@ -40,6 +40,7 @@ var LenzApi = (function () {
     capacity: 'Lenz is at capacity. Nothing was charged. Try again in a minute.',
     server: 'Lenz ran into a problem on its side. Try again in a minute.',
     unknown_outcome: 'A check may have started, but Lenz did not confirm it. Choose Check this Doc to start a new one.',
+    cancel_not_started: 'Lenz has not confirmed this check started yet, so it cannot be stopped. Try again in a moment.',
     other: 'Something went wrong. Try again.'
   };
 
@@ -131,6 +132,21 @@ var LenzApi = (function () {
   }
 
   function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
+
+  // The review states after which nothing more happens to it.
+  var TERMINAL = { completed: true, failed: true, cancelled: true };
+
+  // A review the user stopped (POST /reviews/{id}/cancel). The current shape says `status: cancelled`;
+  // the older one says `failed` with a `cancelled` failure (failure_class, or failure_reason). The older
+  // answer is read as the current one as it arrives, so the rest of the add-on knows one word.
+  function readCancelled(body) {
+    if (!body || typeof body !== 'object' || body.status !== 'failed') return body;
+    var f = body.failure && typeof body.failure === 'object' ? body.failure : {};
+    if (f.failure_class === 'cancelled' || f.failure_reason === 'cancelled' || f.code === 'cancelled') {
+      body.status = 'cancelled';
+    }
+    return body;
+  }
 
   // ── describeError ─────────────────────────────────────────────────────
 
@@ -343,7 +359,7 @@ var LenzApi = (function () {
       var key = deps.sha256(parts.join('|'));
 
       if (rec && rec.key === key && rec.reviewId) {
-        var terminal = rec.state === 'completed' || rec.state === 'failed';
+        var terminal = TERMINAL[rec.state] === true;
         return { ok: true, reviewId: rec.reviewId, state: rec.state, replayed: false,
           nextPollS: terminal ? null : MIN_POLL_S, error: null };
       }
@@ -423,6 +439,56 @@ var LenzApi = (function () {
       });
     }
 
+    // A review body as it arrives (GET or cancel): shifted, read in one shape, and the record's state
+    // set from it.
+    function settle(docId, rec, body) {
+      if (isInt(rec.offset)) shiftBody(body, rec.offset);
+      readCancelled(body);
+      var terminal = TERMINAL[body.status] === true;
+      rec.state = terminal ? body.status : 'running';
+      rec.pollFailures = 0;
+      rec.pollFailingSince = null;
+      writeRecord(docId, rec);
+      var after = seconds(body.poll_after_seconds);
+      return pollResult(true, body.status, body, terminal,
+        terminal ? null : Math.max(MIN_POLL_S, after === null ? POLL_S : after), null);
+    }
+
+    // The review is out of reach for good; the next submit is a new review.
+    function lost(docId, rec, error) {
+      rec.state = 'lost';
+      rec.attempt = (isInt(rec.attempt) ? rec.attempt : 0) + 1;
+      writeRecord(docId, rec);
+      return pollResult(false, null, null, true, null, error);
+    }
+
+    // Stop the record's review: POST /reviews/{id}/cancel, which answers with the review as it stands
+    // afterwards (`cancelled`, or `completed` / `failed` when it ended first: that answer is shown, never
+    // called cancelled). Cancelling again is safe on Lenz's side; a review this record already knows has
+    // ended is not sent again. Anything but a 200 leaves the record running (polling goes on) with the
+    // error, so a retry after a lost answer is the same request. Same result shape as poll().
+    function cancel(docId, tabId) {
+      var rec = readRecord(docId, tabId);
+      if (!rec || !rec.reviewId) {
+        return pollResult(false, null, null, false, null, err(0, null, MESSAGES.cancel_not_started, true, null));
+      }
+      if (TERMINAL[rec.state]) return poll(docId, tabId);
+      var res = send('post', '/reviews/' + encodeURIComponent(rec.reviewId) + '/cancel');
+      var now = readRecord(docId, tabId);
+      if (!now || now.key !== rec.key || now.reviewId !== rec.reviewId) {
+        return pollResult(false, null, null, true, null, null);
+      }
+      rec = now;
+      if (res.code === 200) {
+        var body = parseJson(res.text);
+        if (body && typeof body.status === 'string') return settle(docId, rec, body);
+        return pollResult(false, null, null, false, null, describeError(0, {}, ''));
+      }
+      var error = describe(res.code, res.headers, res.text);
+      if (res.code === 403 || res.code === 404 || res.code === 410) return lost(docId, rec, error);
+      return pollResult(false, null, null, false, null, error);
+    }
+
     // One GET of the review; the caller schedules the next after nextPollS.
     function poll(docId, tabId) {
       var rec = readRecord(docId, tabId);
@@ -440,24 +506,10 @@ var LenzApi = (function () {
       if (res.code === 200) {
         var body = parseJson(res.text);
         if (!body || typeof body.status !== 'string') return backoff(docId, rec, describeError(0, {}, ''));
-        if (isInt(rec.offset)) shiftBody(body, rec.offset);
-        var terminal = body.status === 'completed' || body.status === 'failed';
-        rec.state = terminal ? body.status : 'running';
-        rec.pollFailures = 0;
-        rec.pollFailingSince = null;
-        writeRecord(docId, rec);
-        var after = seconds(body.poll_after_seconds);
-        return pollResult(true, body.status, body, terminal,
-          terminal ? null : Math.max(MIN_POLL_S, after === null ? POLL_S : after), null);
+        return settle(docId, rec, body);
       }
       var error = describe(res.code, res.headers, res.text);
-      if (res.code === 403 || res.code === 404 || res.code === 410) {
-        // The review is out of reach for good; the next submit is a new review.
-        rec.state = 'lost';
-        rec.attempt = (isInt(rec.attempt) ? rec.attempt : 0) + 1;
-        writeRecord(docId, rec);
-        return pollResult(false, null, null, true, null, error);
-      }
+      if (res.code === 403 || res.code === 404 || res.code === 410) return lost(docId, rec, error);
       if (res.code === 429) {
         return failedPoll(docId, rec, error, function () { return Math.max(MIN_POLL_S, error.retryAfterS || RATE_RETRY_S); });
       }
@@ -474,7 +526,10 @@ var LenzApi = (function () {
       return deps.cache.get(snapshotKey(reviewId));
     }
 
-    return { submit: submit, runAgain: runAgain, resume: resume, poll: poll, record: record, snapshot: snapshot, edit: edit };
+    return {
+      submit: submit, runAgain: runAgain, resume: resume, poll: poll, cancel: cancel, record: record,
+      snapshot: snapshot, edit: edit
+    };
   }
 
   // ── edit: read from a review body the server just returned ─────────────
@@ -521,7 +576,9 @@ var LenzApi = (function () {
     bodyKey: bodyKey,
     snapshotKey: snapshotKey,
     scopeSnapshotKey: scopeSnapshotKey,
-    shiftBody: shiftBody
+    shiftBody: shiftBody,
+    readCancelled: readCancelled,
+    TERMINAL: TERMINAL
   };
 })();
 if (typeof module !== 'undefined') { module.exports = LenzApi; }

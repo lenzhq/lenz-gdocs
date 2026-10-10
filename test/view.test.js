@@ -810,3 +810,43 @@ test('a selection check says what it covered; Check this Doc says nothing', () =
   // The line is not a coverage gap: a clean selection still reads "No issues found." when it is.
   assert.deepEqual(LenzView.build(REVIEW, { scope: { paragraphs: 3 } }).coverage, LenzView.build(REVIEW).coverage);
 });
+
+// ── a cancelled review ──────────────────────────────────────
+
+test('cancelled midway: the findings stay, the stop is said once, the charge is Lenz\'s', () => {
+  const m = LenzView.build(require('./fixtures/reviews/cancelled-midway.review.json'));
+  assert.equal(m.done, true);
+  assert.equal(m.cancelled, true);
+  assert.equal(m.progress, null);
+  assert.equal(m.stages, null);
+  assert.equal(m.headline, 'Check cancelled.');
+  assert.equal(m.failure, null);
+  assert.equal(m.stopped, 'What it found before you stopped it stays below. Charged 25 credits.');
+  assert.deepEqual(m.coverage, ['1 deep check did not finish; that claim shows its quick verdict.']);
+  const all = m.groups.flatMap((g) => g.entries);
+  assert.equal(all.filter((e) => e.group === 'pending').length, 0);
+  const stopped = all.find((e) => e.id === 'claim:1');
+  assert.equal(stopped.label, 'False');
+  assert.ok(stopped.lines.some((l) => /You stopped the check before the deep check finished/.test(l.text)));
+});
+
+test('cancelled before anything came in: no list, nothing charged said as Lenz says it', () => {
+  const m = LenzView.build(require('./fixtures/reviews/cancelled-early.review.json'));
+  assert.equal(m.headline, 'Check cancelled.');
+  assert.equal(m.stopped, 'It stopped before any results came in. Nothing was charged.');
+  assert.deepEqual(m.groups, []);
+  assert.deepEqual(m.coverage, []);
+  assert.equal(m.footnote, null);
+});
+
+test('a cancelled quick check or citation says it was stopped, not that it failed', () => {
+  const body = JSON.parse(JSON.stringify(require('./fixtures/reviews/cancelled-midway.review.json')));
+  body.claims[3].result = { verdict: null, confidence: null, source: null, is_issue: false };
+  body.claims[3].assessment = { status: 'failed', failure: { code: 'cancelled', failure_class: 'cancelled' } };
+  body.summary.assessments = { completed: 4, failed: 1 };
+  const m = LenzView.build(body);
+  const e = m.groups.flatMap((g) => g.entries).find((x) => x.id === 'claim:3');
+  assert.equal(e.lines[0].text, 'Not checked: you stopped the check.');
+  assert.ok(m.coverage.includes('1 claim was not checked: you stopped the check.'));
+  assert.ok(!m.coverage.some((l) => /could not be checked this time|Check this Doc to check it again/.test(l)));
+});

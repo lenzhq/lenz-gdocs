@@ -105,6 +105,11 @@
   .dots i:nth-child(3) { animation-delay: 0.4s; }
   @keyframes lenz-dot { 0%, 60%, 100% { opacity: 0; } 20%, 50% { opacity: 1; } }
   @media (prefers-reduced-motion: reduce) { .dots i { animation: none; opacity: 1; } }
+  /* Cancel sits at the end of the "Running for" line; the confirmation replaces it under the stages. */
+  .run-line button.run-cancel { margin-left: auto; font-size: 13px; }
+  .cancel-confirm { font-size: 13px; color: var(--warm-800); margin: 8px 0 12px; }
+  .cancel-confirm p { margin: 0 0 8px; }
+  .cancel-confirm button.stop { padding: 6px 12px; font-size: 13px; }
   ul.stages { list-style: none; margin: 0; padding: 0; font-size: 13px; }
   ul.stages li { display: flex; justify-content: space-between; padding: 3px 0; border-top: 1px solid var(--warm-200); }
   ul.stages li:first-child { border-top: 0; }
@@ -142,8 +147,13 @@
   <p class="muted" id="updating" hidden></p>
   <p id="status" role="status" aria-live="polite"></p>
   <div class="running" id="running" hidden>
-    <p class="run-line"><span id="elapsed"></span><span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>
+    <p class="run-line"><span id="elapsed"></span><span class="dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span><button id="cancel" class="quiet run-cancel" type="button">Cancel</button></p>
     <ul class="stages" id="stages"></ul>
+    <div class="cancel-confirm" id="cancel-confirm" hidden>
+      <p>Stop this check? Findings already shown stay. Checks that have not finished are not charged.</p>
+      <div class="row"><button id="cancel-go" class="stop" type="button">Stop the check</button>
+        <button id="cancel-keep" class="quiet" type="button">Keep checking</button></div>
+    </div>
   </div>
   <p id="stalled" role="status" hidden></p>
   <p class="error" id="error" role="alert"></p>
@@ -151,6 +161,7 @@
   <div class="row" id="resume-row" hidden><button id="resume" class="primary" type="button">Resume</button></div>
   <p class="note" id="note" role="status" hidden></p>
   <p class="headline" id="headline" hidden></p>
+  <p class="muted" id="stopped-line" hidden></p>
   <p class="muted" id="scope" hidden></p>
   <div id="groups"></div>
   <section id="coverage-box" hidden>
@@ -193,6 +204,8 @@
   var phase = null;
   var resumed = false; // the panel opened on a check already running (a reopen)
   var startedAt = null; // the running check's start in ms, for the elapsed time
+  var confirming = false; // Cancel chosen: the confirmation shows (kept across polls while running)
+  var stopping = false; // Stop the check sent, its answer not back yet
   var last = null; // the last state rendered, to fall back on when a call fails
   var shown = null; // the review id the list shows; Select and Apply name it
   var steps = {}; // entry id -> occurrence shown ("1 of N")
@@ -225,6 +238,7 @@
       .withFailureHandler(function () {
         busy = false;
         writing = false;
+        stopping = false; // a Stop the check that failed: the confirmation comes back with its buttons
         if (last) {
           render(last);
         } else {
@@ -299,6 +313,10 @@
     setText('status', running ? (resumed ? RESUMED : r.selection ? RUNNING_SELECTION : RUNNING) : '');
     startedAt = running && typeof r.startedAt === 'number' ? r.startedAt : null;
     show($('running'), running);
+    // Cancel for the whole running state, gone after it (a check that ended meanwhile closes the
+    // confirmation: its results show, nothing says it was cancelled).
+    if (!running) { confirming = false; stopping = false; }
+    renderCancel();
     renderStages(running && m ? m.stages : null);
     tick();
     setText('error', r.error ? r.error.message : '');
@@ -306,6 +324,7 @@
     if (r.notice) note(r.notice);
 
     setText('headline', m ? m.headline : '');
+    setText('stopped-line', m ? m.stopped : '');
     setText('scope', m ? m.scope : '');
     if (m && m.failure) setText('error', m.failure);
     var fl = $('failure-link');
@@ -643,6 +662,40 @@
     });
   }
   $('check-selection').addEventListener('click', startSelection);
+  // Only the Cancel controls, so a click does not re-render the list (or move the next poll).
+  function renderCancel() {
+    var running = phase === 'running';
+    show($('cancel'), running && !confirming && !stopping);
+    show($('cancel-confirm'), running && (confirming || stopping));
+    $('cancel-go').disabled = stopping;
+    $('cancel-keep').disabled = stopping;
+    $('cancel-go').textContent = stopping ? 'Stopping\u2026' : 'Stop the check';
+  }
+  // Cancel: ask first (inline: a browser dialog would block the panel), then stop the check. The reply
+  // is the review as Lenz returns it; one that did not arrive leaves the check running with the error,
+  // and Cancel can be chosen again (a repeat is harmless on Lenz's side).
+  $('cancel').addEventListener('click', function () {
+    note('');
+    confirming = true;
+    renderCancel();
+    $('cancel-go').focus();
+  });
+  $('cancel-keep').addEventListener('click', function () {
+    confirming = false;
+    renderCancel();
+    $('cancel').focus();
+  });
+  $('cancel-go').addEventListener('click', function () {
+    if (stopping) return;
+    stopping = true;
+    renderCancel();
+    call('lenzCancel', [shown], function (r) {
+      stopping = false;
+      confirming = false;
+      if (r && r.phase === 'needs_file_access') { askAccess(function () { call('lenzState', [], render); }); return; }
+      render(r);
+    }, function () { stopping = false; });
+  });
   // After polling gave up: look at the saved check again (never a new one, never a read of the Doc).
   $('resume').addEventListener('click', function () {
     note('');

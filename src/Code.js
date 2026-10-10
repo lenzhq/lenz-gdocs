@@ -287,6 +287,61 @@ function lenzResume() {
   });
 }
 
+/**
+ * Cancel: stop the active tab's running check (POST /reviews/{id}/cancel) and show the review as Lenz
+ * returns it. Stopped: phase `done` with the cancelled model (findings already delivered stay, with
+ * Apply and Undo). Ended first: its results, never called cancelled. Not answered: still `running`
+ * with the error, polling goes on, and Cancel may be chosen again (Lenz takes a repeat as a no-op).
+ * A request whose answer never arrived is replayed first, to learn the review it made; if Lenz still
+ * does not confirm it, nothing can be stopped yet and the reply says so.
+ * `reviewId`: the check the sidebar shows (null while a request is still unconfirmed). Checked under
+ * the lock against the active tab's record, so a click on a panel left over from another tab, or a
+ * check another sidebar replaced, stops nothing: the reply is the current state with a line saying so.
+ */
+var LENZ_CANCEL_OTHER = 'This panel was showing another check, so nothing was stopped. Here is the current one.';
+
+function lenzCancel(reviewId) {
+  return lenzScoped_(function () {
+    try {
+      return lenzFileAccess_(function () { return lenzCancelIn_(lenzContext_(), reviewId); });
+    } finally {
+      lenzTrialFlush_();
+    }
+  });
+}
+
+function lenzCancelIn_(ctx, reviewId) {
+  if (!lenzSignedIn_()) return lenzSignedOut_(null);
+  var client = lenzClient_();
+  var shown = typeof reviewId === 'string' && reviewId ? reviewId : null;
+  var step = lenzWithLock_(function () {
+    var rec = client.record(ctx.docId, ctx.tabId);
+    var current = rec && rec.reviewId ? rec.reviewId : null;
+    if (current !== shown) {
+      // Not the check on screen: nothing is sent but a read of the current one.
+      return { other: true, rec: rec, poll: current ? client.poll(ctx.docId, ctx.tabId) : null };
+    }
+    if (rec && !rec.reviewId && (rec.state === 'submitting' || rec.state === 'pending_conflict')) {
+      var replayed = lenzReplayLocked_(ctx, client);
+      rec = client.record(ctx.docId, ctx.tabId);
+      if (!rec || !rec.reviewId) {
+        if (replayed && replayed.phase === 'running') {
+          replayed.error = lenzError_({ message: LenzApi.MESSAGES.cancel_not_started, retryable: true });
+        }
+        return { reply: replayed };
+      }
+    }
+    if (!rec || !rec.reviewId) return { rec: rec, poll: null };
+    return { rec: rec, poll: client.cancel(ctx.docId, ctx.tabId) };
+  });
+  if (step === null) return lenzWithStart_(ctx, client, lenzReply_('running', { error: lenzError_({ message: LENZ_BUSY, retryable: true }), nextPollS: 5 }));
+  if (step.reply) return lenzRemember_(ctx, lenzWithStart_(ctx, client, step.reply));
+  var rec = client.record(ctx.docId, ctx.tabId) || step.rec;
+  var out = lenzRemember_(ctx, lenzWithStart_(ctx, client, lenzFromPoll_(ctx, rec, step.poll)));
+  if (step.other && out && !out.error) out.error = lenzError_({ message: LENZ_CANCEL_OTHER, retryable: false });
+  return out;
+}
+
 // One poll of `ctx`'s check: the sidebar's (the active tab) and the headless
 // e2e's (a Doc by id, src/dev-e2e.js) share it. `opts.resume`: a new window of failed polls first.
 function lenzPollIn_(ctx, opts) {
@@ -610,9 +665,10 @@ function lenzSubmitScoped_(ctx, locked) {
   return lenzRemember_(ctx, lenzWithStart_(ctx, client, out));
 }
 
-// Record states after which a click starts a new review: the review failed,
-// or Lenz can no longer give it back (lost), or it may never have existed (unknown).
-var LENZ_START_OVER = { failed: true, lost: true, unknown: true };
+// Record states after which a click starts a new review: the review failed, the user stopped it
+// (cancelled: never shown again as if it were the answer for unchanged text), or Lenz can no longer
+// give it back (lost), or it may never have existed (unknown).
+var LENZ_START_OVER = { failed: true, cancelled: true, lost: true, unknown: true };
 
 function lenzSubmitLocked_(ctx, client) {
   var rec = client.record(ctx.docId, ctx.tabId);
@@ -724,7 +780,7 @@ function lenzSubmitted_(ctx, client, res) {
   if (res.ok) {
     // A review this key already has (unchanged text): read it now, and say so
     // when it is complete (no new review, nothing charged).
-    if (res.state === 'completed' || res.state === 'failed') {
+    if (LenzApi.TERMINAL[res.state]) {
       var again = lenzFromPoll_(ctx, client.record(ctx.docId, ctx.tabId), client.poll(ctx.docId, ctx.tabId));
       if (res.state === 'completed' && again.phase === 'done') again.notice = LENZ_NO_CHANGES;
       return again;
@@ -766,7 +822,7 @@ function lenzFromPoll_(ctx, rec, poll) {
 
 function lenzReplyFromBody_(ctx, rec, poll, body, known) {
   var meta = lenzMeta_(ctx, rec);
-  var done = body.status === 'completed' || body.status === 'failed';
+  var done = LenzApi.TERMINAL[body.status] === true;
   if (body.status === 'completed') {
     if (LenzView.retryHelps(body)) lenzMarkIncomplete_(ctx, rec.reviewId);
     // A marker an older add-on left on a review no rerun can help (every unfinished check found
