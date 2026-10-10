@@ -8,7 +8,7 @@ const POLLS = require('./fixtures/reviews/draft-a.polls.json');
 // in issues[], row 3 in failures[]), and one too-few-sources failure beside one where search was down.
 const THIN = require('./fixtures/reviews/deep-failed-thin.review.json');
 const MIXED = require('./fixtures/reviews/deep-failed-mixed.review.json');
-// Review-level failures as the API sends them (failure_reason, failure_class and the integrator's hint),
+// Review-level failures as the API sends them (code, failure_class and the integrator's hint),
 // a review with one failed quick check, and a deep check that failed on Lenz's side.
 const F = (name) => require('./fixtures/reviews/' + name + '.review.json');
 const NO_CLAIM = F('failed-no-claim');
@@ -607,7 +607,7 @@ test('failed deep checks: a failure with no class, an input problem or a stop ke
 test('failed deep checks: an outage outside the search for sources does not name search', () => {
   const later = JSON.parse(JSON.stringify(MIXED));
   const row = later.claims.find((c) => c.verification && c.verification.failure && c.verification.failure.failure_class === 'upstream_unavailable');
-  row.verification.failure.failure_reason = 'conclusion_failed';
+  row.verification.failure.code = 'conclusion_failed';
   const lines = rowLines(LenzView.build(later), 'claim:' + row.index);
   assert.ok(lines.includes(SERVICE_ROW));
   assert.ok(!lines.includes(UNAVAILABLE_ROW));
@@ -629,7 +629,7 @@ test('failed deep checks: one that stopped on our side says so (the API sends cl
 test('failed deep checks: a stuck run (task_stuck, unavailable) names a service, not search', () => {
   const stuck = JSON.parse(JSON.stringify(MIXED));
   const f = stuck.claims.find((c) => c.index === 1).verification.failure;
-  f.failure_reason = 'task_stuck';
+  f.code = 'task_stuck';
   f.failure_class = 'upstream_unavailable';
   assert.ok(rowLines(LenzView.build(stuck), 'claim:1').includes(SERVICE_ROW));
 });
@@ -695,7 +695,7 @@ test('failed review: no claim says so, and never quotes the API hint', () => {
 
 test('failed review: not enough credits says nothing was charged and offers the billing page', () => {
   const m = LenzView.build(NO_CREDITS);
-  assert.equal(NO_CREDITS.failure.failure_reason, 'insufficient_credits');
+  assert.equal(NO_CREDITS.failure.code, 'insufficient_credits');
   assert.equal(m.failure, WORDS.credits);
   assert.deepEqual(m.failureLink, BILLING);
   assert.ok(!JSON.stringify(m).includes('5 credits to assess'));
@@ -706,7 +706,7 @@ test('failed review: not enough credits says nothing was charged and offers the 
 test('failed review: an outage and every quick check failing say it could not check just now', () => {
   assert.equal(LenzView.build(UNAVAILABLE).failure, WORDS.unavailable);
   const m = LenzView.build(ASSESSMENT_FAILED);
-  assert.equal(ASSESSMENT_FAILED.failure.failure_reason, 'assessment_failed');
+  assert.equal(ASSESSMENT_FAILED.failure.code, 'assessment_failed');
   assert.equal(m.failure, WORDS.unavailable);
   assert.ok(!JSON.stringify(m).includes('Idempotency-Key'));
   // The same reason with class internal (a non-retryable failure of every row) reads the same.
@@ -719,19 +719,19 @@ test('failed review: an outage and every quick check failing say it could not ch
 test('failed review: an internal failure, an unknown reason and no failure block say it is on our side', () => {
   assert.equal(LenzView.build(INTERNAL).failure, WORDS.ours);
   const unknown = JSON.parse(JSON.stringify(INTERNAL));
-  unknown.failure.failure_reason = 'something_new';
+  unknown.failure.code = 'something_new';
   assert.equal(LenzView.build(unknown).failure, WORDS.ours);
   const bare = JSON.parse(JSON.stringify(INTERNAL));
   bare.failure = null;
   assert.equal(LenzView.build(bare).failure, WORDS.ours);
   // A reason named like an Object property is unknown, not a lookup.
-  unknown.failure.failure_reason = 'constructor';
+  unknown.failure.code = 'constructor';
   assert.equal(LenzView.build(unknown).failure, WORDS.ours);
 });
 
 test('failed review: an unclassified reason in an outage class says it could not check just now', () => {
   const stuck = JSON.parse(JSON.stringify(INTERNAL));
-  stuck.failure.failure_reason = 'task_stuck';
+  stuck.failure.code = 'task_stuck';
   stuck.failure.failure_class = 'upstream_unavailable';
   assert.equal(LenzView.build(stuck).failure, WORDS.unavailable);
 });
@@ -741,7 +741,7 @@ test('failed review: the failure words never come from the hint, whatever it say
     const withHint = JSON.parse(JSON.stringify(b));
     withHint.failure.hint = 'PRIVATE_HINT_TEXT';
     const m = LenzView.build(withHint);
-    assert.ok(!JSON.stringify(m).includes('PRIVATE_HINT_TEXT'), b.failure.failure_reason);
+    assert.ok(!JSON.stringify(m).includes('PRIVATE_HINT_TEXT'), b.failure.code);
     assert.equal(m.failure, LenzView.build(b).failure);
   });
 });

@@ -12,7 +12,7 @@ var LenzApi = (function () {
   };
 
   // The version of the Lenz API this add-on names on every request (X-Lenz-API-Version). The add-on
-  // reads both answer shapes (CONTRACT.md), so the date only says which one it was written against.
+  // reads only the answer shape of this version (CONTRACT.md).
   var API_VERSION = '2026-10-11';
 
   var CACHE_TTL_S = 21600; // 6 h, the longest the user cache keeps a value
@@ -140,18 +140,6 @@ var LenzApi = (function () {
   // The review states after which nothing more happens to it.
   var TERMINAL = { completed: true, failed: true, cancelled: true };
 
-  // A review the user stopped (POST /reviews/{id}/cancel). The current shape says `status: cancelled`;
-  // the older one says `failed` with a `cancelled` failure (failure_class, or failure_reason). The older
-  // answer is read as the current one as it arrives, so the rest of the add-on knows one word.
-  function readCancelled(body) {
-    if (!body || typeof body !== 'object' || body.status !== 'failed') return body;
-    var f = body.failure && typeof body.failure === 'object' ? body.failure : {};
-    if (f.failure_class === 'cancelled' || f.failure_reason === 'cancelled' || f.code === 'cancelled') {
-      body.status = 'cancelled';
-    }
-    return body;
-  }
-
   // ── describeError ─────────────────────────────────────────────────────
 
   function err(code, apiCode, message, retryable, retryAfterS) {
@@ -174,15 +162,14 @@ var LenzApi = (function () {
       return err(code, apiCode, apiCode === 'idempotency_body_mismatch' ? MESSAGES.body_mismatch : MESSAGES.invalid,
         false, null);
     }
-    // The wait in the body: `retry_after` (current), else the older names this endpoint used
-    // (`retry_after_seconds`, `reset_in_seconds`). The Retry-After header comes first.
+    // The wait: the Retry-After header first, then the body's `retry_after`.
     if (code === 429) {
       if (apiCode === 'review_in_flight') {
         return err(code, apiCode, MESSAGES.in_flight, true,
-          firstSeconds(ra, json.retry_after, json.retry_after_seconds, RATE_RETRY_S));
+          firstSeconds(ra, json.retry_after, RATE_RETRY_S));
       }
       if (apiCode === 'extract_daily_limit') {
-        return err(code, apiCode, MESSAGES.link_limit, false, firstSeconds(ra, json.retry_after, json.reset_in_seconds));
+        return err(code, apiCode, MESSAGES.link_limit, false, firstSeconds(ra, json.retry_after));
       }
       // Cloud Armor's per-IP throttle answers before the app, with no JSON.
       return err(code, apiCode, MESSAGES.rate_limited, true, firstSeconds(ra, RATE_RETRY_S));
@@ -447,11 +434,9 @@ var LenzApi = (function () {
       });
     }
 
-    // A review body as it arrives (GET or cancel): shifted, read in one shape, and the record's state
-    // set from it.
+    // A review body as it arrives (GET or cancel): shifted, and the record's state set from it.
     function settle(docId, rec, body) {
       if (isInt(rec.offset)) shiftBody(body, rec.offset);
-      readCancelled(body);
       var terminal = TERMINAL[body.status] === true;
       rec.state = terminal ? body.status : 'running';
       rec.pollFailures = 0;
@@ -586,7 +571,6 @@ var LenzApi = (function () {
     snapshotKey: snapshotKey,
     scopeSnapshotKey: scopeSnapshotKey,
     shiftBody: shiftBody,
-    readCancelled: readCancelled,
     TERMINAL: TERMINAL
   };
 })();
