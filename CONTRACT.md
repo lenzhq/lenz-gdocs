@@ -310,10 +310,20 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   cea222bcc01170a5abfec085584bd62d6897f957 only).
 - `edit` finds the claim by its `index` field (`issues[].claim_index` on `view=issues`), and returns
   null for anything not a settled, well-formed edit; it never trusts client text.
-- Body sent: `{text, webhook_url: '', visibility: 'private', escalate: {suggest_edits: true,
-  max_citations: 20, max_assessments: 20, max_verifications: 5, depth: 'standard'}}`. The empty
-  `webhook_url` is deliberate: on /review it means no webhook for this review; leaving it out would
-  use the key's default webhook.
+- Body sent: `{text, webhook_url: '', visibility: 'private', language: 'auto', escalate:
+  {suggest_edits: true, max_citations: 20, max_assessments: 20, max_verifications: 5, depth:
+  'standard'}}`. The empty `webhook_url` is deliberate: on /review it means no webhook for this review;
+  leaving it out would use the key's default webhook.
+- `language: 'auto'` is in every `/review` POST (the whole tab and a selection both go through
+  `submit`, the one place the body is built): Lenz detects the language once, from the text it
+  receives, and writes the review (claims, reasoning, rewrites, suggested edits) in it; a short or
+  undetectable text comes back in English. The body is stored before the first send and a replay sends
+  those stored bytes, so a retry, a rotated-token resend and a replay after a lost reply carry it
+  too and the `Idempotency-Key` still binds the same body. The add-on needs a Lenz API that accepts
+  `auto` on `/review`; one that does not refuses the request. The answer's `language` (the
+  resolved code, or `auto` while a page is still being read) is not read: positions, `suggested_edits`
+  and the replay contract are as before, and nothing in the add-on depends on the review's language.
+  The add-on's own text (buttons, headings, the messages in `MESSAGES`) stays English.
 
 - Signed in (`getToken`): each request's bearer is `getToken({force: false})`. A 401 is answered by
   ONE `getToken({force: true})` and the same request again (a 401 comes before Lenz does anything);

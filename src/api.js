@@ -375,6 +375,9 @@ var LenzApi = (function () {
         // Leaving it out would send the key's default webhook, if the account has one.
         webhook_url: '',
         visibility: 'private',
+        // Lenz detects the language of the text it receives and writes the review in it (claims,
+        // reasoning, rewrites, edits). Part of the stored body, so a replay sends it again.
+        language: 'auto',
         escalate: JSON.parse(policyJson)
       });
       var next = {

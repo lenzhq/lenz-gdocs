@@ -36,6 +36,8 @@ can build and deploy your own copy (below). Either way you need a Lenz account
    reviewers' reasoning), citations whose source does not say what the Doc attributes to it, and
    what was not covered (claims past the limit, sources that could not be read, parts of the Doc
    not read).
+   Lenz writes its findings in the language of the Doc (it detects the language from the text it is
+   sent; a very short text is answered in English). The sidebar's own labels stay English.
 3. **Check only the selected text.** Select part of the tab and choose Check only the selected text
    under Check this Doc: Lenz checks the whole paragraphs the selection touches, wherever they are in
    the tab, including past the first 50,000 characters a full check reads.

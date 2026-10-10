@@ -753,6 +753,7 @@ test('start: the tab text goes out once, with a key and the policy', () => {
   assert.equal(body.text, TEXT);
   assert.equal(body.visibility, 'private');
   assert.equal(body.webhook_url, '');
+  assert.equal(body.language, 'auto');
   assert.deepEqual(body.escalate, { depth: 'standard', max_assessments: 20, max_citations: 20, max_verifications: 5, suggest_edits: true });
   assert.match(f.o.headers['Idempotency-Key'], /^[0-9a-f]{64}$/);
   assert.equal(f.o.headers.Authorization, 'Bearer ' + KEY);
@@ -2876,6 +2877,7 @@ test('selection: the selected paragraphs are the review text; findings select an
   assert.equal(r.phase, 'running');
   assert.equal(r.selection, true);
   assert.equal(sentText(w), TEXT);
+  assert.equal(JSON.parse(postsOf(w)[0].o.payload).language, 'auto');
   const done = pollToEnd(w);
   assert.equal(done.phase, 'done');
   assert.equal(done.model.headline, '3 issues to look at.');
