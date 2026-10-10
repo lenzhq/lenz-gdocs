@@ -11,6 +11,10 @@ var LenzApi = (function () {
     depth: 'standard'
   };
 
+  // The version of the Lenz API this add-on names on every request (X-Lenz-API-Version). The add-on
+  // reads both answer shapes (CONTRACT.md), so the date only says which one it was written against.
+  var API_VERSION = '2026-10-11';
+
   var CACHE_TTL_S = 21600; // 6 h, the longest the user cache keeps a value
   var FIRST_POLL_S = 20; // the POST's Retry-After when it carries none
   var POLL_S = 15; // poll_after_seconds when a running review carries none
@@ -214,7 +218,8 @@ var LenzApi = (function () {
       var headers = {
         Authorization: auth.header,
         Accept: 'application/json',
-        'User-Agent': deps.userAgent
+        'User-Agent': deps.userAgent,
+        'X-Lenz-API-Version': API_VERSION
       };
       if (payload !== undefined) headers['Content-Type'] = 'application/json';
       if (key) headers['Idempotency-Key'] = key;
@@ -516,6 +521,7 @@ var LenzApi = (function () {
     create: create,
     describeError: describeError,
     DEFAULT_POLICY: DEFAULT_POLICY,
+    API_VERSION: API_VERSION,
     MESSAGES: MESSAGES,
     recordKey: recordKey,
     bodyKey: bodyKey,

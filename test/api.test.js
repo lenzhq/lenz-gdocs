@@ -92,6 +92,7 @@ test('submit POSTs the contract body with the key, the bearer and the user agent
   assert.equal(req.headers.Authorization, 'Bearer ' + w.deps.apiKey);
   assert.equal(req.headers['Content-Type'], 'application/json');
   assert.equal(req.headers['User-Agent'], 'lenz-gdocs/0.1');
+  assert.equal(req.headers['X-Lenz-API-Version'], '2026-10-11');
   assert.match(keyOf(w.calls[0]), /^[0-9a-f]{64}$/);
   assert.deepEqual(JSON.parse(req.payload), {
     text: DRAFT,
@@ -101,6 +102,33 @@ test('submit POSTs the contract body with the key, the bearer and the user agent
       suggest_edits: true, max_citations: 20, max_assessments: 20, max_verifications: 5, depth: 'standard',
     },
   });
+});
+
+// The add-on names the version of the API it was written against on every request, so what it
+// reads does not change under it. The date is the one its answers are read in (both shapes are read).
+test('every request names the API version: the POST, a replay, the poll, a rotated retry', () => {
+  assert.equal(LenzApi.API_VERSION, '2026-10-11');
+  // The POST, then the poll.
+  const w = world({ replies: [accepted('r1'), json(200, POLLS[0])] });
+  sub(w, DRAFT);
+  w.client.poll(DOC.docId, DOC.tabId);
+  assert.deepEqual(w.calls.map((c) => c.req.headers['X-Lenz-API-Version']), ['2026-10-11', '2026-10-11']);
+  // A replay of a POST whose answer was lost.
+  const r = world({ replies: [transportFail(), accepted('r2')] });
+  sub(r, DRAFT);
+  sub(r, DRAFT);
+  assert.deepEqual(r.calls.map((c) => c.req.headers['X-Lenz-API-Version']), ['2026-10-11', '2026-10-11']);
+  // A request sent again with a rotated token.
+  const o = oauthWorld([json(401, { detail: 'Unauthorized' }), accepted('r3')], [tok('lat_old'), tok('lat_new')]);
+  sub(o, DRAFT);
+  assert.deepEqual(o.calls.map((c) => c.req.headers['X-Lenz-API-Version']), ['2026-10-11', '2026-10-11']);
+});
+
+test('the version header is not part of the idempotency key or the body', () => {
+  const w = world({ replies: [accepted()] });
+  sub(w, DRAFT);
+  assert.equal(JSON.parse(w.calls[0].req.payload).version, undefined);
+  assert.equal(keyOf(w.calls[0]), sha256([DOC.docId, DOC.tabId, sha256(DRAFT), sortedJson(LenzApi.DEFAULT_POLICY), '0'].join('|')));
 });
 
 test('the key is sha256(docId|tabId|textHash|policyJSON|attempt)', () => {
