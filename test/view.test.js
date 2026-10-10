@@ -144,7 +144,7 @@ test('quote not in the source and page not found carry their fixed lines', () =>
   });
 });
 
-test('a quick check shows confidence, the reviewers\' note and a dissent', () => {
+test('a quick check shows confidence, the reviewers\' note, never a dissent', () => {
   const m = LenzView.build(
     review((b) => {
       const r = b.claims.find((c) => c.index === 4);
@@ -160,7 +160,9 @@ test('a quick check shows confidence, the reviewers\' note and a dissent', () =>
   assert.equal(e.score, null);
   assert.equal(e.link, null);
   assert.equal(e.lines[0].lead, "Reviewers' note: ");
-  assert.deepEqual(e.lines[1], { lead: 'A reviewer disagreed: ', text: 'One reviewer read it as true.' });
+  // The API deprecated `dissent` (always null now); a stray value is never shown.
+  assert.equal(e.lines.length, 1);
+  assert.ok(!e.lines.some((l) => /disagreed|One reviewer read it as true/.test(`${l.lead || ''}${l.text}`)));
   assert.equal(m.footnote, 'A quick verdict is a first read. A deep check shows the sources and can change it.');
 });
 

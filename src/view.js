@@ -394,7 +394,6 @@ var LenzView = (function () {
       lines.push({ lead: null, text: assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED });
     } else {
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
-      if (str(assessment.dissent)) lines.push({ lead: 'A reviewer disagreed: ', text: assessment.dissent });
       if (verification !== null && verification.status === 'failed') {
         lines.push({ lead: null, text: deepFailureText(verification) });
       }
