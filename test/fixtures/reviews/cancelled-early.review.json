@@ -1,0 +1,369 @@
+{
+  "review_id": "4881a880",
+  "view": "full",
+  "status": "cancelled",
+  "outcome": "incomplete",
+  "created_at": "2026-09-30T00:07:15.181873Z",
+  "completed_at": "2026-10-10T10:00:20Z",
+  "language": "en",
+  "policy": {
+    "verdicts": [
+      "False",
+      "Mostly False",
+      "Mixed"
+    ],
+    "confidence": [
+      "low"
+    ],
+    "max_assessments": 20,
+    "max_verifications": 3,
+    "depth": "standard",
+    "suggest_edits": true,
+    "max_citations": 20
+  },
+  "summary": {
+    "claims_selected": 5,
+    "claim_limit": 20,
+    "claim_limit_reached": false,
+    "input_truncated": false,
+    "assessments": {
+      "completed": 0,
+      "failed": 5
+    },
+    "verifications": {
+      "planned": 0,
+      "completed": 0,
+      "failed": 0
+    },
+    "issues": 0,
+    "citations_found": 2,
+    "citations_selected": 2,
+    "citation_limit": 20,
+    "citation_limit_reached": false,
+    "citation_checks": {
+      "checked": 0,
+      "unchecked": 0,
+      "failed": 2
+    },
+    "citation_issues": 0,
+    "citations_skipped": null
+  },
+  "credits": {
+    "charged": 0
+  },
+  "poll_after_seconds": null,
+  "issues": [],
+  "failures": [],
+  "citation_issues": [],
+  "citation_failures": [],
+  "claims": [
+    {
+      "index": 0,
+      "claim": "The Great Wall of China is visible to the naked eye from the Moon, according to NASA.",
+      "positions": [
+        {
+          "start": 242,
+          "end": 394,
+          "text": "The Great Wall of China is clearly visible to the naked eye from the Moon, according to [NASA](https://www.nasa.gov/image-article/great-wall-of-china/)."
+        }
+      ],
+      "result": {
+        "verdict": null,
+        "confidence": null,
+        "source": null,
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "failed",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        }
+      },
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 1,
+      "claim": "Buzz Aldrin was the first person to walk on the Moon in July 1969.",
+      "positions": [
+        {
+          "start": 522,
+          "end": 589,
+          "text": "The first person to walk on the Moon was Buzz Aldrin, in July 1969."
+        }
+      ],
+      "result": {
+        "verdict": null,
+        "confidence": null,
+        "source": null,
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "failed",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        }
+      },
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 2,
+      "claim": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in central Paris.",
+      "positions": [
+        {
+          "start": 34,
+          "end": 129,
+          "text": "The Eiffel Tower was completed in 1899 and stands about 450 metres tall in the centre of Paris."
+        }
+      ],
+      "result": {
+        "verdict": null,
+        "confidence": null,
+        "source": null,
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "failed",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        }
+      },
+      "escalation": {
+        "matched_rules": [
+          "verdict"
+        ],
+        "disposition": "planned"
+      },
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 3,
+      "claim": "Water boils at 100 degrees Celsius at sea level, according to Britannica.",
+      "positions": [
+        {
+          "start": 396,
+          "end": 520,
+          "text": "Water boils at 100 degrees Celsius at sea level, as [Britannica explains](https://www.britannica.com/science/boiling-point)."
+        }
+      ],
+      "result": {
+        "verdict": null,
+        "confidence": null,
+        "source": null,
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "failed",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        }
+      },
+      "escalation": {
+        "matched_rules": [],
+        "disposition": "not_selected"
+      },
+      "verification": null,
+      "suggested_edits": null
+    },
+    {
+      "index": 4,
+      "claim": "Mount Everest is the tallest mountain above sea level.",
+      "positions": [
+        {
+          "start": 131,
+          "end": 240,
+          "text": "Mount Everest is the tallest mountain above sea level. Mount Everest is the tallest mountain above sea level."
+        }
+      ],
+      "result": {
+        "verdict": null,
+        "confidence": null,
+        "source": null,
+        "is_issue": false
+      },
+      "assessment": {
+        "status": "failed",
+        "verdict": null,
+        "confidence": null,
+        "rationale": null,
+        "dissent": null,
+        "verification_url": null,
+        "error_code": null,
+        "identified_claims": [],
+        "hint": null,
+        "suggested_rewrite": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        }
+      },
+      "escalation": {
+        "matched_rules": [],
+        "disposition": "not_selected"
+      },
+      "verification": null,
+      "suggested_edits": null
+    }
+  ],
+  "citations": [
+    {
+      "index": 0,
+      "reference": "NASA",
+      "cited_url": "https://www.nasa.gov/image-article/great-wall-of-china/",
+      "doi": null,
+      "statement": "The Great Wall of China is clearly visible to the naked eye from the Moon, according to NASA.",
+      "quotes": [],
+      "position": {
+        "start": 242,
+        "end": 394,
+        "text": null
+      },
+      "result": {
+        "finding": null,
+        "is_issue": false
+      },
+      "check": {
+        "status": "failed",
+        "page_read": null,
+        "page_title": null,
+        "page_published_date": null,
+        "page_language": null,
+        "source_url": null,
+        "source_version": null,
+        "support": null,
+        "snippet": null,
+        "rationale": null,
+        "quote": null,
+        "doi_registered": null,
+        "metadata": null,
+        "metadata_differences": [],
+        "registered": null,
+        "unchecked_reason": null,
+        "hint": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        },
+        "missing_quote": null
+      }
+    },
+    {
+      "index": 1,
+      "reference": "Britannica explains",
+      "cited_url": "https://www.britannica.com/science/boiling-point",
+      "doi": null,
+      "statement": "Water boils at 100 degrees Celsius at sea level, as Britannica explains.",
+      "quotes": [],
+      "position": {
+        "start": 396,
+        "end": 520,
+        "text": null
+      },
+      "result": {
+        "finding": null,
+        "is_issue": false
+      },
+      "check": {
+        "status": "failed",
+        "page_read": null,
+        "page_title": null,
+        "page_published_date": null,
+        "page_language": null,
+        "source_url": null,
+        "source_version": null,
+        "support": null,
+        "snippet": null,
+        "rationale": null,
+        "quote": null,
+        "doi_registered": null,
+        "metadata": null,
+        "metadata_differences": [],
+        "registered": null,
+        "unchecked_reason": null,
+        "hint": null,
+        "failure": {
+          "code": "cancelled",
+          "failure_class": "cancelled",
+          "retryable": false,
+          "hint": null
+        },
+        "missing_quote": null
+      }
+    }
+  ],
+  "failure": {
+    "code": "cancelled",
+    "failure_class": "cancelled",
+    "retryable": false,
+    "hint": null
+  },
+  "more_claims": [],
+  "more_claim_locations": [],
+  "more_citations": []
+}

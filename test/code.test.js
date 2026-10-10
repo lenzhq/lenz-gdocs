@@ -17,6 +17,8 @@ const FIX = path.join(__dirname, 'fixtures', 'reviews');
 const TEXT = fs.readFileSync(path.join(FIX, 'draft-a.txt'), 'utf8').replace(/\n$/, '');
 const ACCEPT = require('./fixtures/reviews/draft-a.accept.json');
 const POLLS = require('./fixtures/reviews/draft-a.polls.json');
+const CANCELLED = require('./fixtures/reviews/cancelled-midway.review.json');
+const CANCELLED_LEGACY = require('./fixtures/reviews/cancelled-midway.legacy.review.json');
 const KEY = 'lenz_' + 'a'.repeat(32);
 const RID = ACCEPT.body.review_id;
 const REDIRECT = 'https://script.google.com/macros/d/SCRIPT/usercallback';
@@ -279,6 +281,11 @@ function world(opts) {
         // Signed in with Lenz: the API takes only a live access token (or the dev key).
         if (state.oauth && o.headers.Authorization !== 'Bearer ' + KEY && !state.oauth.bearerOk(o.headers.Authorization)) {
           return response(401, {}, { detail: 'Invalid or expired token.' });
+        }
+        // POST /reviews/{id}/cancel: the review as it stands afterwards (cancelled, unless a test says).
+        if (o.method === 'post' && /\/reviews\/[^/]+\/cancel$/.test(url)) {
+          if (state.cancelReply) return response(state.cancelReply.code, {}, state.cancelReply.body);
+          return response(200, {}, CANCELLED);
         }
         if (o.method === 'post') {
           if (state.postReply) return response(state.postReply.code, {}, state.postReply.body);
@@ -782,6 +789,134 @@ test('the lock: a busy poll waits, a busy start says so', () => {
   assert.equal(p.phase, 'running');
   assert.equal(p.nextPollS, 5);
   assert.equal(w.ctx.lenzStart().phase, 'error');
+});
+
+// ── cancel ──────────────────────────────────────────────────
+
+const cancels = (w) => w.state.fetches.filter((f) => /\/cancel$/.test(f.url));
+
+test('cancel: one POST to the review\'s cancel, then the cancelled review with what it delivered', () => {
+  const w = started();
+  w.ctx.lenzPoll();
+  const r = w.ctx.lenzCancel(RID);
+  assert.equal(cancels(w).length, 1);
+  assert.equal(cancels(w)[0].url, 'https://lenz.io/api/v1/reviews/' + RID + '/cancel');
+  assert.equal(cancels(w)[0].o.method, 'post');
+  assert.equal(cancels(w)[0].o.payload, undefined);
+  assert.equal(r.phase, 'done');
+  assert.equal(r.model.status, 'cancelled');
+  assert.equal(r.model.headline, 'Check cancelled.');
+  assert.equal(r.model.stopped, 'What it found before you stopped it stays below. Charged 25 credits.');
+  assert.equal(r.nextPollS, null);
+  // The findings it delivered stay.
+  assert.equal(entry(r.model, 'claim:0').label, 'False');
+  assert.equal(entry(r.model, 'claim:0').check, 'Deep check');
+});
+
+test('cancel: the older shape (failed with a cancelled failure) is the same cancelled state', () => {
+  const w = started();
+  w.state.cancelReply = { code: 200, body: CANCELLED_LEGACY };
+  const r = w.ctx.lenzCancel(RID);
+  assert.equal(r.phase, 'done');
+  assert.equal(r.model.headline, 'Check cancelled.');
+  assert.equal(r.model.failure, null);
+});
+
+test('cancel vs complete: a review that finished first shows its results, never "cancelled"', () => {
+  const w = started();
+  w.state.cancelReply = { code: 200, body: POLLS[POLLS.length - 1] };
+  w.state.polls = [POLLS[POLLS.length - 1]]; // Lenz's GET says the same from now on
+  const r = w.ctx.lenzCancel(RID);
+  assert.equal(r.phase, 'done');
+  assert.equal(r.model.status, 'completed');
+  assert.equal(r.model.headline, '3 issues to look at.');
+  assert.equal(r.model.cancelled, undefined);
+  assert.equal(r.model.stopped, undefined);
+  // Its done record: Check this Doc on unchanged text shows it again, no new review.
+  const again = w.ctx.lenzStart();
+  assert.equal(again.phase, 'done');
+  assert.equal(w.state.fetches.filter((f) => f.o.method === 'post' && /\/review$/.test(f.url)).length, 1);
+});
+
+test('cancel twice: the second click sends nothing and shows the same cancelled review', () => {
+  const w = started();
+  w.ctx.lenzCancel(RID);
+  w.state.getReply = { code: 200, body: CANCELLED }; // Lenz's GET says cancelled from now on
+  const r = w.ctx.lenzCancel(RID);
+  assert.equal(cancels(w).length, 1);
+  assert.equal(r.phase, 'done');
+  assert.equal(r.model.headline, 'Check cancelled.');
+});
+
+test('cancel with no answer: still running, polling goes on, and Cancel again sends the same request', () => {
+  const w = started();
+  w.state.cancelReply = { code: 0, body: '' };
+  w.state.down = true;
+  const r = w.ctx.lenzCancel(RID);
+  w.state.down = false;
+  assert.equal(r.phase, 'running');
+  assert.equal(r.error.message, "Couldn't reach Lenz. Check your connection and try again.");
+  assert.ok(r.nextPollS > 0);
+  w.state.cancelReply = null;
+  const again = w.ctx.lenzCancel(RID);
+  assert.equal(again.phase, 'done');
+  assert.equal(cancels(w).length, 2);
+  assert.equal(cancels(w)[0].url, cancels(w)[1].url);
+});
+
+test('after a cancel, Check this Doc on unchanged text starts a new review (never the cancelled one again)', () => {
+  const w = started();
+  w.ctx.lenzCancel(RID);
+  const keys = () => w.state.fetches.filter((f) => f.o.method === 'post' && /\/review$/.test(f.url))
+    .map((f) => f.o.headers['Idempotency-Key']);
+  const r = w.ctx.lenzStart();
+  assert.equal(r.phase, 'running');
+  assert.equal(keys().length, 2);
+  assert.notEqual(keys()[0], keys()[1]);
+});
+
+test('a reopened sidebar reads a cancelled review as cancelled, with no Resume', () => {
+  const w = started();
+  w.ctx.lenzCancel(RID);
+  w.state.getReply = { code: 200, body: CANCELLED };
+  const r = w.ctx.lenzState();
+  assert.equal(r.phase, 'done');
+  assert.equal(r.model.headline, 'Check cancelled.');
+  assert.equal(w.ctx.lenzOpen().phase, 'done');
+});
+
+test('cancel names the check it means: a panel showing another review stops nothing', () => {
+  const w = started();
+  const r = w.ctx.lenzCancel('0000dead');
+  assert.equal(cancels(w).length, 0);
+  assert.equal(r.phase, 'running');
+  assert.equal(r.error.message, 'This panel was showing another check, so nothing was stopped. Here is the current one.');
+  // A panel that showed no review (a request still unconfirmed) against a confirmed one: the same.
+  assert.equal(w.ctx.lenzCancel(null).error.message, r.error.message);
+  assert.equal(cancels(w).length, 0);
+});
+
+test('cancel before Lenz confirmed the check started: the request is replayed first, then stopped', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  w.state.postReply = { code: 502, body: '' };
+  assert.equal(w.ctx.lenzStart().phase, 'running');
+  w.state.postReply = null;
+  const r = w.ctx.lenzCancel(null);
+  assert.equal(r.phase, 'done');
+  assert.equal(r.model.headline, 'Check cancelled.');
+  assert.equal(cancels(w).length, 1);
+});
+
+test('cancel when the replay is still unanswered: running, and says nothing could be stopped yet', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  w.state.postReply = { code: 502, body: '' };
+  w.ctx.lenzStart();
+  const r = w.ctx.lenzCancel(null);
+  assert.equal(r.phase, 'running');
+  assert.match(r.error.message, /cannot be stopped/);
+  assert.equal(cancels(w).length, 0);
 });
 
 test('select: a claim becomes its paragraph\'s words; ids only', () => {

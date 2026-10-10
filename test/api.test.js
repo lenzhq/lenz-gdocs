@@ -1071,3 +1071,101 @@ test('selection: once accepted, the whole tab is the review snapshot and the pen
   assert.equal(w.cache.has(LenzApi.scopeSnapshotKey(key)), false);
   assert.equal(w.client.snapshot('r1'), WHOLE);
 });
+
+// ── cancel ──────────────────────────────────────────────────
+
+const CANCELLED = JSON.parse(fs.readFileSync(path.join(FIX, 'cancelled-midway.review.json'), 'utf8'));
+const CANCELLED_LEGACY = JSON.parse(fs.readFileSync(path.join(FIX, 'cancelled-midway.legacy.review.json'), 'utf8'));
+
+function runningReview(replies) {
+  const w = world({ replies: [accepted()].concat(replies || []) });
+  sub(w, DRAFT);
+  return w;
+}
+const rec = (w) => JSON.parse(w.store.get(LenzApi.recordKey(DOC.docId, DOC.tabId)));
+
+test('cancel: POST /reviews/{id}/cancel with no body, the record settles cancelled', () => {
+  const w = runningReview([json(200, CANCELLED)]);
+  const r = w.client.cancel(DOC.docId, DOC.tabId);
+  const c = w.calls[1].req;
+  assert.equal(c.method, 'post');
+  assert.equal(c.url, BASE + '/reviews/' + ACCEPT.body.review_id + '/cancel');
+  assert.equal(c.payload, undefined);
+  assert.equal(c.headers['Idempotency-Key'], undefined);
+  assert.equal(r.ok, true);
+  assert.equal(r.terminal, true);
+  assert.equal(r.status, 'cancelled');
+  assert.equal(rec(w).state, 'cancelled');
+  assert.equal(rec(w).reviewId, ACCEPT.body.review_id);
+});
+
+test('cancel: the older answer (failed, a cancelled failure) reads as cancelled', () => {
+  const w = runningReview([json(200, CANCELLED_LEGACY)]);
+  const r = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(r.status, 'cancelled');
+  assert.equal(r.body.status, 'cancelled');
+  assert.equal(rec(w).state, 'cancelled');
+});
+
+test('readCancelled: only a cancelled failure turns failed into cancelled', () => {
+  const read = (b) => LenzApi.readCancelled(b).status;
+  assert.equal(read({ status: 'failed', failure: { failure_reason: 'cancelled' } }), 'cancelled');
+  assert.equal(read({ status: 'failed', failure: { code: 'cancelled', failure_class: 'cancelled' } }), 'cancelled');
+  assert.equal(read({ status: 'failed', failure: { failure_reason: 'upstream_unavailable', failure_class: 'upstream_unavailable' } }), 'failed');
+  assert.equal(read({ status: 'failed', failure: null }), 'failed');
+  assert.equal(read({ status: 'completed' }), 'completed');
+});
+
+test('cancel vs complete: a review that ended first is recorded as it ended', () => {
+  const w = runningReview([json(200, REVIEW)]);
+  const r = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(r.status, 'completed');
+  assert.equal(rec(w).state, 'completed');
+});
+
+test('cancel twice: a record already ended sends no second cancel (a GET reads it)', () => {
+  const w = runningReview([json(200, CANCELLED), json(200, CANCELLED)]);
+  w.client.cancel(DOC.docId, DOC.tabId);
+  const r = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(w.calls.length, 3);
+  assert.equal(w.calls[2].req.method, 'get');
+  assert.equal(r.status, 'cancelled');
+});
+
+test('cancel with no answer or a 5xx: the record stays running, the same request may go again', () => {
+  const w = runningReview([transportFail(), json(502, {}), json(200, CANCELLED)]);
+  const a = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(a.ok, false);
+  assert.equal(a.terminal, false);
+  assert.equal(a.error.message, LenzApi.MESSAGES.transport);
+  assert.equal(rec(w).state, 'running');
+  const b = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(b.terminal, false);
+  assert.equal(rec(w).state, 'running');
+  const c = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(c.status, 'cancelled');
+  assert.deepEqual(w.calls.slice(1).map((x) => x.req.url), Array(3).fill(BASE + '/reviews/' + ACCEPT.body.review_id + '/cancel'));
+});
+
+test('cancel: a review out of reach (404) is lost, and the next submit is a new review', () => {
+  const w = runningReview([json(404, { code: 'not_found' })]);
+  const r = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(r.terminal, true);
+  assert.equal(rec(w).state, 'lost');
+});
+
+test('cancel with no review yet sends nothing', () => {
+  const w = world();
+  const r = w.client.cancel(DOC.docId, DOC.tabId);
+  assert.equal(w.calls.length, 0);
+  assert.equal(r.ok, false);
+  assert.equal(r.error.message, LenzApi.MESSAGES.cancel_not_started);
+});
+
+test('a poll that reads a cancelled review ends polling', () => {
+  const w = runningReview([json(200, CANCELLED)]);
+  const r = w.client.poll(DOC.docId, DOC.tabId);
+  assert.equal(r.terminal, true);
+  assert.equal(r.nextPollS, null);
+  assert.equal(rec(w).state, 'cancelled');
+});

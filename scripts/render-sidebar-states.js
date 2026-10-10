@@ -57,6 +57,13 @@ const STATES = {
   'needs-access': { height: 560, replies: { lenzOpen: reply('idle'), lenzOpenState: reply('needs_file_access', { ok: false, message: null }) } },
   running: { height: 1500, replies: { lenzOpen: reply('running'), lenzOpenState: reply('running', {
     model: LenzView.build(polls[0]), nextPollS: 600, startedAt: Date.now() - 102000 }) } },
+  // Cancel: the confirmation, the request in flight, and the review Lenz returns.
+  'running-cancel-confirm': { height: 900, click: ['cancel'], replies: { lenzOpen: reply('running'), lenzOpenState: reply('running', {
+    model: LenzView.build(polls[0]), nextPollS: 600, startedAt: Date.now() - 102000 }) } },
+  'running-cancel-stopping': { height: 900, click: ['cancel', 'cancel-go'], replies: { lenzOpen: reply('running'), lenzOpenState: reply('running', {
+    model: LenzView.build(polls[0]), nextPollS: 600, startedAt: Date.now() - 102000 }), lenzCancel: 'pending' } },
+  'cancelled-midway': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('cancelled-midway')) }) } },
+  'cancelled-early': { height: 420, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('cancelled-early')) }) } },
   results: { height: 1900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: resultsModel() }) } },
   clean: { height: 900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: cleanModel() }) } },
   'deep-failed-thin': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(thin) }) } },
@@ -74,13 +81,14 @@ const STATES = {
   footer: { height: 420, replies: { lenzOpen: reply('idle'), lenzOpenState: reply('idle') } },
 };
 
-// Injected ahead of the page's own script: each server function answers from `replies`.
+// Injected ahead of the page's own script: each server function answers from `replies` ("pending":
+// never answers, so the call stays in flight).
 function stub(replies) {
   return '<script>(function(){var replies=' + JSON.stringify(replies).replace(/</g, '\\u003c') + ';' +
     'function runner(ok){return new Proxy({},{get:function(_,name){' +
     'if(name==="withSuccessHandler")return function(f){return runner(f);};' +
     'if(name==="withFailureHandler")return function(){return runner(ok);};' +
-    'return function(){var r=replies[name];setTimeout(function(){ok(r===undefined?null:r);},0);};}});}' +
+    'return function(){var r=replies[name];if(r==="pending")return;setTimeout(function(){ok(r===undefined?null:r);},0);};}});}' +
     'window.google={script:{run:runner(function(){}),host:{origin:"https://docs.google.com",close:function(){}}}};})();</script>';
 }
 
@@ -103,7 +111,10 @@ function shoot(name, html, width, height) {
 fs.mkdirSync(OUT, { recursive: true });
 const sidebar = fs.readFileSync(path.join(SRC, 'sidebar.html'), 'utf8');
 for (const [name, s] of Object.entries(STATES)) {
-  shoot(name, sidebar.replace('<head>', '<head>' + stub(s.replies)), 300, s.height);
+  // `click`: element ids clicked in turn once the panel has rendered.
+  const clicks = s.click ? '<script>setTimeout(function(){' + JSON.stringify(s.click) +
+    '.forEach(function(id){document.getElementById(id).click();});},300);</script>' : '';
+  shoot(name, sidebar.replace('<head>', '<head>' + stub(s.replies)).replace('</body>', clicks + '</body>'), 300, s.height);
 }
 const picker = fs.readFileSync(path.join(SRC, 'picker.html'), 'utf8').replace(/<script src="[^"]*"><\/script>/, '');
 shoot('picker', picker.replace('<head>', '<head>' + stub({ lenzPickerConfig: null })), 760, 520);

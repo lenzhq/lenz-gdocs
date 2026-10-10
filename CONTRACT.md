@@ -220,10 +220,13 @@ client.submit({ docId, tabId, text, policy, snapshot?, offset?, scope? }) -> Sub
 client.runAgain({ docId, tabId }) -> void          // bumps attempt
 client.resume(docId, tabId) -> bool                 // a fresh window of failed polls; the same review id, no request
 client.poll(docId, tabId) -> PollResult             // one GET; caller schedules the next
+client.cancel(docId, tabId) -> PollResult           // POST /reviews/{id}/cancel; the review as it stands
 client.record(docId, tabId) -> Record|null
 client.snapshot(reviewId) -> string|null            // the text that review was run on (user cache, 6 h);
                                                     // a selection check's: the whole tab at submit
 LenzApi.shiftBody(body, offset) -> body             // every draft position moved by offset, in place
+LenzApi.readCancelled(body) -> body                 // the older cancelled shape read as `cancelled`, in place
+LenzApi.TERMINAL = { completed, failed, cancelled } // the review states after which nothing more happens
 client.edit(reviewBody, claimIndex, editIndex) -> Edit|null   // server-side source of truth for Apply
 describeError(code, headers, body) -> ApiError
 
@@ -248,7 +251,7 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   The Record and the exact request body (cache `lenz:body:<key>`, 6 h) are written **before** the POST.
   Store key `lenz:rec:<docId>:<tabId>`.
 - Record `state`: `submitting` (sent, answer not known) · `pending_conflict` (409 with `review_id: null`)
-  · `running` · `completed` · `failed` · `rejected` (Lenz said no before a review existed: any JSON
+  · `running` · `completed` · `failed` · `cancelled` (the user stopped it) · `rejected` (Lenz said no before a review existed: any JSON
   4xx, a 503 with a code, Cloud Armor's 429) · `lost` (403/404/410 on a poll; attempt already bumped)
   · `unknown` (pending, but its cached body expired) · `idle` (after Run again).
 - `submit` settles a `submitting` / `pending_conflict` record first by replaying its cached body with
@@ -271,10 +274,18 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   5, 10, 20, 40, 60 s; a 429 waits its Retry-After (60). A streak of such failures that lasts 5
   minutes (`pollFailingSince`, cleared by any answer) ends with `gaveUp: true` and no `nextPollS`; the
   record keeps its review id and state `running`. `resume` clears the streak so the next poll is a
-  fresh window. Terminal: `status` `completed` | `failed`,
+  fresh window. Terminal: `status` `completed` | `failed` | `cancelled`,
   and 401/403/404/410. A poll whose record changed during the GET (Run again, a new submit) writes
   nothing and returns `{ok: false, terminal: true, error: null}`: the caller stops that loop. The glue
   holds the user lock around submit, runAgain and poll.
+- `cancel`: `POST /reviews/{reviewId}/cancel`, no body, no Idempotency-Key (Lenz takes a
+  repeat as a no-op and answers with the review either way). A 200 is settled like a poll's: shifted,
+  `readCancelled`, the record's state from its `status` — `cancelled`, or `completed` / `failed` when
+  the review ended before the cancel reached it (that answer is the result; nothing calls it
+  cancelled). A record already terminal sends no cancel: it is a poll. No review id yet → no request,
+  `MESSAGES.cancel_not_started`. 403/404/410 → `lost`, as on a poll. Anything else (no answer, a 5xx, a
+  non-JSON 200) leaves the record `running` with the error and `terminal: false`: polling goes on and the
+  same request may be sent again. A record that changed during the POST writes nothing (as on a poll).
 - `describeError` covers 401, 402, 403, 404, 409, 410, 422 (`idempotency_body_mismatch` and the rest),
   429 (`review_in_flight`, `extract_daily_limit`, the Cloud Armor non-JSON body), 503 `capacity`,
   other 5xx, transport failure. Messages live in `LenzApi.MESSAGES`: plain, short, no blame, say
@@ -290,7 +301,10 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   (`no_claim` on a review, `not_a_claim` on a deep check); a quick check with no verdict has `verdict`
   null (current) or `"Error"` (older); an unfinished quick check's own hint is the row's `hint` (older)
   or its `failure.hint` (current), shown only where the older answer's was; a 429's wait is named as above. `more_claims` on the review body
-  is the same in both. `test/api-shapes.test.js` runs both shapes of each answer in
+  is the same in both. A cancelled review is `status: cancelled` (current) or `failed` with a `cancelled`
+  failure (`failure_class`, or `failure_reason` / `code`; older): `readCancelled` turns the older one
+  into the current one as the body arrives (poll and cancel), so the glue and the view know one word.
+  `test/api-shapes.test.js` runs both shapes of each answer in
   `test/fixtures/api-shapes/` against `expected.*.json`, what the add-on produced from the older answer
   before it read the current one (written by `test/helpers/api-shapes-oracle.js` from commit
   cea222bcc01170a5abfec085584bd62d6897f957 only).
@@ -353,7 +367,9 @@ shows comes from here or from `LenzApi.MESSAGES`; the sidebar sets each as a tex
 ```
 Model = { reviewId, status, done, progress|null, headline|null, failure|null, failureLink|null,
           groups: [{ key, title, collapsed, count, entries }],   // non-empty groups only
-          coverage: string[], scope|null, footnote|null, charged|null }
+          coverage: string[], scope|null, footnote|null, charged|null,
+          cancelled?, stopped? }  // a cancelled review only (absent otherwise, so every other
+                                  // model is unchanged): `stopped` = what stays + Lenz's charge
           // scope: a selection check's line ("This check covered the text you selected (N
           // paragraphs). Check this Doc checks the whole tab."; with `gap`, "the paragraphs from the
           // first to the last you selected"); null for Check this Doc. Not a coverage line, so a
@@ -381,6 +397,16 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
 - Coverage lines: truncated (the API's `input_truncated` or the serializer's), `more_claims`,
   `more_citations`, failed quick checks, failed deep checks, unchecked and failed citation checks,
   `citations_skipped`, findings not in the Doc as it is now, `notRead`, `outcome: incomplete`.
+- A cancelled review (`status: cancelled`): `done`, headline "Check cancelled.", no `failure`, no
+  progress or stages. `stopped`: "What it found before you stopped it stays below." (or "It stopped
+  before any results came in.") then the charge as Lenz states `credits.charged` ("Nothing was
+  charged." for 0; omitted when absent); the add-on computes nothing. Delivered findings keep their
+  groups, edits, Apply and Undo. What did not finish says it was stopped, never that it failed: a row
+  "Not checked: you stopped the check.", a stopped deep check "You stopped the check before the deep
+  check finished, so this is the quick verdict.", coverage "N claims were not checked: you stopped the
+  check." (no "Check this Doc to check it again" line). Nothing delivered: no groups, no coverage, no
+  footnote — the panel reads as reset. Only the review's own status makes these words: a stopped row in
+  a review that otherwise finished keeps the plain line.
 - A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s);
   and `failureLink` (`https://lenz.io/billing`, "Add credits") on a review that failed for credits.
 - A failed review's `failure` is Docs words chosen by what failed (`failure.code`, or `failure.failure_reason` in the older shape) / `failure_class`, never
@@ -405,6 +431,7 @@ key in `lenzSaveKey`, reached from Dev tools → Use an API key…, is the one e
 lenzState() / lenzPoll() / lenzStart() / lenzSignOut() / lenzSaveKey(key) -> Reply
 lenzStartSelection() -> Reply | Note                  // Check only the selected text (below)
 lenzResume() -> Reply                                 // after `stalled`: polls the saved review again
+lenzCancel(reviewId) -> Reply                         // Cancel: stops the running review shown (below)
 lenzSignInUrl() -> { url|null, message|null }        // opened by the sidebar in a new window
 lenzShowPicker() -> { openedAt }                      // opens picker.html (modal); server ms
 lenzPickerConfig() -> { token, apiKey, appId, docId } // picker.html: the script's own token, the
@@ -431,12 +458,28 @@ Note  = { ok, message|null }
   answering. Your check is kept; choose Resume to look again." and shows Resume (Check this Doc stays
   off: it reads the Doc and may send a new review). Resume is `lenzResume`: it polls the SAVED review id;
   it sends no review and starts no check. A reply of this phase is not kept for open.
+- **Cancel** (`lenzCancel`, the public `POST /reviews/{id}/cancel`, no new scope): the sidebar
+  shows Cancel at the end of the "Running for" line for the whole `running` phase and nowhere else.
+  It asks inline first ("Stop this check? Findings already shown stay. Checks that have not finished
+  are not charged." · Stop the check · Keep checking; no browser dialog), then calls `lenzCancel` once
+  ("Stopping…", both buttons off; a second click does nothing) with the review id it shows
+  (`Model.reviewId`, null while the request is unconfirmed). Under the user lock that id must be the
+  active tab's record's, else nothing is sent but a read of the current check, with "This panel was
+  showing another check, so nothing was stopped." (a panel left over from another tab, or a check
+  another sidebar replaced). Then: a pending request
+  is replayed first to learn its review id (still unconfirmed → `running` with
+  `cancel_not_started`, nothing stopped); then `client.cancel`. The reply is `lenzFromPoll_` of the
+  answer: `done` with the cancelled model, or the results of a review that ended first, or `running` +
+  `error` when Lenz did not answer (polling goes on; Cancel shows again). A `cancelled` record is in
+  `LENZ_START_OVER`: Check this Doc and Check only the selected text start a NEW review even on
+  unchanged text, and a cancelled review is never offered for Resume (it is terminal, so never
+  `stalled`). Kept for open like any `done` reply.
 - `running` + `error` is a passing problem: polling goes on. A poll or a Check click on a
   `submitting` / `pending_conflict` record replays the cached request with its key WITHOUT reading
   the Doc (submit is called with empty text; LenzApi settles the pending request first), so an
   emptied or changed tab never blocks the replay or overwrites the metadata of the text sent.
 - One button, **Check this Doc** (`lenzStart`; there is no Run again): a pending request
-  is replayed with its key; a record `failed`, `lost` (403/404/410) or `unknown` gets
+  is replayed with its key; a record `failed`, `cancelled`, `lost` (403/404/410) or `unknown` gets
   `client.runAgain()` first, so the click is a NEW review and a failed receipt is never replayed;
   so does a `completed` review whose outcome was `incomplete` (`lenz:incomplete:<reviewId>`, set when
   the glue reads that body; the record does not carry the outcome);
