@@ -684,7 +684,7 @@ const WORDS = {
   credits: 'Not enough credits to check this tab. Nothing was charged.',
   unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
   ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
-  unreadable: "Lenz could not read the page this tab links to. Paste the page's text into the Doc instead. Nothing was charged.",
+  unreadable: "Lenz couldn't read that page. Paste its text instead.",
 };
 const BILLING = { href: 'https://lenz.io/billing', words: 'Add credits' };
 
@@ -727,6 +727,22 @@ test('failed review: the unreadable-link words name nothing of the API', () => {
   }));
   assert.ok(!JSON.stringify(m).includes('could not be read.'));
   assert.ok(!/error|false/i.test(m.failure));
+});
+
+test('failed review: an unreadable page and a text with no claim are told in the neutral tone, no other failure is', () => {
+  const neutral = (b) => LenzView.build(b).failureTone;
+  assert.equal(neutral(failedWith(NO_CLAIM, { code: 'page_unreadable', failure_class: 'invalid_input', retryable: false })), 'neutral');
+  assert.equal(neutral(failedWith(NO_CLAIM, { code: 'no_checkable_claim', failure_class: 'invalid_input', retryable: false })), 'neutral');
+  // The older shape's words for the same two failures read the same way.
+  const older = LenzView.build(failedWith(NO_CLAIM, { failure_reason: 'invalid_input', failure_class: 'invalid_input' }));
+  assert.equal(older.failureTone, 'neutral');
+  assert.equal(older.failure, WORDS.unreadable);
+  assert.equal(neutral(failedWith(NO_CLAIM, { failure_reason: 'no_claim', failure_class: 'invalid_input' })), 'neutral');
+  assert.equal(neutral(NO_CLAIM), 'neutral');
+  // An outage, our own fault and credits stay as they were: no field.
+  [NO_CREDITS, UNAVAILABLE, ASSESSMENT_FAILED, INTERNAL].forEach((b) => assert.ok(!('failureTone' in LenzView.build(b))));
+  assert.ok(!('failureTone' in LenzView.build(failedWith(NO_CLAIM, { code: 'upstream_unavailable', failure_class: 'upstream_unavailable', retryable: true }))));
+  assert.ok(!('failureTone' in LenzView.build(failedWith(NO_CLAIM, { code: 'internal', failure_class: 'internal', retryable: false }))));
 });
 
 test('failed review: no claim says so, and never quotes the API hint', () => {

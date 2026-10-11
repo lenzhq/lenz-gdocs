@@ -452,9 +452,13 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   a review that otherwise finished keeps the plain line.
 - A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s);
   and `failureLink` (`https://lenz.io/billing`, "Add credits") on a review that failed for credits.
+- No claim and an unreadable page accuse nothing and are the reader's to fix, so the model carries
+  `failureTone: 'neutral'` for them and the sidebar shows the words as a note, not the red error line;
+  no other failure carries the field.
 - A failed review's `failure` is Docs words chosen by what failed (`failure.code`, or `failure.failure_reason` in the older shape) / `failure_class`, never
   the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not read the
-  page the tab links to (`page_unreadable`; the older `invalid_input`), Lenz could not check just now
+  page (`page_unreadable`; the older `invalid_input`; "Lenz couldn't read that page. Paste its text
+  instead."), Lenz could not check just now
   (an outage, or every quick check failed), else "on our side". The current codes are
   `no_checkable_claim`, `page_unreadable`, `upstream_unavailable`, `internal`, `cancelled`,
   `no_citations`, `insufficient_credits`; `assessment_failed` is the older word and stays read. A code
