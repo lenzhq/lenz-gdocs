@@ -885,7 +885,7 @@ test('no public record: a completed deep check is an issue with a neutral label,
 
 test('no public record: counted as an issue in the headline; no retry advice', () => {
   assert.equal(NO_RECORD.outcome, 'issues_found');
-  assert.equal(NO_RECORD.summary.no_public_record, 1);
+  assert.equal(NO_RECORD.summary.issues, 1);
   const m = LenzView.build(NO_RECORD);
   assert.equal(m.headline, '1 issue to look at.');
   assert.equal(LenzView.retryHelps(NO_RECORD), false);

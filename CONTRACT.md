@@ -401,8 +401,8 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   checked). The state of a row is the one Lenz's Workbench gives it; an issue stays in `issue`
   whatever its colour. Words: the ones Lenz uses for findings elsewhere.
 - A claim whose verdict is `No Public Record` (a completed deep check that found no public record of it;
-  `lenz_score` is null) is an issue (`result.is_issue`; the review reads `outcome: issues_found`, with
-  `summary.no_public_record` counting them) that is neither a failure nor "false": labelled "Not on the
+  `lenz_score` is null) is an issue (`result.is_issue`; the review reads `outcome: issues_found`,
+  counted in `summary.issues`) that is neither a failure nor "false": labelled "Not on the
   public record" with a neutral token (`no-record`), state "Needs a closer look", no score, no suggested
   edit, and the line "Lenz found no public record of this. Confirm it or remove it." It is counted in
   the issue headline. The failed-deep-check wording (too few sources and the other classes) stays for
