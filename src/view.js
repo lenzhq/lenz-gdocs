@@ -7,8 +7,8 @@
  * Groups, in this order, each in the Doc's order (a reader walks the Doc):
  *   issue  claims with an issue (result.is_issue) and citation issues
  *   look   "Needs a closer look": partly supported citations, citations whose
- *          check could not decide, claims drawn amber (low confidence), claims
- *          with no public record
+ *          check could not decide, claims drawn amber (low confidence); a claim
+ *          with no public record is an issue drawn in this state
  *   none   "Not checked": citations with no text, failed checks, failed claims
  *   ok     "Checks out", collapsed behind its count
  * The group of a row is the state Lenz's Workbench gives it, except that an
@@ -92,11 +92,12 @@ var LenzView = (function () {
     'No Public Record': 'no-record',
   };
 
-  // The verdict Lenz gives when nothing public records a claim. A checked outcome, not a failure and
-  // not a score: the label and the line below are the Docs words for it.
+  // The verdict Lenz gives when nothing public records a claim. A checked outcome that is an issue (the
+  // review reads issues_found), neither a failure nor a score, and never shown as false: the label and
+  // the line below are the Docs words for it.
   var NO_RECORD = 'No Public Record';
   var NO_RECORD_LABEL = 'Not on the public record';
-  var NO_RECORD_LINE = "Lenz found no public record of this. That doesn't make it false.";
+  var NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
 
   var SKIPPED = {
     switched_off: 'Citations were not checked this time: the citation check is switched off.',
@@ -187,7 +188,7 @@ var LenzView = (function () {
   // A row with no verdict: `verdict` null (current shape; the row says `status: failed`) or "Error" (older).
   function claimState(verdict, confidence) {
     if (!verdict || verdict === 'Error') return 'none';
-    // Checked, and neither an issue nor a pass whatever its confidence: it is for the reader to look at.
+    // Checked, and neither a pass nor a "false" whatever its confidence: the reader confirms it or removes it.
     if (verdict === NO_RECORD) return 'look';
     if (confidence === 'low') return 'look';
     if (verdict === 'True' || verdict === 'Mostly True') return 'ok';
@@ -349,15 +350,6 @@ var LenzView = (function () {
     return n;
   }
 
-  // The claims whose completed deep check found no public record.
-  function countNoRecord(body) {
-    var n = 0;
-    arr(body.claims).forEach(function (r) {
-      if (isObj(r) && isObj(r.result) && r.result.verdict === NO_RECORD && r.result.source === 'verification') n++;
-    });
-    return n;
-  }
-
   // Whether choosing Check this Doc again can help an incomplete review: false only when every check
   // that did not finish is a deep check that found too few sources. Anything unknown counts as retryable.
   function retryHelps(body) {
@@ -368,9 +360,6 @@ var LenzView = (function () {
     var v = isObj(s.verifications) ? s.verifications : {};
     var c = isObj(s.citation_checks) ? s.citation_checks : {};
     var thin = countTooFewSources(body);
-    // Nothing failed, and the review reads incomplete because a deep check found no public record of its
-    // claim: a rerun would give the same answer and be charged.
-    if (!(a.failed > 0) && !(v.failed > 0) && !(c.failed > 0) && countNoRecord(body) > 0) return false;
     return !(thin > 0 && thin >= (v.failed || 0) && !(a.failed > 0) && !(c.failed > 0));
   }
 

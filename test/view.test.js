@@ -18,8 +18,8 @@ const ASSESSMENT_FAILED = F('failed-assessment');
 const INTERNAL = F('failed-internal');
 const QUICK_FAILED = F('quick-check-failed');
 const DEEP_INTERNAL = F('deep-failed-internal');
-// A deep check that found no public record of its claim (verdict "No Public Record", no score): done, not
-// an issue, not a failure. Synthetic: built from draft-a with an invented claim.
+// A deep check that found no public record of its claim (verdict "No Public Record", no score): done, an issue,
+// a failure and not false; the review reads issues_found. Synthetic: built from draft-a with an invented claim.
 const NO_RECORD = F('deep-no-public-record');
 
 function review(edit) {
@@ -854,11 +854,11 @@ test('a cancelled quick check or citation says it was stopped, not that it faile
   assert.ok(!m.coverage.some((l) => /could not be checked this time|Check this Doc to check it again/.test(l)));
 });
 
-// ── a deep check that found no public record is a checked outcome ──
+// ── a deep check that found no public record is a checked outcome and an issue ──
 
-const NO_RECORD_LINE = "Lenz found no public record of this. That doesn't make it false.";
+const NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
 
-test('no public record: a completed deep check is filed as checked, with a neutral label and no score', () => {
+test('no public record: a completed deep check is an issue with a neutral label, no score and no rewrite', () => {
   assert.equal(LenzView.claimState('No Public Record', 'medium'), 'look');
   assert.equal(LenzView.claimState('No Public Record', 'high'), 'look');
   assert.equal(LenzView.claimState('No Public Record', 'low'), 'look');
@@ -867,28 +867,29 @@ test('no public record: a completed deep check is filed as checked, with a neutr
   assert.equal(e.label, 'Not on the public record');
   assert.equal(e.token, 'no-record');
   assert.equal(e.state, 'look');
-  assert.equal(e.group, 'look');
   assert.equal(e.stateWords, 'Needs a closer look');
+  assert.equal(e.group, 'issue');
   assert.equal(e.check, 'Deep check');
   assert.equal(e.score, null);
   assert.equal(e.confidence, null);
   assert.equal(e.rewrite, null);
+  assert.deepEqual(e.edits, []);
   assert.equal(e.lines[0].text, NO_RECORD_LINE);
   assert.ok(e.link && e.link.href.startsWith('https://lenz.io/c/'));
-  // Not an issue, and not in the "Not checked" group.
-  assert.ok(!ids(m, 'issue').includes('claim:1'));
+  // Never drawn as false, an error or "Not checked".
+  assert.ok(!['false', 'mostly-false'].includes(e.token));
+  assert.ok(!['False', 'Not checked', 'Error'].includes(e.label));
+  assert.deepEqual(ids(m, 'issue'), ['claim:1']);
   assert.ok(!ids(m, 'none').includes('claim:1'));
-  assert.ok(ids(m, 'look').includes('claim:1'));
 });
 
-test('no public record: not a failure and no reason to check again (a rerun would be charged for the same answer)', () => {
-  assert.equal(NO_RECORD.outcome, 'incomplete');
+test('no public record: counted as an issue in the headline; no retry advice', () => {
+  assert.equal(NO_RECORD.outcome, 'issues_found');
+  assert.equal(NO_RECORD.summary.no_public_record, 1);
+  const m = LenzView.build(NO_RECORD);
+  assert.equal(m.headline, '1 issue to look at.');
   assert.equal(LenzView.retryHelps(NO_RECORD), false);
-  assert.ok(!LenzView.build(NO_RECORD).coverage.includes(RETRY));
-  // A check that did fail beside it still advises one.
-  const failed = JSON.parse(JSON.stringify(NO_RECORD));
-  failed.summary.assessments.failed = 1;
-  assert.equal(LenzView.retryHelps(failed), true);
+  assert.ok(!m.coverage.includes(RETRY));
 });
 
 test('no public record: a quick-check row with this verdict reads the same', () => {
@@ -906,8 +907,7 @@ test('no public record: a quick-check row with this verdict reads the same', () 
 test('no public record: a cancelled review counts it as delivered', () => {
   const stopped = JSON.parse(JSON.stringify(NO_RECORD));
   stopped.status = 'cancelled';
-  const m = LenzView.build(stopped);
-  assert.equal(entry(m, 'claim:1').label, 'Not on the public record');
+  assert.equal(entry(LenzView.build(stopped), 'claim:1').label, 'Not on the public record');
 });
 
 test('failed deep checks: the legacy too-few-sources reading is unchanged', () => {
