@@ -88,7 +88,7 @@ var LenzView = (function () {
     Mixed: 'mixed',
     'Mostly False': 'mostly-false',
     False: 'false',
-    // No verdict colour: Lenz found no public record of the claim, which does not make it false.
+    // No verdict colour: Lenz found no public record of the claim, so it is not drawn as a verdict.
     'No Public Record': 'no-record',
   };
 
