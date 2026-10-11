@@ -7,7 +7,8 @@
  * Groups, in this order, each in the Doc's order (a reader walks the Doc):
  *   issue  claims with an issue (result.is_issue) and citation issues
  *   look   "Needs a closer look": partly supported citations, citations whose
- *          check could not decide, claims drawn amber (low confidence)
+ *          check could not decide, claims drawn amber (low confidence); a claim
+ *          with no public record is an issue drawn in this state
  *   none   "Not checked": citations with no text, failed checks, failed claims
  *   ok     "Checks out", collapsed behind its count
  * The group of a row is the state Lenz's Workbench gives it, except that an
@@ -87,7 +88,16 @@ var LenzView = (function () {
     Mixed: 'mixed',
     'Mostly False': 'mostly-false',
     False: 'false',
+    // No verdict colour: Lenz found no public record of the claim, so it is not drawn as a verdict.
+    'No Public Record': 'no-record',
   };
+
+  // The verdict Lenz gives when nothing public records a claim. A checked outcome that is an issue (the
+  // review reads issues_found), neither a failure nor a score, and never shown as false: the label and
+  // the line below are the Docs words for it.
+  var NO_RECORD = 'No Public Record';
+  var NO_RECORD_LABEL = 'No Public Record';
+  var NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
 
   var SKIPPED = {
     switched_off: 'Citations were not checked this time: the citation check is switched off.',
@@ -178,6 +188,8 @@ var LenzView = (function () {
   // A row with no verdict: `verdict` null (current shape; the row says `status: failed`) or "Error" (older).
   function claimState(verdict, confidence) {
     if (!verdict || verdict === 'Error') return 'none';
+    // Checked, and neither a pass nor a "false" whatever its confidence: the reader confirms it or removes it.
+    if (verdict === NO_RECORD) return 'look';
     if (confidence === 'low') return 'look';
     if (verdict === 'True' || verdict === 'Mostly True') return 'ok';
     if (verdict === 'Mostly False' && confidence === 'medium') return 'look';
@@ -400,6 +412,7 @@ var LenzView = (function () {
     var verdict = str(result.verdict);
     var confidence = str(result.confidence);
     var state = claimState(verdict, confidence);
+    var noRecord = verdict === NO_RECORD;
     var group = result.is_issue === true ? 'issue' : state;
     // No verdict yet while the review runs and the quick check has not failed: still being checked.
     var checking = !verdict && !opts.done && assessment.status !== 'failed';
@@ -412,7 +425,7 @@ var LenzView = (function () {
       state: state,
       stateWords: STATE_WORDS[state],
       title: str(row.claim) || '',
-      label: verdict && verdict !== 'Error' ? verdict : checking ? 'Checking' : 'Not checked',
+      label: noRecord ? NO_RECORD_LABEL : verdict && verdict !== 'Error' ? verdict : checking ? 'Checking' : 'Not checked',
       token: VERDICT_TOKENS[verdict] || null,
       check: deep ? 'Deep check' : verdict && verdict !== 'Error' ? 'Quick check' : null,
       // A quick verdict shown while its deep check runs is a first read, not the answer.
@@ -430,8 +443,10 @@ var LenzView = (function () {
     };
     if (deep) {
       e.rewrite = str(verification.suggested_rewrite);
+      if (noRecord) lines.push({ lead: null, text: NO_RECORD_LINE });
       if (!e.rewrite && str(verification.executive_summary)) lines.push({ lead: null, text: verification.executive_summary });
-      e.link = lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
+      // A deep check that found no public record never shows the sources link, whatever the verification carries.
+      e.link = !noRecord && lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
     } else if (checking) {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {
@@ -442,6 +457,7 @@ var LenzView = (function () {
         text: stopped ? STOPPED : assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED,
       });
     } else {
+      if (noRecord) lines.push({ lead: null, text: NO_RECORD_LINE });
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (verification !== null && verification.status === 'failed') {
         lines.push({ lead: null, text: deepFailureText(verification, opts.cancelled) });

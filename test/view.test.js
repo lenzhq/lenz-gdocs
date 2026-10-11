@@ -18,6 +18,9 @@ const ASSESSMENT_FAILED = F('failed-assessment');
 const INTERNAL = F('failed-internal');
 const QUICK_FAILED = F('quick-check-failed');
 const DEEP_INTERNAL = F('deep-failed-internal');
+// A deep check that found no public record of its claim (verdict "No Public Record", no score): done, an issue,
+// a failure and not false; the review reads issues_found. Synthetic: built from draft-a with an invented claim.
+const NO_RECORD = F('deep-no-public-record');
 
 function review(edit) {
   const body = JSON.parse(JSON.stringify(REVIEW));
@@ -849,6 +852,69 @@ test('a cancelled quick check or citation says it was stopped, not that it faile
   assert.equal(e.lines[0].text, 'Not checked: you stopped the check.');
   assert.ok(m.coverage.includes('1 claim was not checked: you stopped the check.'));
   assert.ok(!m.coverage.some((l) => /could not be checked this time|Check this Doc to check it again/.test(l)));
+});
+
+// ── a deep check that found no public record is a checked outcome and an issue ──
+
+const NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
+
+test('no public record: a completed deep check is an issue with a neutral label, no score and no rewrite', () => {
+  assert.equal(LenzView.claimState('No Public Record', 'medium'), 'look');
+  assert.equal(LenzView.claimState('No Public Record', 'high'), 'look');
+  assert.equal(LenzView.claimState('No Public Record', 'low'), 'look');
+  const m = LenzView.build(NO_RECORD);
+  const e = entry(m, 'claim:1');
+  assert.equal(e.label, 'No Public Record');
+  assert.equal(e.token, 'no-record');
+  assert.equal(e.state, 'look');
+  assert.equal(e.stateWords, 'Needs a closer look');
+  assert.equal(e.group, 'issue');
+  assert.equal(e.check, 'Deep check');
+  assert.equal(e.score, null);
+  assert.equal(e.confidence, null);
+  assert.equal(e.rewrite, null);
+  assert.deepEqual(e.edits, []);
+  assert.equal(e.lines[0].text, NO_RECORD_LINE);
+  // Never a "See sources in Lenz" link on this verdict, though the verification carries a url; the row shows its label and line only.
+  assert.equal(e.link, null);
+  assert.equal(e.lines[0].text, NO_RECORD_LINE);
+  // Never drawn as false, an error or "Not checked".
+  assert.ok(!['false', 'mostly-false'].includes(e.token));
+  assert.ok(!['False', 'Not checked', 'Error'].includes(e.label));
+  assert.deepEqual(ids(m, 'issue'), ['claim:1']);
+  assert.ok(!ids(m, 'none').includes('claim:1'));
+});
+
+test('no public record: counted as an issue in the headline; no retry advice', () => {
+  assert.equal(NO_RECORD.outcome, 'issues_found');
+  assert.equal(NO_RECORD.summary.issues, 1);
+  const m = LenzView.build(NO_RECORD);
+  assert.equal(m.headline, '1 issue to look at.');
+  assert.equal(LenzView.retryHelps(NO_RECORD), false);
+  assert.ok(!m.coverage.includes(RETRY));
+});
+
+test('no public record: a quick-check row with this verdict reads the same', () => {
+  const quick = JSON.parse(JSON.stringify(NO_RECORD));
+  const row = quick.claims.find((c) => c.index === 1);
+  row.result.source = 'assessment';
+  row.assessment.verdict = 'No Public Record';
+  row.verification = null;
+  const e = entry(LenzView.build(quick), 'claim:1');
+  assert.equal(e.label, 'No Public Record');
+  assert.equal(e.check, 'Quick check');
+  assert.equal(e.lines[0].text, NO_RECORD_LINE);
+});
+
+test('no public record: a cancelled review counts it as delivered', () => {
+  const stopped = JSON.parse(JSON.stringify(NO_RECORD));
+  stopped.status = 'cancelled';
+  assert.equal(entry(LenzView.build(stopped), 'claim:1').label, 'No Public Record');
+});
+
+test('failed deep checks: the legacy too-few-sources reading is unchanged', () => {
+  assert.ok(rowLines(LenzView.build(THIN), 'claim:0').includes(TOO_FEW_ROW));
+  assert.equal(LenzView.retryHelps(THIN), false);
 });
 
 // ── Pages the reviewers looked at (assessment.searched_pages) ─────────────────
