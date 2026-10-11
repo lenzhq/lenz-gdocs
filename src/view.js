@@ -445,7 +445,8 @@ var LenzView = (function () {
       e.rewrite = str(verification.suggested_rewrite);
       if (noRecord) lines.push({ lead: null, text: NO_RECORD_LINE });
       if (!e.rewrite && str(verification.executive_summary)) lines.push({ lead: null, text: verification.executive_summary });
-      e.link = lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
+      // A deep check that found no public record has no sources to see: no link.
+      e.link = !noRecord && lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
     } else if (checking) {
       lines.push({ lead: null, text: 'Checking.' });
     } else if (!verdict || verdict === 'Error') {

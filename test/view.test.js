@@ -875,7 +875,9 @@ test('no public record: a completed deep check is an issue with a neutral label,
   assert.equal(e.rewrite, null);
   assert.deepEqual(e.edits, []);
   assert.equal(e.lines[0].text, NO_RECORD_LINE);
-  assert.ok(e.link && e.link.href.startsWith('https://lenz.io/c/'));
+  // No sources to see, so no "See sources in Lenz" link; the row's text stays.
+  assert.equal(e.link, null);
+  assert.equal(e.lines[0].text, NO_RECORD_LINE);
   // Never drawn as false, an error or "Not checked".
   assert.ok(!['false', 'mostly-false'].includes(e.token));
   assert.ok(!['False', 'Not checked', 'Error'].includes(e.label));
