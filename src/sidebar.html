@@ -94,6 +94,14 @@
   details > summary { cursor: pointer; font-family: var(--font-mono); font-size: 12px; font-weight: 500;
                       letter-spacing: var(--ls-eyebrow); text-transform: uppercase; color: var(--warm-500); }
   details[open] > summary { margin-bottom: 4px; }
+  /* The pages the reviewers looked at: a quiet line under the note, closed until the reader opens it. */
+  details.pages { margin: 2px 0 6px; padding-top: 0; border-top: 0; }
+  details.pages > summary { font-family: var(--font-sans); font-size: 12px; font-weight: 400; letter-spacing: 0;
+                            text-transform: none; color: var(--warm-500); }
+  details.pages[open] > summary { margin-bottom: 4px; }
+  ul.pages-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  ul.pages-list li { margin: 0 0 4px; overflow-wrap: anywhere; }
+  .pages-more { padding: 4px 10px; font-size: 12px; margin-top: 2px; }
   ul.coverage { margin: 0; padding-left: 18px; font-size: 13px; }
   ul.coverage li { margin-bottom: 4px; }
   /* The running state: the Workbench's three dots, still under reduced motion. */
@@ -210,6 +218,7 @@
   var shown = null; // the review id the list shows; Select and Apply name it
   var steps = {}; // entry id -> occurrence shown ("1 of N")
   var folds = {}; // group key -> open, once the reader opened or closed that group
+  var pageFolds = {}; // review id + entry id -> { open, all }: a pages disclosure as the reader left it
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -279,7 +288,7 @@
     last = r;
     phase = r.phase;
     var id = r.model && r.model.reviewId ? r.model.reviewId : null;
-    if (id !== shown) { steps = {}; folds = {}; place = null; } // entry ids repeat across reviews
+    if (id !== shown) { steps = {}; folds = {}; pageFolds = {}; place = null; } // entry ids repeat across reviews
     shown = id;
     var signedOut = r.phase === 'signed_out';
     show($('signin'), signedOut);
@@ -382,7 +391,7 @@
     // By what the control is, never by where it sits: a poll can add an edit above the focused one,
     // and Enter must not then apply a different correction.
     var li = place.focus && entryNode(place.focus.id);
-    var c = li && Array.prototype.filter.call(li.querySelectorAll('button, a'), function (n) {
+    var c = li && Array.prototype.filter.call(li.querySelectorAll('button, a, summary'), function (n) {
       return n.getAttribute('data-focus') === place.focus.key;
     })[0];
     if (c && !c.disabled) c.focus({ preventScroll: true });
@@ -490,7 +499,15 @@
     }
 
     if (e.rewrite) li.appendChild(line('Suggested rewrite: ', e.rewrite));
-    e.lines.forEach(function (l) { li.appendChild(line(l.lead, l.text)); });
+    // The pages sit under the reviewers' note; a row with pages and no note puts them after its lines.
+    var pagesAt = -1;
+    e.lines.forEach(function (l, i) { if (l.lead === "Reviewers' note: ") pagesAt = i; });
+    if (pagesAt < 0) pagesAt = e.lines.length - 1;
+    if (e.pages && pagesAt < 0) li.appendChild(pagesBox(e));
+    e.lines.forEach(function (l, i) {
+      li.appendChild(line(l.lead, l.text));
+      if (e.pages && i === pagesAt) li.appendChild(pagesBox(e));
+    });
     if (e.source) li.appendChild(link(e.source.href, 'Source: ' + e.source.words));
     e.edits.forEach(function (x) { li.appendChild(editRow(x)); });
     if (e.editsNote) li.appendChild(el('p', 'line muted', e.editsNote));
@@ -511,6 +528,48 @@
     if (lead) p.appendChild(el('span', 'lead', lead));
     p.appendChild(document.createTextNode(text));
     return p;
+  }
+
+  // The pages the reviewers looked at: closed, the first five as links (titles are text, the address
+  // was vetted by view.js), then Show all when there are more. A poll rebuilds every row, so what the
+  // reader opened is kept in pageFolds, per review and entry.
+  function pagesBox(e) {
+    var key = shown + '|' + e.id;
+    var st = pageFolds[key] || (pageFolds[key] = { open: false, all: false });
+    var d = el('details', 'pages');
+    if (st.open) d.open = true;
+    d.addEventListener('toggle', function () { st.open = d.open; });
+    var sum = el('summary', null, 'Pages the reviewers looked at (' + e.pages.count + ')');
+    sum.setAttribute('data-focus', 'pages');
+    d.appendChild(sum);
+    var ul = el('ul', 'pages-list');
+    d.appendChild(ul);
+    function item(p) {
+      var a = el('a', null, p.title);
+      a.href = p.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer nofollow ugc';
+      a.setAttribute('data-focus', 'page:' + p.url);
+      var li = el('li');
+      li.appendChild(a);
+      ul.appendChild(li);
+      return a;
+    }
+    e.pages.first.forEach(item);
+    if (st.all) e.pages.rest.forEach(item);
+    if (e.pages.rest.length && !st.all) {
+      var more = el('button', 'pages-more', 'Show all ' + e.pages.count);
+      more.type = 'button';
+      more.setAttribute('data-focus', 'pages-more');
+      more.addEventListener('click', function () {
+        st.all = true;
+        var added = e.pages.rest.map(item);
+        d.removeChild(more);
+        added[0].focus();
+      });
+      d.appendChild(more);
+    }
+    return d;
   }
 
   function link(href, words) {

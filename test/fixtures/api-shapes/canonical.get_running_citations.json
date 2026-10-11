@@ -77,6 +77,7 @@
           "verification_url": null,
           "rationale": null,
           "dissent": null,
+          "searched_pages": [],
           "suggested_rewrite": null,
           "more_claims": [],
           "failure": null
