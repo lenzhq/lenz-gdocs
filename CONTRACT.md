@@ -391,8 +391,31 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
           deepRunning,                // a quick verdict whose deep check is still running (shown as such)
           lines: [{ lead|null, text }], link: {href, words}|null, source: {href, words}|null,
           edits: [{ id: '<ci>:<ei>', claimIndex, editIndex, from, to, applied }], editsNote|null,
-          start|null, occurrences, placed, placeNote|null }
+          start|null, occurrences, placed, placeNote|null,
+          pages? }                    // claims only, and only when the row has pages and its deep check has not
+                                      // completed (absent otherwise,
+                                      // so every other entry is unchanged): see below
+          // pages = { count, first: [{title, url}], rest: [{title, url}] }: `first` is the first five
+          // in the order sent, `rest` the others; count = first + rest.
 ```
+
+- Pages the reviewers looked at: each claim row's `assessment.searched_pages` (`[{title, url}]`, on
+  every quick-check row of the current answer; the older answer has none). The issues view carries
+  none on an issue; `claimRowsFromIssues` reads them from the `claims[]` row of the same `claim_index`
+  when the body has one. An entry is kept only when it is an object with a non-empty string `title`
+  and a string `url` that starts with `http://` or `https://` (any case), has a host, and carries no
+  username or password (no `@` in the part before the first `/`, `?` or `#`) and no whitespace or
+  control character anywhere; written with string checks, since Apps Script
+  has no `URL()`. Control characters (C0, C1, U+2028, U+2029) and newlines in a title become spaces, runs of
+  whitespace one space, the ends are trimmed; a title is cut at 200 characters (trimmed again after the
+  cut), and an entry whose title is then empty is dropped. Entries come out as `{title, url}` only. Anything else is dropped; a value that is not a list is no list; a row with none left has
+  no `pages`. A row whose deep check has completed carries none either: the deep verdict is on screen
+  with its own sources link; a deep check that is running, failed or stopped leaves the quick verdict
+  and its pages. The sidebar shows, under the reviewers' note, a closed disclosure "Pages the reviewers
+  looked at (N)" (N after the filter): the first five titles as links (new tab, `rel="noopener
+  noreferrer nofollow ugc"`, titles as text), then "Show all N" when there are more. What the reader
+  opened, and Show all, is kept per review and entry across the sidebar's polls; focus on the
+  summary or a link comes back to the same control.
 
 - Groups, in order, each in the Doc's order (then claim before citation): `issue` (`result.is_issue`,
   claims and citations interleaved), `look` ("Needs a closer look": `partly_supported`, a citation

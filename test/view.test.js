@@ -850,3 +850,132 @@ test('a cancelled quick check or citation says it was stopped, not that it faile
   assert.ok(m.coverage.includes('1 claim was not checked: you stopped the check.'));
   assert.ok(!m.coverage.some((l) => /could not be checked this time|Check this Doc to check it again/.test(l)));
 });
+
+// ── Pages the reviewers looked at (assessment.searched_pages) ─────────────────
+
+const PG = (n) => Array.from({ length: n }, (_, i) => ({ title: 'Page ' + (i + 1), url: 'https://example.org/p' + (i + 1) }));
+function withPages(list, index) {
+  return review((b) => { b.claims.find((c) => c.index === (index === undefined ? 3 : index)).assessment.searched_pages = list; });
+}
+const pagesOf = (list, index) => entry(LenzView.build(withPages(list, index)), 'claim:' + (index === undefined ? 3 : index)).pages;
+
+test('searched pages: a row with pages carries the first five and the rest, in the order sent', () => {
+  const p = pagesOf(PG(7));
+  assert.equal(p.count, 7);
+  assert.deepEqual(p.first.map((x) => x.title), ['Page 1', 'Page 2', 'Page 3', 'Page 4', 'Page 5']);
+  assert.deepEqual(p.rest.map((x) => x.url), ['https://example.org/p6', 'https://example.org/p7']);
+  assert.deepEqual(p.first[0], { title: 'Page 1', url: 'https://example.org/p1' });
+  const few = pagesOf(PG(2));
+  assert.equal(few.count, 2);
+  assert.equal(few.first.length, 2);
+  assert.deepEqual(few.rest, []);
+});
+
+test('searched pages: none, empty, or malformed gives an entry with no pages key at all', () => {
+  for (const bad of [[], undefined, null, 'x', {}, 7, [null, 'a', 3], [{ title: 'No url' }]]) {
+    const body = withPages(bad);
+    if (bad === undefined) delete body.claims.find((c) => c.index === 3).assessment.searched_pages;
+    const e = entry(LenzView.build(body), 'claim:3');
+    assert.ok(!('pages' in e), JSON.stringify(bad));
+  }
+  // The shipped fixture predates the field: no row has it.
+  for (const g of LenzView.build(review()).groups) for (const e of g.entries) assert.ok(!('pages' in e), e.id);
+});
+
+test('searched pages: the filter keeps http(s) pages with a host and a real title, drops the rest', () => {
+  const keep = [
+    { title: 'Plain', url: 'https://example.org/a' },
+    { title: 'Upper scheme', url: 'HTTP://Example.ORG/b' },
+    { title: 'Port and query', url: 'http://example.org:8080/c?x=1#y' },
+  ];
+  const drop = [
+    { title: 'Script', url: 'javascript:alert(1)' },
+    { title: 'Data', url: 'data:text/html,hi' },
+    { title: 'File', url: 'file:///etc/passwd' },
+    { title: 'Relative', url: '/c/earth-is-round' },
+    { title: 'Protocol relative', url: '//example.org/x' },
+    { title: 'Credentials', url: 'https://user:pass@example.org/x' },
+    { title: 'User only', url: 'https://user@example.org/x' },
+    { title: 'Hidden credentials', url: 'https://good.org\\@evil.org/x' },
+    { title: 'No host', url: 'https:///path' },
+    { title: 'Empty host', url: 'https://' },
+    { title: 'Port only', url: 'https://:443/x' },
+    { title: 'Spaces', url: 'https://example.org/a b' },
+    { title: 'Newline', url: 'https://example.org/a\nb' },
+    { title: 'Tab', url: 'https://example.org/a\tb' },
+    { title: 'Trailing newline', url: 'https://example.org/a\n' },
+    { title: 'Leading space', url: ' https://example.org/a' },
+    { title: 'Unicode space', url: 'https://example.org/a\u00a0b' },
+    { title: 'Line separator', url: 'https://example.org/a\u2028b' },
+    { title: 'Control', url: 'https://example.org/a\u0007b' },
+    { title: 'Space in host', url: 'https://exa mple.org/a' },
+    { title: '', url: 'https://example.org/empty' },
+    { title: '   ', url: 'https://example.org/blank' },
+    { title: '\n\t', url: 'https://example.org/controls' },
+    { title: '\u0085\u2028\u2029\u00a0\u0000', url: 'https://example.org/only-controls' },
+    { title: 7, url: 'https://example.org/number' },
+    { title: 'Url not a string', url: { href: 'https://example.org' } },
+    { title: 'No url' },
+    null,
+    'https://example.org/bare-string',
+    ['Array', 'https://example.org/'],
+  ];
+  const p = pagesOf(drop.slice(0, 5).concat(keep, drop.slice(5)));
+  assert.equal(p.count, 3);
+  assert.deepEqual(p.first.map((x) => x.title), ['Plain', 'Upper scheme', 'Port and query']);
+  // N is counted after the filter: all dropped is no pages.
+  assert.equal(pagesOf(drop), undefined);
+});
+
+test('searched pages: a title is text: control characters become spaces, markup stays as typed, 200 characters at most', () => {
+  const p = pagesOf([
+    { title: 'Two\nlines\r\nand\ttabs\u0000and\u0085more', url: 'https://example.org/a' },
+    { title: '<img src=x onerror=alert(1)> & <b>bold</b>', url: 'https://example.org/b' },
+    { title: 'x'.repeat(300), url: 'https://example.org/c' },
+    { title: '😀'.repeat(150), url: 'https://example.org/d' },
+  ]);
+  assert.equal(p.first[0].title, 'Two lines and tabs and more');
+  assert.equal(p.first[1].title, '<img src=x onerror=alert(1)> & <b>bold</b>', 'never rewritten: the sidebar sets it as text');
+  assert.equal(p.first[2].title.length, 200);
+  assert.ok(!/[\ud800-\udbff]$/.test(p.first[3].title), 'never cut inside a character');
+  assert.ok(p.first[3].title.length <= 200);
+  for (const x of p.first) assert.ok(!/[\u0000-\u001f\u007f-\u009f]/.test(x.title));
+});
+
+test('searched pages: a completed deep check supersedes them; a running, failed or stopped one keeps the quick verdict and its pages', () => {
+  const done = entry(LenzView.build(withPages(PG(3), 1)), 'claim:1');
+  assert.equal(done.check, 'Deep check');
+  assert.ok(!('pages' in done), 'the deep verdict is on screen, with its own sources link');
+  for (const status of ['running', 'failed']) {
+    const body = withPages(PG(3), 1);
+    const row = body.claims.find((c) => c.index === 1);
+    row.verification.status = status;
+    if (status === 'failed') row.verification.failure = { code: 'internal', failure_class: 'internal' };
+    const e = entry(LenzView.build(body), 'claim:1');
+    assert.equal(e.check, 'Quick check', status);
+    assert.equal(e.pages.count, 3, status);
+  }
+  // Stopped: a cancelled review whose deep check did not finish.
+  const stopped = withPages(PG(3), 1);
+  stopped.status = 'cancelled';
+  const row = stopped.claims.find((c) => c.index === 1);
+  row.verification.status = 'failed';
+  row.verification.failure = { code: 'cancelled', failure_class: 'cancelled' };
+  assert.equal(entry(LenzView.build(stopped), 'claim:1').pages.count, 3);
+});
+
+test('searched pages: a row from issues[] takes them from the claim of the same claim_index', () => {
+  const body = review();
+  body.claims.find((c) => c.index === 0).assessment.searched_pages = PG(2);
+  body.claims.find((c) => c.index === 2).assessment.searched_pages = [{ title: 'Bad', url: 'javascript:1' }];
+  const rows = LenzView.claimRowsFromIssues(body);
+  assert.deepEqual(rows.map((r) => r.index), body.issues.map((i) => i.claim_index));
+  const by = (i) => rows.find((r) => r.index === i).assessment.searched_pages;
+  assert.equal(by(0).length, 2);
+  assert.deepEqual(by(1), []);
+  // The issue itself says nothing of pages; a claim with other index gives none.
+  assert.ok(!('searched_pages' in body.issues[0]));
+  // With no claims[] to join (the issues view) there are no pages, and the entry has none.
+  const issuesOnly = review((b) => { delete b.claims; });
+  for (const g of LenzView.build(issuesOnly).groups) for (const e of g.entries) assert.ok(!('pages' in e), e.id);
+});

@@ -207,6 +207,47 @@ var LenzView = (function () {
     return { href: url, words: m[1].replace(/^www\./i, '') };
   }
 
+  // The pages a quick check's reviewers looked at (assessment.searched_pages), as the sidebar may show
+  // them: [{title, url}] in the order sent. Written with string checks only (this runs in Apps Script,
+  // which has no URL()). An entry is kept when it is an object with a title and an http(s) address that
+  // has a host and no credentials; anything else is dropped, and a list that is not an array is no list.
+  var PAGES_SHOWN = 5;
+  var PAGE_TITLE_MAX = 200;
+
+  function pageTitle(t) {
+    if (typeof t !== 'string') return null;
+    // Control characters (C0, C1, line and paragraph separators) become spaces, runs of whitespace one.
+    t = t.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ').replace(/\s+/g, ' ').replace(/^ | $/g, '');
+    if (t.length > PAGE_TITLE_MAX) {
+      t = t.slice(0, PAGE_TITLE_MAX);
+      if (/[\ud800-\udbff]$/.test(t)) t = t.slice(0, -1); // never cut a character in two
+      t = t.replace(/ $/, '');
+    }
+    return t.length ? t : null;
+  }
+
+  function pageUrl(u) {
+    // No whitespace or control character anywhere in the address.
+    if (typeof u !== 'string' || /[\u0000-\u0020\u007f-\u009f\u2028\u2029\s]/.test(u)) return null;
+    var m = /^https?:\/\/([^\/?#]*)/i.exec(u);
+    if (!m) return null;
+    var authority = m[1];
+    if (authority.indexOf('@') !== -1) return null; // a username or password
+    var host = authority.replace(/:\d*$/, '');
+    return host.length ? u : null;
+  }
+
+  function searchedPages(list) {
+    var out = [];
+    arr(list).forEach(function (p) {
+      if (!isObj(p)) return;
+      var title = pageTitle(p.title);
+      var url = pageUrl(p.url);
+      if (title !== null && url !== null) out.push({ title: title, url: url });
+    });
+    return out;
+  }
+
   function firstStart(positions) {
     var p = arr(positions)[0];
     return isObj(p) && typeof p.start === 'number' ? p.start : null;
@@ -406,6 +447,11 @@ var LenzView = (function () {
         lines.push({ lead: null, text: deepFailureText(verification, opts.cancelled) });
       }
     }
+    // Only a row with pages gets the key, so every other model is exactly what it was. Only while the
+    // verdict shown is the quick check's: a completed deep check supersedes them and has its own sources
+    // link; one that is running, failed or stopped leaves the quick verdict on screen, pages included.
+    var pages = deep ? [] : searchedPages(assessment.searched_pages);
+    if (pages.length) e.pages = { count: pages.length, first: pages.slice(0, PAGES_SHOWN), rest: pages.slice(PAGES_SHOWN) };
     // Re-rendered whenever the block changes; no line while edits are worked out: the entry's
     // "Deep check running" line says enough.
     var ed = editsOf(row, opts);
@@ -481,17 +527,20 @@ var LenzView = (function () {
     return e;
   }
 
-  // The body's issues[] (compact view): claims with no positions.
+  // The body's issues[] (compact view): claims with no positions. An issue carries no pages; they are
+  // the claim's own (claims[] row of the same claim_index), when the body has that row.
   function claimRowsFromIssues(body) {
     return arr(body.issues)
       .filter(isObj)
       .map(function (i) {
+        var claim = rowAt(body.claims, i.claim_index);
+        var pages = claim && isObj(claim.assessment) ? claim.assessment.searched_pages : null;
         return {
           index: i.claim_index,
           claim: i.claim,
           positions: [],
           result: { verdict: i.verdict, confidence: i.confidence, source: i.source, is_issue: true },
-          assessment: { rationale: i.rationale },
+          assessment: { rationale: i.rationale, searched_pages: Array.isArray(pages) ? pages : [] },
           verification: null,
           suggested_edits: i.suggested_edits,
         };
@@ -785,6 +834,7 @@ var LenzView = (function () {
     row: row,
     rows: rows,
     claimState: claimState,
+    claimRowsFromIssues: claimRowsFromIssues,
     citationState: citationState,
     STATE_WORDS: STATE_WORDS,
     editFp: editFp,
