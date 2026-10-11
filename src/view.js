@@ -384,10 +384,10 @@ var LenzView = (function () {
     return 'The deep check did not finish, so this is the quick verdict.';
   }
 
-  // The failed deep checks no rerun can change: too few public sources, and not marked retryable. The
-  // older answer, and the current one until Lenz turns No Public Record on, fail a deep check this way;
-  // after that a deep check that finds nothing public completes as the No Public Record result
-  // (claimEntry), which is not a failure, so nothing here counts it.
+  // The failed deep checks no rerun can change: too few public sources, and not marked retryable. Only
+  // an older answer fails a deep check this way; in the current shape a deep check that finds nothing
+  // public completes as the No Public Record result (claimEntry), which is not a failure, so nothing
+  // here counts it. Kept as a fallback for older answers.
   function tooFewSources(verification) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
     return isObj(verification) && verification.status === 'failed' && f.failure_class === 'insufficient_evidence' && f.retryable !== true;

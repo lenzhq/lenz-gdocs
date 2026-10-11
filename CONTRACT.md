@@ -431,7 +431,7 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   the issue headline. A quick-check row with this verdict reads the same (its reviewers' note and pages
   too, `Quick check`); it is in `issue` when `result.is_issue` says it is the final answer, and in `look`
   while its deep check still runs. The failed-deep-check wording (too few sources and the other classes)
-  stays for older answers and for the current shape until Lenz turns No Public Record on; after that a
+  stays only as a fallback for older answers; the current shape has no too-few-sources failure, a
   deep check that finds nothing public completes with this verdict instead of failing.
 - While the review runs, a row with no result yet whose check has not failed is in `pending`
   ("Checking", between `look` and `none`), with "Checking."; "Could not be checked this time." only
