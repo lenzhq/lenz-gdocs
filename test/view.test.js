@@ -684,8 +684,50 @@ const WORDS = {
   credits: 'Not enough credits to check this tab. Nothing was charged.',
   unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
   ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
+  unreadable: "Lenz could not read the page this tab links to. Paste the page's text into the Doc instead. Nothing was charged.",
 };
 const BILLING = { href: 'https://lenz.io/billing', words: 'Add credits' };
+
+// The current shape's failure vocabulary (code; the class decides when a code is not one of the input codes).
+function failedWith(base, failure) {
+  const b = JSON.parse(JSON.stringify(base));
+  b.failure = failure;
+  return b;
+}
+
+test('failed review: the current failure codes each read their Docs words', () => {
+  const cases = [
+    [{ code: 'no_checkable_claim', failure_class: 'invalid_input', retryable: false }, WORDS.noClaim, null],
+    [{ code: 'insufficient_credits', failure_class: 'invalid_input', retryable: false }, WORDS.credits, BILLING],
+    [{ code: 'upstream_unavailable', failure_class: 'upstream_unavailable', retryable: true }, WORDS.unavailable, null],
+    [{ code: 'internal', failure_class: 'internal', retryable: false }, WORDS.ours, null],
+    [{ code: 'page_unreadable', failure_class: 'invalid_input', retryable: false }, WORDS.unreadable, null],
+  ];
+  cases.forEach(([failure, words, link]) => {
+    const m = LenzView.build(failedWith(NO_CLAIM, failure));
+    assert.equal(m.failure, words, failure.code);
+    assert.deepEqual(m.failureLink, link, failure.code);
+  });
+});
+
+test('failed review: a code this add-on does not know reads by its class, never as the link problem', () => {
+  const unavailable = failedWith(NO_CLAIM, { code: 'something_new', failure_class: 'upstream_unavailable', retryable: true });
+  assert.equal(LenzView.build(unavailable).failure, WORDS.unavailable);
+  const other = failedWith(NO_CLAIM, { code: 'something_new', failure_class: 'invalid_input', retryable: false });
+  assert.equal(LenzView.build(other).failure, WORDS.ours);
+  // No citation to check is not a reason a Doc review fails; it does not borrow another reason's words.
+  const cit = failedWith(NO_CLAIM, { code: 'no_citations', failure_class: 'invalid_input', retryable: false });
+  assert.equal(LenzView.build(cit).failure, WORDS.ours);
+});
+
+test('failed review: the unreadable-link words name nothing of the API', () => {
+  const m = LenzView.build(failedWith(NO_CLAIM, {
+    code: 'page_unreadable', detail: 'The page at the link could not be read.', hint: "Paste the page's text instead.",
+    failure_class: 'invalid_input', retryable: false,
+  }));
+  assert.ok(!JSON.stringify(m).includes('could not be read.'));
+  assert.ok(!/error|false/i.test(m.failure));
+});
 
 test('failed review: no claim says so, and never quotes the API hint', () => {
   const m = LenzView.build(NO_CLAIM);
@@ -904,6 +946,67 @@ test('no public record: a quick-check row with this verdict reads the same', () 
   assert.equal(e.label, 'No Public Record');
   assert.equal(e.check, 'Quick check');
   assert.equal(e.lines[0].text, NO_RECORD_LINE);
+});
+
+// A quick-check row that is the claim's final answer: an issue the review counts (`is_issue`), in the issue group.
+function quickNoRecord() {
+  const quick = JSON.parse(JSON.stringify(NO_RECORD));
+  const row = quick.claims.find((c) => c.index === 1);
+  row.result = { verdict: 'No Public Record', confidence: 'medium', source: 'assessment', is_issue: true };
+  row.assessment.verdict = 'No Public Record';
+  row.assessment.confidence = 'medium';
+  row.assessment.score = null;
+  row.assessment.rationale = 'The reviewers found nothing public that records this.';
+  row.assessment.searched_pages = [{ title: 'Page one', url: 'https://example.org/one' }];
+  row.verification = null;
+  row.suggested_edits = null;
+  return quick;
+}
+
+test('no public record: a final quick row is an issue, counted in the headline, with the same words', () => {
+  const m = LenzView.build(quickNoRecord());
+  const e = entry(m, 'claim:1');
+  assert.equal(e.group, 'issue');
+  assert.deepEqual(ids(m, 'issue'), ['claim:1']);
+  assert.equal(m.headline, '1 issue to look at.');
+  assert.equal(e.label, 'No Public Record');
+  assert.equal(e.check, 'Quick check');
+  assert.equal(e.confidence, 'medium');
+  assert.equal(e.score, null);
+  assert.equal(e.rewrite, null);
+  assert.deepEqual(e.edits, []);
+  assert.equal(e.lines[0].text, NO_RECORD_LINE);
+  assert.equal(e.lines[1].lead, "Reviewers' note: ");
+  assert.equal(e.pages.count, 1);
+  assert.equal(LenzView.retryHelps(quickNoRecord()), false);
+});
+
+test('no public record: a quick row whose deep check is still running is not yet an issue, and says so', () => {
+  const body = quickNoRecord();
+  const row = body.claims.find((c) => c.index === 1);
+  row.result.is_issue = false;
+  row.verification = { status: 'running' };
+  const e = entry(LenzView.build(body), 'claim:1');
+  assert.equal(e.group, 'look');
+  assert.equal(e.deepRunning, true);
+  assert.equal(e.label, 'No Public Record');
+});
+
+test('no public record: the compact issues list carries a quick row as an issue', () => {
+  const body = quickNoRecord();
+  delete body.claims;
+  body.issues = [{ claim_index: 1, claim: 'An invented claim.', verdict: 'No Public Record', confidence: 'medium', source: 'assessment', rationale: 'Nothing public records this.', suggested_edits: null }];
+  const m = LenzView.build(body);
+  assert.deepEqual(ids(m, 'issue'), ['claim:1']);
+  assert.equal(entry(m, 'claim:1').label, 'No Public Record');
+});
+
+test('no public record: replaces the too-few-sources reading: the deep check completes, with no failure line or advice', () => {
+  const m = LenzView.build(NO_RECORD);
+  assert.ok(!JSON.stringify(m).includes('too few public sources'));
+  assert.ok(!m.coverage.some((l) => /did not finish|too few/.test(l)));
+  // A review whose deep check completed as No Public Record is not incomplete, so no failed-deep-check count exists.
+  assert.equal(NO_RECORD.summary.verifications.failed || 0, 0);
 });
 
 test('no public record: a cancelled review counts it as delivered', () => {

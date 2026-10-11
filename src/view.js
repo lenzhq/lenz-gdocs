@@ -121,13 +121,22 @@ var LenzView = (function () {
     no_claim: 'Lenz found no factual claim to check in this tab.',
     credits: 'Not enough credits to check this tab. Nothing was charged.',
     unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
+    unreadable: "Lenz could not read the page this tab links to. Paste the page's text into the Doc instead. Nothing was charged.",
     ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
   };
+  // By the failure's code. The current shape's codes: no_checkable_claim (read as no_claim, below),
+  // page_unreadable, upstream_unavailable, internal, insufficient_credits (cancelled and no_citations are
+  // not reasons a Doc review fails). A code not listed reads by the failure's class: an outage says so,
+  // anything else is on our side. assessment_failed and invalid_input are the older shape's words for
+  // "every quick check failed" and "the link could not be read".
   var FAILED_KEYS = {
     no_claim: 'no_claim',
+    page_unreadable: 'unreadable',
     insufficient_credits: 'credits',
     upstream_unavailable: 'unavailable',
+    internal: 'ours',
     assessment_failed: 'unavailable',
+    invalid_input: 'unreadable',
   };
 
   // What failed, as the older answer's word for it. The current shape names it `code`, and says
@@ -375,7 +384,10 @@ var LenzView = (function () {
     return 'The deep check did not finish, so this is the quick verdict.';
   }
 
-  // The failed deep checks no rerun can change: too few public sources, and not marked retryable.
+  // The failed deep checks no rerun can change: too few public sources, and not marked retryable. Only
+  // an older answer fails a deep check this way; in the current shape a deep check that finds nothing
+  // public completes as the No Public Record result (claimEntry), which is not a failure, so nothing
+  // here counts it. Kept as a fallback for older answers.
   function tooFewSources(verification) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
     return isObj(verification) && verification.status === 'failed' && f.failure_class === 'insufficient_evidence' && f.retryable !== true;

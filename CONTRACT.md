@@ -428,8 +428,11 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   counted in `summary.issues`) that is neither a failure nor "false": labelled "No Public
   Record" with a neutral token (`no-record`), state "Needs a closer look", no score, no suggested
   edit, never a "See sources in Lenz" link (whatever the verification carries), and the line "Lenz found no public record of this. Confirm it or remove it." It is counted in
-  the issue headline. The failed-deep-check wording (too few sources and the other classes) stays for
-  older answers.
+  the issue headline. A quick-check row with this verdict reads the same (its reviewers' note and pages
+  too, `Quick check`); it is in `issue` when `result.is_issue` says it is the final answer, and in `look`
+  while its deep check still runs. The failed-deep-check wording (too few sources and the other classes)
+  stays only as a fallback for older answers; the current shape has no too-few-sources failure, a
+  deep check that finds nothing public completes with this verdict instead of failing.
 - While the review runs, a row with no result yet whose check has not failed is in `pending`
   ("Checking", between `look` and `none`), with "Checking."; "Could not be checked this time." only
   for a terminal `failed` status or a finished review with no result for the row. While edits are
@@ -450,8 +453,12 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
 - A link only to `https://lenz.io/c/` (the claim page, "See sources in Lenz"); a source only over http(s);
   and `failureLink` (`https://lenz.io/billing`, "Add credits") on a review that failed for credits.
 - A failed review's `failure` is Docs words chosen by what failed (`failure.code`, or `failure.failure_reason` in the older shape) / `failure_class`, never
-  the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not check
-  just now (an outage, or every quick check failed), else "on our side". A failed deep check's row says
+  the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not read the
+  page the tab links to (`page_unreadable`; the older `invalid_input`), Lenz could not check just now
+  (an outage, or every quick check failed), else "on our side". The current codes are
+  `no_checkable_claim`, `page_unreadable`, `upstream_unavailable`, `internal`, `cancelled`,
+  `no_citations`, `insufficient_credits`; `assessment_failed` is the older word and stays read. A code
+  not listed reads by `failure_class`. A failed deep check's row says
   too few sources, search unavailable, a service unavailable, or stopped on our side, by the same
   fields; a failed quick check's row says nothing was charged for it.
 - `stages` (running only, else null): `[{key, label, done, total, complete}]`: `reading` ("Finding the
