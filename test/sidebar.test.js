@@ -208,17 +208,19 @@ test('a failure without a link leaves the link area empty, and a later reply cle
   });
   assert.equal(s.ids['failure-link'].children.length, 1);
   s.ids.check.click();
-  assert.equal(s.ids.error.textContent, 'Lenz found no factual claim to check in this tab.');
+  assert.equal(s.ids['failure-note'].textContent, 'Lenz found no factual claim to check in this tab.');
+  assert.equal(s.ids.error.textContent, '');
   assert.equal(s.ids['failure-link'].children.length, 0);
 });
 
-test('an unreadable page shows as a note, not the red error line; a later failure clears it', () => {
+test('an unreadable page and a text with no claim show as a note, not the red error line; a failure of ours clears it', () => {
   const unreadable = LenzView.build(Object.assign({}, NO_CLAIM, { failure: { code: 'page_unreadable', failure_class: 'invalid_input', retryable: false } }));
+  const ours = LenzView.build(Object.assign({}, NO_CLAIM, { failure: { code: 'internal', failure_class: 'internal', retryable: false } }));
   const s = sidebar({
     lenzOpen: reply('idle'),
     lenzOpenState: reply('done', { model: unreadable }),
     lenzLogOpen: null,
-    lenzStart: reply('done', { model: LenzView.build(NO_CLAIM) }),
+    lenzStart: reply('done', { model: ours }),
   });
   assert.equal(s.ids['failure-note'].textContent, "Lenz couldn't read that page. Paste its text instead.");
   assert.equal(s.ids['failure-note'].hidden, false);
@@ -226,7 +228,7 @@ test('an unreadable page shows as a note, not the red error line; a later failur
   s.ids.check.click();
   assert.equal(s.ids['failure-note'].textContent, '');
   assert.equal(s.ids['failure-note'].hidden, true);
-  assert.equal(s.ids.error.textContent, 'Lenz found no factual claim to check in this tab.');
+  assert.equal(s.ids.error.textContent, 'Something went wrong on our side. Checks that did not finish were not charged.');
 });
 
 test('Check only the selected text: on and off with Check this Doc, and a note keeps the shown check', () => {

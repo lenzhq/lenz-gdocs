@@ -12,6 +12,7 @@
     "coverage": [],
     "scope": null,
     "footnote": null,
-    "charged": "Charged 0 credits."
+    "charged": "Charged 0 credits.",
+    "failureTone": "neutral"
   }
 }

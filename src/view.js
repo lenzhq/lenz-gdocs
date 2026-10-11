@@ -744,15 +744,15 @@ var LenzView = (function () {
   }
 
   // What a failed review says, and the link it offers (only for credits).
-  // An unreadable page is the reader's to fix and accuses nothing, so it is told in the neutral tone
-  // (`tone: 'neutral'`), not the red the other failures use.
+  // An unreadable page, and a text with no claim to check, are the reader's to fix and accuse nothing,
+  // so they are told in the neutral tone (`tone: 'neutral'`), not the red the other failures use.
   function failureView(body) {
     if (body.status !== 'failed') return { text: null, link: null, tone: null };
     var key = failedKey(isObj(body.failure) ? body.failure : {});
     return {
       text: FAILED_WORDS[key],
       link: key === 'credits' ? { href: BILLING_URL, words: 'Add credits' } : null,
-      tone: key === 'unreadable' ? 'neutral' : null,
+      tone: key === 'unreadable' || key === 'no_claim' ? 'neutral' : null,
     };
   }
 
