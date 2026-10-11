@@ -96,7 +96,7 @@ var LenzView = (function () {
   // review reads issues_found), neither a failure nor a score, and never shown as false: the label and
   // the line below are the Docs words for it.
   var NO_RECORD = 'No Public Record';
-  var NO_RECORD_LABEL = 'Not on the public record';
+  var NO_RECORD_LABEL = 'No Public Record';
   var NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
 
   var SKIPPED = {
@@ -445,7 +445,7 @@ var LenzView = (function () {
       e.rewrite = str(verification.suggested_rewrite);
       if (noRecord) lines.push({ lead: null, text: NO_RECORD_LINE });
       if (!e.rewrite && str(verification.executive_summary)) lines.push({ lead: null, text: verification.executive_summary });
-      // A deep check that found no public record has no sources to see: no link.
+      // A deep check that found no public record never shows the sources link, whatever the verification carries.
       e.link = !noRecord && lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
     } else if (checking) {
       lines.push({ lead: null, text: 'Checking.' });
