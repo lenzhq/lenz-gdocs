@@ -7,7 +7,8 @@
  * Groups, in this order, each in the Doc's order (a reader walks the Doc):
  *   issue  claims with an issue (result.is_issue) and citation issues
  *   look   "Needs a closer look": partly supported citations, citations whose
- *          check could not decide, claims drawn amber (low confidence)
+ *          check could not decide, claims drawn amber (low confidence), claims
+ *          with no public record
  *   none   "Not checked": citations with no text, failed checks, failed claims
  *   ok     "Checks out", collapsed behind its count
  * The group of a row is the state Lenz's Workbench gives it, except that an
@@ -87,7 +88,15 @@ var LenzView = (function () {
     Mixed: 'mixed',
     'Mostly False': 'mostly-false',
     False: 'false',
+    // No verdict colour: Lenz found no public record of the claim, which does not make it false.
+    'No Public Record': 'no-record',
   };
+
+  // The verdict Lenz gives when nothing public records a claim. A checked outcome, not a failure and
+  // not a score: the label and the line below are the Docs words for it.
+  var NO_RECORD = 'No Public Record';
+  var NO_RECORD_LABEL = 'Not on the public record';
+  var NO_RECORD_LINE = "Lenz found no public record of this. That doesn't make it false.";
 
   var SKIPPED = {
     switched_off: 'Citations were not checked this time: the citation check is switched off.',
@@ -178,6 +187,8 @@ var LenzView = (function () {
   // A row with no verdict: `verdict` null (current shape; the row says `status: failed`) or "Error" (older).
   function claimState(verdict, confidence) {
     if (!verdict || verdict === 'Error') return 'none';
+    // Checked, and neither an issue nor a pass whatever its confidence: it is for the reader to look at.
+    if (verdict === NO_RECORD) return 'look';
     if (confidence === 'low') return 'look';
     if (verdict === 'True' || verdict === 'Mostly True') return 'ok';
     if (verdict === 'Mostly False' && confidence === 'medium') return 'look';
@@ -338,6 +349,15 @@ var LenzView = (function () {
     return n;
   }
 
+  // The claims whose completed deep check found no public record.
+  function countNoRecord(body) {
+    var n = 0;
+    arr(body.claims).forEach(function (r) {
+      if (isObj(r) && isObj(r.result) && r.result.verdict === NO_RECORD && r.result.source === 'verification') n++;
+    });
+    return n;
+  }
+
   // Whether choosing Check this Doc again can help an incomplete review: false only when every check
   // that did not finish is a deep check that found too few sources. Anything unknown counts as retryable.
   function retryHelps(body) {
@@ -348,6 +368,9 @@ var LenzView = (function () {
     var v = isObj(s.verifications) ? s.verifications : {};
     var c = isObj(s.citation_checks) ? s.citation_checks : {};
     var thin = countTooFewSources(body);
+    // Nothing failed, and the review reads incomplete because a deep check found no public record of its
+    // claim: a rerun would give the same answer and be charged.
+    if (!(a.failed > 0) && !(v.failed > 0) && !(c.failed > 0) && countNoRecord(body) > 0) return false;
     return !(thin > 0 && thin >= (v.failed || 0) && !(a.failed > 0) && !(c.failed > 0));
   }
 
@@ -359,6 +382,7 @@ var LenzView = (function () {
     var verdict = str(result.verdict);
     var confidence = str(result.confidence);
     var state = claimState(verdict, confidence);
+    var noRecord = verdict === NO_RECORD;
     var group = result.is_issue === true ? 'issue' : state;
     // No verdict yet while the review runs and the quick check has not failed: still being checked.
     var checking = !verdict && !opts.done && assessment.status !== 'failed';
@@ -371,7 +395,7 @@ var LenzView = (function () {
       state: state,
       stateWords: STATE_WORDS[state],
       title: str(row.claim) || '',
-      label: verdict && verdict !== 'Error' ? verdict : checking ? 'Checking' : 'Not checked',
+      label: noRecord ? NO_RECORD_LABEL : verdict && verdict !== 'Error' ? verdict : checking ? 'Checking' : 'Not checked',
       token: VERDICT_TOKENS[verdict] || null,
       check: deep ? 'Deep check' : verdict && verdict !== 'Error' ? 'Quick check' : null,
       // A quick verdict shown while its deep check runs is a first read, not the answer.
@@ -389,6 +413,7 @@ var LenzView = (function () {
     };
     if (deep) {
       e.rewrite = str(verification.suggested_rewrite);
+      if (noRecord) lines.push({ lead: null, text: NO_RECORD_LINE });
       if (!e.rewrite && str(verification.executive_summary)) lines.push({ lead: null, text: verification.executive_summary });
       e.link = lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
     } else if (checking) {
@@ -401,6 +426,7 @@ var LenzView = (function () {
         text: stopped ? STOPPED : assessment.status === 'failed' ? QUICK_FAILED : str(rowHint(assessment)) || NOT_CHECKED,
       });
     } else {
+      if (noRecord) lines.push({ lead: null, text: NO_RECORD_LINE });
       if (str(assessment.rationale)) lines.push({ lead: "Reviewers' note: ", text: assessment.rationale });
       if (verification !== null && verification.status === 'failed') {
         lines.push({ lead: null, text: deepFailureText(verification, opts.cancelled) });
