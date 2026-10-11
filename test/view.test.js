@@ -684,7 +684,7 @@ const WORDS = {
   credits: 'Not enough credits to check this tab. Nothing was charged.',
   unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
   ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
-  unreadable: "Lenz could not read the page this tab links to. Paste the page's text into the Doc instead. Nothing was charged.",
+  unreadable: "Lenz couldn't read that page. Paste its text instead.",
 };
 const BILLING = { href: 'https://lenz.io/billing', words: 'Add credits' };
 
@@ -727,6 +727,17 @@ test('failed review: the unreadable-link words name nothing of the API', () => {
   }));
   assert.ok(!JSON.stringify(m).includes('could not be read.'));
   assert.ok(!/error|false/i.test(m.failure));
+});
+
+test('failed review: an unreadable page is told in the neutral tone, every other failure is not', () => {
+  const unreadable = LenzView.build(failedWith(NO_CLAIM, { code: 'page_unreadable', failure_class: 'invalid_input', retryable: false }));
+  assert.equal(unreadable.failureTone, 'neutral');
+  // The older shape's word for the same failure reads the same way.
+  const older = LenzView.build(failedWith(NO_CLAIM, { failure_reason: 'invalid_input', failure_class: 'invalid_input' }));
+  assert.equal(older.failureTone, 'neutral');
+  assert.equal(older.failure, WORDS.unreadable);
+  [NO_CLAIM, NO_CREDITS, UNAVAILABLE, ASSESSMENT_FAILED, INTERNAL].forEach((b) => assert.ok(!('failureTone' in LenzView.build(b))));
+  assert.equal(LenzView.build(NO_CLAIM).failureTone, undefined);
 });
 
 test('failed review: no claim says so, and never quotes the API hint', () => {

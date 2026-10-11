@@ -121,7 +121,7 @@ var LenzView = (function () {
     no_claim: 'Lenz found no factual claim to check in this tab.',
     credits: 'Not enough credits to check this tab. Nothing was charged.',
     unavailable: 'Lenz could not check this tab just now. Nothing was charged. Try again in a minute.',
-    unreadable: "Lenz could not read the page this tab links to. Paste the page's text into the Doc instead. Nothing was charged.",
+    unreadable: "Lenz couldn't read that page. Paste its text instead.",
     ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
   };
   // By the failure's code. The current shape's codes: no_checkable_claim (read as no_claim, below),
@@ -744,10 +744,16 @@ var LenzView = (function () {
   }
 
   // What a failed review says, and the link it offers (only for credits).
+  // An unreadable page is the reader's to fix and accuses nothing, so it is told in the neutral tone
+  // (`tone: 'neutral'`), not the red the other failures use.
   function failureView(body) {
-    if (body.status !== 'failed') return { text: null, link: null };
+    if (body.status !== 'failed') return { text: null, link: null, tone: null };
     var key = failedKey(isObj(body.failure) ? body.failure : {});
-    return { text: FAILED_WORDS[key], link: key === 'credits' ? { href: BILLING_URL, words: 'Add credits' } : null };
+    return {
+      text: FAILED_WORDS[key],
+      link: key === 'credits' ? { href: BILLING_URL, words: 'Add credits' } : null,
+      tone: key === 'unreadable' ? 'neutral' : null,
+    };
   }
 
   function build(body, opts) {
@@ -815,6 +821,7 @@ var LenzView = (function () {
     };
     // Only on a cancelled review, so every other model is exactly what it was (test/api-shapes.test.js
     // holds them frozen).
+    if (failed.tone) model.failureTone = failed.tone;
     if (o.cancelled) {
       model.cancelled = true;
       model.stopped = stoppedLine(body, entries, charged);

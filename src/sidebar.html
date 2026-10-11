@@ -166,6 +166,7 @@
   </div>
   <p id="stalled" role="status" hidden></p>
   <p class="error" id="error" role="alert"></p>
+  <p class="note" id="failure-note" role="status" hidden></p>
   <div id="failure-link"></div>
   <div class="row" id="resume-row" hidden><button id="resume" class="primary" type="button">Resume</button></div>
   <p class="note" id="note" role="status" hidden></p>
@@ -336,7 +337,10 @@
     setText('headline', m ? m.headline : '');
     setText('stopped-line', m ? m.stopped : '');
     setText('scope', m ? m.scope : '');
-    if (m && m.failure) setText('error', m.failure);
+    // A failure that accuses nothing (an unreadable page) is a note, not the red error line.
+    var neutral = !!(m && m.failure && m.failureTone === 'neutral');
+    setText('failure-note', neutral ? m.failure : '');
+    if (m && m.failure && !neutral) setText('error', m.failure);
     var fl = $('failure-link');
     clear(fl);
     if (m && m.failureLink) fl.appendChild(link(m.failureLink.href, m.failureLink.words));
