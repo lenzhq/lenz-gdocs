@@ -101,3 +101,22 @@ test('the body wait is read under every name when no Retry-After header came', (
   // The header still comes first.
   assert.equal(LenzApi.describeError(429, { 'Retry-After': '7' }, JSON.stringify({ code: 'review_in_flight', retry_after: 41 })).retryAfterS, 7);
 });
+
+test('the current answer names searched_pages on every quick check; an empty list changes nothing, a list shows', () => {
+  const r = read('canonical.get_completed_issues_full.json');
+  const claims = r.body.claims;
+  assert.ok(claims.length > 0);
+  for (const c of claims) assert.deepEqual(c.assessment.searched_pages, []);
+  // A quick-checked row (its deep check is not a completed one) shows its pages; a completed deep check does not.
+  const quick = claims.find((c) => !c.verification || c.verification.status !== 'completed');
+  assert.ok(quick);
+  const withPages = JSON.parse(JSON.stringify(r.body));
+  for (const c of withPages.claims) c.assessment.searched_pages = [{ title: 'A page', url: 'https://example.org/a' }];
+  const entries = LenzView.build(withPages).groups.flatMap((g) => g.entries);
+  const e = entries.find((x) => x.id === 'claim:' + quick.index);
+  assert.deepEqual(e.pages, { count: 1, first: [{ title: 'A page', url: 'https://example.org/a' }], rest: [] });
+  const deep = claims.find((c) => c.verification && c.verification.status === 'completed');
+  assert.ok(!('pages' in entries.find((x) => x.id === 'claim:' + deep.index)));
+  // The older answer has no such key and reads as before.
+  for (const c of read('legacy.get_completed_issues_full.json').body.claims) assert.ok(!('searched_pages' in c.assessment));
+});

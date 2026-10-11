@@ -53,7 +53,9 @@ class Node {
     return null;
   }
   querySelectorAll(sel) {
-    return sel === 'button, a' ? walk(this).filter((n) => n !== this && (n.tag === 'button' || n.tag === 'a')) : [];
+    if (sel === 'button, a') return walk(this).filter((n) => n !== this && (n.tag === 'button' || n.tag === 'a'));
+    if (sel === 'button, a, summary') return walk(this).filter((n) => n !== this && (n.tag === 'button' || n.tag === 'a' || n.tag === 'summary'));
+    return [];
   }
   focus() { Node.page.document.activeElement = this; }
   getBoundingClientRect() { return Node.page.box(this); }
@@ -486,4 +488,128 @@ test('a cancel Lenz did not answer: still running with the error, and Cancel can
   assert.equal(s.ids.cancel.hidden, false);
   assert.equal(s.ids['cancel-confirm'].hidden, true);
   assert.equal(s.ids['cancel-go'].disabled, false);
+});
+
+// ── Pages the reviewers looked at ───────────────────────────
+
+const pg = (n) => Array.from({ length: n }, (_, i) => ({ title: 'Page ' + (i + 1), url: 'https://example.org/p' + (i + 1) }));
+// A poll of the captured review whose claim 3 (quick-checked only) carries `pages`.
+const withPages = (poll, pages, id) => {
+  const body = JSON.parse(JSON.stringify(poll));
+  body.claims.find((c) => c.index === 3).assessment.searched_pages = pages;
+  if (id) body.review_id = id;
+  return LenzView.build(body);
+};
+const pagesBoxes = (s) => walk(s.ids.groups).filter((n) => n.tag === 'details' && n.className === 'pages');
+const pageLinks = (box) => walk(box).filter((n) => n.tag === 'a');
+const showAll = (box) => walk(box).find((n) => n.tag === 'button' && /^Show all/.test(n.textContent));
+function pagesSidebar(pages, extra) {
+  return sidebar(Object.assign({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: withPages(POLLS[3], pages), nextPollS: 15 }),
+    lenzPoll: reply('done', { model: withPages(POLLS[5], pages) }),
+    lenzLogOpen: null,
+  }, extra || {}));
+}
+const poll = (s) => s.timeouts.filter((t) => t.ms === 15000).pop().fn();
+
+test('pages: a closed disclosure under the row, its summary exact, the first five as links in a new tab', () => {
+  const s = pagesSidebar(pg(7));
+  const boxes = pagesBoxes(s);
+  assert.equal(boxes.length, 1, 'only the row that has pages');
+  const box = boxes[0];
+  assert.equal(box.open, false, 'closed by default');
+  const summary = box.children[0];
+  assert.equal(summary.tag, 'summary');
+  assert.equal(summary.textContent, 'Pages the reviewers looked at (7)');
+  const links = pageLinks(box);
+  assert.deepEqual(links.map((a) => a.textContent), ['Page 1', 'Page 2', 'Page 3', 'Page 4', 'Page 5']);
+  assert.equal(links[0].href, 'https://example.org/p1');
+  for (const a of links) {
+    assert.equal(a.target, '_blank');
+    assert.equal(a.rel, 'noopener noreferrer nofollow ugc');
+  }
+  assert.equal(showAll(box).textContent, 'Show all 7');
+  // It sits inside the claim's entry.
+  assert.equal(box.closest('li.entry').getAttribute('data-id'), 'claim:3');
+});
+
+test('pages: five or fewer show no Show all; none shows nothing at all', () => {
+  assert.equal(showAll(pagesBoxes(pagesSidebar(pg(5)))[0]), undefined);
+  assert.equal(pageLinks(pagesBoxes(pagesSidebar(pg(5)))[0]).length, 5);
+  assert.equal(pagesBoxes(pagesSidebar(pg(1)))[0].children[0].textContent, 'Pages the reviewers looked at (1)');
+  assert.equal(pagesBoxes(pagesSidebar([])).length, 0);
+  assert.equal(pagesBoxes(pagesSidebar([{ title: 'Bad', url: 'javascript:alert(1)' }])).length, 0, 'N is counted after the filter');
+});
+
+test('pages: a title is a text node, never markup', () => {
+  const evil = '<img src=x onerror=alert(1)>';
+  const box = pagesBoxes(pagesSidebar([{ title: evil, url: 'https://example.org/x' }]))[0];
+  const a = pageLinks(box)[0];
+  assert.equal(a.textContent, evil);
+  assert.equal(a.children.length, 0, 'set with textContent: no child elements');
+  assert.ok(!/innerHTML/.test(HTML.slice(HTML.indexOf('function pagesBox'), HTML.indexOf('function pagesBox') + 2500)));
+});
+
+test('pages: Show all lists every page and takes the control away', () => {
+  const s = pagesSidebar(pg(8));
+  const box = pagesBoxes(s)[0];
+  showAll(box).click();
+  assert.equal(pageLinks(box).length, 8);
+  assert.equal(showAll(box), undefined);
+});
+
+test('pages: a disclosure the reader opened, and Show all, stay as they were across polls', () => {
+  const s = pagesSidebar(pg(8));
+  const box = pagesBoxes(s)[0];
+  box.open = true;
+  showAll(box).click();
+  poll(s);
+  const after = pagesBoxes(s)[0];
+  assert.notEqual(after, box, 'the list was rebuilt');
+  assert.equal(after.open, true);
+  assert.equal(pageLinks(after).length, 8);
+  assert.equal(showAll(after), undefined);
+  // Closing it is kept too.
+  after.open = false;
+  assert.equal(pagesBoxes(s)[0].open, false);
+});
+
+test('pages: a closed disclosure stays closed, and the state is per entry', () => {
+  const s = pagesSidebar(pg(8));
+  poll(s);
+  const after = pagesBoxes(s)[0];
+  assert.equal(after.open, false);
+  assert.equal(pageLinks(after).length, 5);
+});
+
+test('pages: a different review starts closed again', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: withPages(POLLS[3], pg(8), 'aaaa0001'), nextPollS: 15 }),
+    lenzPoll: reply('done', { model: withPages(POLLS[5], pg(8), 'bbbb0002') }),
+    lenzLogOpen: null,
+  });
+  pagesBoxes(s)[0].open = true;
+  poll(s);
+  assert.equal(pagesBoxes(s)[0].open, false, 'entry ids repeat across reviews; the state does not');
+});
+
+test('pages: focus on the summary comes back to the summary after a poll', () => {
+  const s = pagesSidebar(pg(8));
+  const summary = pagesBoxes(s)[0].children[0];
+  summary.focus();
+  poll(s);
+  const now = pagesBoxes(s)[0].children[0];
+  assert.equal(now.tag, 'summary');
+  assert.equal(s.document.activeElement, now);
+});
+
+test('pages: focus on a page link comes back to the same link after a poll', () => {
+  const s = pagesSidebar(pg(8));
+  pagesBoxes(s)[0].open = true;
+  pageLinks(pagesBoxes(s)[0])[2].focus();
+  poll(s);
+  assert.equal(s.document.activeElement, pageLinks(pagesBoxes(s)[0])[2]);
+  assert.equal(s.document.activeElement.textContent, 'Page 3');
 });

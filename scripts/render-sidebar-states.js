@@ -51,6 +51,28 @@ function cleanModel() {
   return Object.assign({}, m, { headline: 'No issues found.', coverage: [], groups: [Object.assign({}, ok, { collapsed: false })] });
 }
 
+// The draft-a review with pages the reviewers looked at on two claims: seven (the first five show, then
+// Show all) on one quick-checked claim and two on another; a deep-checked claim shows none.
+function pagesModel() {
+  const body = JSON.parse(JSON.stringify(review));
+  const pages = (n) => Array.from({ length: n }, (_, i) => ({
+    title: ['Boiling point | Encyclopaedia Britannica', 'Why water boils at a lower temperature at altitude', 'Water: freezing and boiling points (NIST Chemistry WebBook)',
+      'Boiling-point elevation and pressure, explained', 'Properties of water | US Geological Survey', 'How atmospheric pressure changes the boiling point', 'Cooking at high altitude: water boils sooner'][i],
+    url: 'https://example.org/boiling-point-' + (i + 1),
+  }));
+  body.claims.find((c) => c.index === 3).assessment.searched_pages = pages(7);
+  body.claims.find((c) => c.index === 4).assessment.searched_pages = pages(2);
+  // A completed deep check supersedes its quick check's pages: this claim carries some, and shows none.
+  body.claims.find((c) => c.index === 0).assessment.searched_pages = pages(3);
+  const m = LenzView.build(body);
+  // "Checks out" open, so the quick-checked claim shows.
+  m.groups.forEach((g) => { g.collapsed = false; });
+  return m;
+}
+// Open the first pages disclosure, and (with `all`) press Show all.
+const openPages = (all) => '<script>setTimeout(function(){var d=document.querySelector("li[data-id=\\"claim:3\\"] details.pages");d.open=true;' +
+  (all ? 'var b=d.querySelector("button.pages-more");if(b)b.click();' : '') + '},300);</script>';
+
 const STATES = {
   'signed-out': { height: 560, replies: { lenzOpen: reply('signed_out'), lenzOpenState: reply('signed_out', { auth: { mode: 'oauth', signedIn: false } }),
     lenzSignInUrl: { url: 'https://lenz.io/oauth2/authorize', message: null } } },
@@ -65,6 +87,9 @@ const STATES = {
   'cancelled-midway': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('cancelled-midway')) }) } },
   'cancelled-early': { height: 420, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(fixture('cancelled-early')) }) } },
   results: { height: 1900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: resultsModel() }) } },
+  'pages-closed': { height: 1900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: pagesModel() }) } },
+  'pages-open': { height: 1900, js: openPages(false), replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: pagesModel() }) } },
+  'pages-show-all': { height: 2000, js: openPages(true), replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: pagesModel() }) } },
   clean: { height: 900, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: cleanModel() }) } },
   'deep-failed-thin': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(thin) }) } },
   'deep-failed-mixed': { height: 1800, replies: { lenzOpen: reply('done'), lenzOpenState: reply('done', { model: LenzView.build(mixed) }) } },
@@ -114,7 +139,7 @@ for (const [name, s] of Object.entries(STATES)) {
   // `click`: element ids clicked in turn once the panel has rendered.
   const clicks = s.click ? '<script>setTimeout(function(){' + JSON.stringify(s.click) +
     '.forEach(function(id){document.getElementById(id).click();});},300);</script>' : '';
-  shoot(name, sidebar.replace('<head>', '<head>' + stub(s.replies)).replace('</body>', clicks + '</body>'), 300, s.height);
+  shoot(name, sidebar.replace('<head>', '<head>' + stub(s.replies)).replace('</body>', clicks + (s.js || '') + '</body>'), 300, s.height);
 }
 const picker = fs.readFileSync(path.join(SRC, 'picker.html'), 'utf8').replace(/<script src="[^"]*"><\/script>/, '');
 shoot('picker', picker.replace('<head>', '<head>' + stub({ lenzPickerConfig: null })), 760, 520);
