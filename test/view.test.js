@@ -745,13 +745,53 @@ test('failed review: an unreadable page and a text with no claim are told in the
   assert.ok(!('failureTone' in LenzView.build(failedWith(NO_CLAIM, { code: 'internal', failure_class: 'internal', retryable: false }))));
 });
 
-test('failed review: no claim says so, and never quotes the API hint', () => {
+test('failed review: no claim says so once, and never quotes the API hint', () => {
   const m = LenzView.build(NO_CLAIM);
-  assert.equal(m.headline, 'The check did not finish.');
+  // Nothing to check is not a check that did not finish: the neutral words are the whole message.
+  assert.equal(m.headline, null);
   assert.equal(m.failure, WORDS.noClaim);
   assert.equal(m.failureLink, null);
   assert.ok(NO_CLAIM.failure.hint.includes('/extract'), 'the fixture carries the integrator hint');
   assert.ok(!JSON.stringify(m).includes('/extract'));
+});
+
+test('failed review: an unreadable page says so once; the other failures keep the headline', () => {
+  const unreadable = LenzView.build(failedWith(NO_CLAIM, { code: 'page_unreadable', failure_class: 'invalid_input', retryable: false }));
+  assert.equal(unreadable.headline, null);
+  assert.equal(unreadable.failure, WORDS.unreadable);
+  [NO_CREDITS, UNAVAILABLE, ASSESSMENT_FAILED, INTERNAL].forEach((b) => assert.equal(LenzView.build(b).headline, 'The check did not finish.'));
+});
+
+test('failed review: a selection with no claim says "the text you selected", not "this tab"', () => {
+  const m = LenzView.build(NO_CLAIM, { scope: { paragraphs: 1 } });
+  assert.equal(m.failure, 'Lenz found no factual claim to check in the text you selected.');
+  assert.equal(m.failureTone, 'neutral');
+  // The whole-tab check keeps its words.
+  assert.equal(LenzView.build(NO_CLAIM).failure, WORDS.noClaim);
+  // Only the no-claim words change with the scope.
+  assert.equal(LenzView.build(UNAVAILABLE, { scope: { paragraphs: 1 } }).failure, WORDS.unavailable);
+});
+
+test('a finished review never says a deep check is running', () => {
+  ['cancelled', 'completed', 'failed'].forEach((status) => {
+    const body = JSON.parse(JSON.stringify(require('./fixtures/reviews/cancelled-midway.review.json')));
+    body.status = status;
+    body.claims.forEach((row) => {
+      if (row.verification) row.verification = { status: 'running' };
+    });
+    const m = LenzView.build(body);
+    const rows = m.groups.flatMap((g) => g.entries).filter((e) => e.kind === 'claim');
+    assert.ok(rows.length > 0);
+    rows.forEach((e) => assert.equal(e.deepRunning, false, status + ' ' + e.id));
+  });
+  // A running review still does.
+  const running = JSON.parse(JSON.stringify(require('./fixtures/reviews/cancelled-midway.review.json')));
+  running.status = 'verifying';
+  running.claims.forEach((row) => {
+    if (row.verification) row.verification = { status: 'running' };
+  });
+  const rows = LenzView.build(running).groups.flatMap((g) => g.entries).filter((e) => e.kind === 'claim' && e.check === 'Quick check');
+  assert.ok(rows.some((e) => e.deepRunning === true));
 });
 
 test('failed review: not enough credits says nothing was charged and offers the billing page', () => {
@@ -914,7 +954,7 @@ test('a cancelled quick check or citation says it was stopped, not that it faile
 
 // ── a deep check that found no public record is a checked outcome and an issue ──
 
-const NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
+const NO_RECORD_LINE = 'Lenz found no public record of this.';
 
 test('no public record: a completed deep check is an issue with a neutral label, no score and no rewrite', () => {
   assert.equal(LenzView.claimState('No Public Record', 'medium'), 'look');
@@ -999,6 +1039,7 @@ test('no public record: a final quick row is an issue, counted in the headline, 
 
 test('no public record: a quick row whose deep check is still running is not yet an issue, and says so', () => {
   const body = quickNoRecord();
+  body.status = 'verifying'; // the review is still running: only then is a deep check "running"
   const row = body.claims.find((c) => c.index === 1);
   row.result.is_issue = false;
   row.verification = { status: 'running' };

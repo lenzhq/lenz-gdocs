@@ -482,6 +482,70 @@ test('glue: Check this Doc after a failed review starts a new one', { skip: NEED
   assert.notEqual(posts[0].headers['Idempotency-Key'], posts[1].headers['Idempotency-Key']);
 });
 
+test('glue: Check this Doc on an unchanged, completed Doc replays it and offers Check again', { skip: NEEDS_GLUE }, () => {
+  const w = glueWorld('draft-b', { lenz: { pollsBeforeDone: 1 } });
+  w.g.lenzStart();
+  gluePollToEnd(w);
+  const r = w.g.lenzStart();
+  assert.equal(r.notice, 'No changes since the last check.');
+  assert.equal(r.checkAgain, true);
+  assert.equal(w.lenz.requests.filter((q) => q.method === 'POST').length, 1);
+});
+
+test('glue: Check again on an unchanged, completed Doc is a new review under a new key', { skip: NEEDS_GLUE }, () => {
+  const w = glueWorld('draft-b', { lenz: { pollsBeforeDone: 1 } });
+  w.g.lenzStart();
+  gluePollToEnd(w);
+  const rid = w.g.lenzState().model.reviewId; // the check the panel shows
+  const r = w.g.lenzCheckAgain(rid);
+  assert.ok(r.phase === 'running' || r.phase === 'done', r.phase);
+  assert.equal(r.notice, undefined);
+  assert.equal(r.checkAgain, undefined);
+  const posts = w.lenz.requests.filter((q) => q.method === 'POST');
+  assert.equal(posts.length, 2);
+  assert.notEqual(posts[0].headers['Idempotency-Key'], posts[1].headers['Idempotency-Key']);
+});
+
+test('glue: Check again from a panel that shows another check starts nothing', { skip: NEEDS_GLUE }, () => {
+  const w = glueWorld('draft-b', { lenz: { pollsBeforeDone: 1 } });
+  w.g.lenzStart();
+  gluePollToEnd(w);
+  for (const shown of ['zzzzzzzz', null, undefined]) {
+    const r = w.g.lenzCheckAgain(shown);
+    assert.match(r.notice, /earlier check, so nothing was started/);
+    assert.equal(r.checkAgain, undefined);
+  }
+  assert.match(w.g.lenzCheckAgainSelection('zzzzzzzz').notice, /earlier check, so nothing was started/);
+  assert.equal(w.lenz.requests.filter((q) => q.method === 'POST').length, 1);
+});
+
+test('glue: Check again never starts a second review while another one runs, even if the text changed', { skip: NEEDS_GLUE }, () => {
+  const w = glueWorld('draft-b', { lenz: { pollsBeforeDone: 3 } });
+  w.g.lenzStart();
+  gluePollToEnd(w);
+  const stale = w.g.lenzState().model.reviewId; // the link this panel still shows
+  // Another window edits the Doc and checks it: a new, running review.
+  w.docs.coauthorReplace(w.docId, 'largest ocean on Earth', 'biggest ocean on Earth');
+  w.g.lenzStart();
+  const posts = () => w.lenz.requests.filter((q) => q.method === 'POST').length;
+  assert.equal(posts(), 2);
+  // Then the stale panel's link is clicked, after one more edit: still no third review.
+  w.docs.coauthorReplace(w.docId, 'biggest ocean on Earth', 'largest body of water on Earth');
+  const r = w.g.lenzCheckAgain(stale);
+  assert.match(r.notice, /earlier check, so nothing was started/);
+  assert.equal(posts(), 2);
+});
+
+test('glue: Check again for a check that is not complete is never a new review', { skip: NEEDS_GLUE }, () => {
+  const w = glueWorld('draft-b', { lenz: { pollsBeforeDone: 3 } });
+  w.g.lenzStart();
+  const running = w.g.lenzState().model;
+  w.g.lenzCheckAgain(running ? running.reviewId : null);
+  gluePollToEnd(w);
+  const keys = w.lenz.requests.filter((q) => q.method === 'POST').map((q) => q.headers['Idempotency-Key']);
+  assert.equal(new Set(keys).size, 1, 'a running review is replayed under its own key');
+});
+
 test('glue: lenzState never returns the API key', { skip: NEEDS_GLUE }, () => {
   const w = glueWorld('draft-a');
   w.g.lenzStart();

@@ -97,7 +97,7 @@ var LenzView = (function () {
   // the line below are the Docs words for it.
   var NO_RECORD = 'No Public Record';
   var NO_RECORD_LABEL = 'No Public Record';
-  var NO_RECORD_LINE = 'Lenz found no public record of this. Confirm it or remove it.';
+  var NO_RECORD_LINE = 'Lenz found no public record of this.';
 
   var SKIPPED = {
     switched_off: 'Citations were not checked this time: the citation check is switched off.',
@@ -124,6 +124,7 @@ var LenzView = (function () {
     unreadable: "Lenz couldn't read that page. Paste its text instead.",
     ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
   };
+  var NO_CLAIM_IN_SELECTION = 'Lenz found no factual claim to check in the text you selected.';
   // By the failure's code. The current shape's codes: no_checkable_claim (read as no_claim, below),
   // page_unreadable, upstream_unavailable, internal, insufficient_credits (cancelled and no_citations are
   // not reasons a Doc review fails). A code not listed reads by the failure's class: an outage says so,
@@ -440,8 +441,9 @@ var LenzView = (function () {
       label: noRecord ? NO_RECORD_LABEL : verdict && verdict !== 'Error' ? verdict : checking ? 'Checking' : 'Not checked',
       token: VERDICT_TOKENS[verdict] || null,
       check: deep ? 'Deep check' : verdict && verdict !== 'Error' ? 'Quick check' : null,
-      // A quick verdict shown while its deep check runs is a first read, not the answer.
-      deepRunning: !deep && verification !== null && verification.status !== 'completed' && verification.status !== 'failed',
+      // A quick verdict shown while its deep check runs is a first read, not the answer. Never once the
+      // review has ended (stopped, failed or completed): a deep check that is not done then is not running.
+      deepRunning: !opts.done && !deep && verification !== null && verification.status !== 'completed' && verification.status !== 'failed',
       confidence: deep ? null : confidence,
       score: deep && typeof verification.lenz_score === 'number' ? verification.lenz_score : null,
       rewrite: null,
@@ -677,8 +679,10 @@ var LenzView = (function () {
     return 'This check covered ' + what + n + '. Check this Doc checks the whole tab.';
   }
 
-  function headline(body, groups, coverage) {
-    if (body.status === 'failed') return 'The check did not finish.';
+  function headline(body, groups, coverage, failed) {
+    // A text with nothing to check, or a page that could not be read, is told once in its own neutral
+    // words (failureView); it is not a check that "did not finish".
+    if (body.status === 'failed') return failed && failed.tone === 'neutral' ? null : 'The check did not finish.';
     if (body.status === 'cancelled') return 'Check cancelled.';
     if (body.status !== 'completed') return null;
     var n = groups.issue.length;
@@ -746,11 +750,12 @@ var LenzView = (function () {
   // What a failed review says, and the link it offers (only for credits).
   // An unreadable page, and a text with no claim to check, are the reader's to fix and accuse nothing,
   // so they are told in the neutral tone (`tone: 'neutral'`), not the red the other failures use.
-  function failureView(body) {
+  function failureView(body, scope) {
     if (body.status !== 'failed') return { text: null, link: null, tone: null };
     var key = failedKey(isObj(body.failure) ? body.failure : {});
     return {
-      text: FAILED_WORDS[key],
+      // A selection check says "the text you selected", not "this tab".
+      text: key === 'no_claim' && scope ? NO_CLAIM_IN_SELECTION : FAILED_WORDS[key],
       link: key === 'credits' ? { href: BILLING_URL, words: 'Add credits' } : null,
       tone: key === 'unreadable' || key === 'no_claim' ? 'neutral' : null,
     };
@@ -796,7 +801,7 @@ var LenzView = (function () {
     var quick = entries.some(function (e) {
       return e.group !== 'ok' && e.check === 'Quick check';
     });
-    var failed = failureView(body);
+    var failed = failureView(body, scope);
     var charged = isObj(body.credits) && typeof body.credits.charged === 'number' ? body.credits.charged : null;
     var model = {
       reviewId: str(body.review_id),
@@ -804,7 +809,7 @@ var LenzView = (function () {
       done: o.done,
       progress: progress(body),
       stages: stages(body),
-      headline: headline(body, groups, coverage),
+      headline: headline(body, groups, coverage, failed),
       failure: failed.text,
       failureLink: failed.link,
       groups: empty ? [] : GROUPS.map(function (g) {

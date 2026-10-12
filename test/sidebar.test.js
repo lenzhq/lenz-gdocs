@@ -240,7 +240,7 @@ test('Check only the selected text: on and off with Check this Doc, and a note k
   s.ids['check-selection'].click();
   assert.equal(s.names().filter((n) => n === 'lenzStartSelection').length, 1);
   assert.equal(s.ids.note.textContent, note.message);
-  assert.equal(s.ids.headline.textContent, doneReply.model.headline);
+  assert.equal(s.ids.headline.textContent, doneReply.model.headline || ''); // a no-claim failure has no headline
   assert.equal(s.ids['check-selection'].disabled, false);
   assert.equal(s.ids.check.disabled, false);
 });
@@ -631,4 +631,107 @@ test('pages: focus on a page link comes back to the same link after a poll', () 
   poll(s);
   assert.equal(s.document.activeElement, pageLinks(pagesBoxes(s)[0])[2]);
   assert.equal(s.document.activeElement.textContent, 'Page 3');
+});
+
+// ── Check again: a quiet link beside "No changes since the last check." ──────────────
+
+const NO_CHANGES = 'No changes since the last check.';
+const COMPLETED = require('./fixtures/reviews/draft-a.review.json'); // a completed review (id 4881a880)
+const unchanged = (model) => reply('done', { model, notice: NO_CHANGES, checkAgain: true });
+
+test('check again: not shown until an unchanged, completed Doc says so', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model: LenzView.build(NO_CLAIM) }), lenzLogOpen: null });
+  assert.match(HTML, />Check again<\/button>/);
+  assert.equal(s.ids['check-again'].hidden, true);
+});
+
+test('check again: shown with the notice, and the link names no cost', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: unchanged(LenzView.build(COMPLETED)), lenzLogOpen: null });
+  assert.equal(s.ids.note.textContent, NO_CHANGES);
+  assert.equal(s.ids['check-again'].hidden, false);
+  // The link says only what it does: no cost wording (a re-run is mostly answered from what Lenz knows).
+  assert.match(HTML, /<button id="check-again"[^>]*>Check again<\/button>/);
+});
+
+test('check again: a click runs a new check of the Doc and the link goes away', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: unchanged(LenzView.build(COMPLETED)), lenzLogOpen: null,
+    lenzCheckAgain: reply('running', { nextPollS: 15 }),
+  });
+  s.ids['check-again'].click();
+  assert.equal(s.names().filter((n) => n === 'lenzCheckAgain').length, 1);
+  assert.ok(!s.names().includes('lenzStart'));
+  // The click names the check on screen, so a stale panel starts nothing (the server compares it).
+  assert.deepEqual(s.calls.find((c) => c.name === 'lenzCheckAgain').args, ['4881a880']);
+  assert.equal(s.ids['check-again'].hidden, true);
+  assert.equal(s.ids.note.textContent, '');
+});
+
+test('check again: not offered while a check runs, whatever the reply carries', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzLogOpen: null,
+    lenzOpenState: reply('running', { nextPollS: 15, notice: NO_CHANGES, checkAgain: true, model: LenzView.build(COMPLETED) }),
+  });
+  assert.equal(s.ids['check-again'].hidden, true);
+});
+
+test('check again: an answer that is only a note takes the link away with the notice it belonged to', () => {
+  const model = LenzView.build(COMPLETED, { scope: { paragraphs: 1 } });
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: unchanged(model), lenzLogOpen: null,
+    lenzCheckAgainSelection: { ok: false, message: 'Select the text to check first, then choose Check only the selected text.' },
+  });
+  s.ids['check-again'].click();
+  assert.match(s.ids.note.textContent, /^Select the text to check first/);
+  assert.equal(s.ids['check-again'].hidden, true);
+});
+
+test('check again: after a selection check it runs the selection again', () => {
+  const model = LenzView.build(COMPLETED, { scope: { paragraphs: 1 } });
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: unchanged(model), lenzLogOpen: null,
+    lenzCheckAgainSelection: reply('running', { nextPollS: 15 }),
+  });
+  s.ids['check-again'].click();
+  assert.equal(s.names().filter((n) => n === 'lenzCheckAgainSelection').length, 1);
+  assert.ok(!s.names().includes('lenzCheckAgain'));
+});
+
+test('check again: a Doc that needs the file approval asks for it, then runs again', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: unchanged(LenzView.build(COMPLETED)), lenzLogOpen: null,
+    lenzCheckAgain: reply('needs_file_access', { ok: false, message: null }),
+  });
+  s.ids['check-again'].click();
+  assert.equal(s.ids.access.hidden, false);
+  // The grant: the picker opens, the file becomes readable, and the same Check again runs once more.
+  s.ids['access-go'].click();
+  assert.ok(s.names().includes('lenzShowPicker'));
+});
+
+test('check again: after the file approval it runs again, with the same check named', () => {
+  let ready = false;
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: unchanged(LenzView.build(COMPLETED)), lenzLogOpen: null,
+    lenzCheckAgain: () => (ready ? reply('running', { nextPollS: 15 }) : reply('needs_file_access', { ok: false, message: null })),
+    lenzShowPicker: { openedAt: 1 },
+    lenzFileAccessReady: () => ({ ready: true }),
+  });
+  s.ids['check-again'].click();
+  s.ids['access-go'].click();
+  ready = true;
+  s.timeouts[s.timeouts.length - 1].fn(); // the sidebar's wait for the grant looks again
+  const again = s.calls.filter((c) => c.name === 'lenzCheckAgain');
+  assert.equal(again.length, 2);
+  assert.deepEqual(again[1].args, ['4881a880']);
+  assert.equal(s.ids.access.hidden, true);
+});
+
+test('check again: gone when the panel moves on (a plain Check this Doc)', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: unchanged(LenzView.build(COMPLETED)), lenzLogOpen: null,
+    lenzStart: reply('running', { nextPollS: 15 }),
+  });
+  s.ids.check.click();
+  assert.equal(s.ids['check-again'].hidden, true);
 });
