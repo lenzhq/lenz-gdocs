@@ -9,12 +9,13 @@ Check the factual claims and citations in this Doc against independent sources.
 
 **Detailed description:**
 Lenz checks the draft you are writing. Open Extensions → Lenz Fact-Checking → Check this Doc: Lenz reads the
-current tab, checks each factual claim against independent sources, and checks whether each cited
-page says what the draft attributes to it.
+current tab, checks the factual claims it finds against independent sources, and checks whether each
+cited page says what the draft attributes to it.
 
 To check one part of a long Doc, select it and choose Check only the selected text.
 
-The findings appear in a sidebar in the order they occur in the Doc. Click one to select its words.
+The findings appear in a sidebar: issues first, then what checked out, each group in the order of your
+text. Click one to select its words.
 Where Lenz suggests a correction, you see the old and new wording side by side, and Apply makes
 that one change; nothing in your Doc changes unless you click.
 
@@ -31,8 +32,9 @@ check in your Lenz account. Deleting your account deletes it.
 
 **Post-install tip:**
 Open any Google Doc and choose Extensions → Lenz Fact-Checking → Check this Doc. The first time,
-choose Sign in with Lenz and allow access; you can create a Lenz account there. The first time you
-check a Doc, you allow Lenz to read that Doc. A check takes two to four minutes and uses credits
+Google asks you to allow the add-on; once you have, choose the menu item again. Then choose Sign in
+with Lenz and allow access; you can create a Lenz account there. The first time you check a Doc, you
+allow Lenz to read that Doc, and the check starts. A check takes two to four minutes and uses credits
 from your Lenz account.
 
 **Support / privacy / terms links:** https://lenz.io/contact · https://lenz.io/privacy ·
