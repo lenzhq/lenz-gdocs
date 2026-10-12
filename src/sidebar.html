@@ -170,6 +170,7 @@
   <div id="failure-link"></div>
   <div class="row" id="resume-row" hidden><button id="resume" class="primary" type="button">Resume</button></div>
   <p class="note" id="note" role="status" hidden></p>
+  <div class="row" id="check-again-row" hidden><button id="check-again" class="quiet" type="button" hidden>Check again</button></div>
   <p class="headline" id="headline" hidden></p>
   <p class="muted" id="stopped-line" hidden></p>
   <p class="muted" id="scope" hidden></p>
@@ -233,6 +234,7 @@
   function setText(id, text) { var n = $(id); n.textContent = text || ''; show(n, !!text); }
   // Check this Doc and Check only the selected text are on and off together.
   function setCheck(off) { $('check').disabled = off; $('check-selection').disabled = off; }
+  function setAgain(on) { show($('check-again-row'), on); show($('check-again'), on); }
 
   // One call in flight; a click made meanwhile runs next (the latest one wins).
   // A failed call restores the last state (its buttons come back) and says so.
@@ -333,6 +335,8 @@
     setText('error', r.error ? r.error.message : '');
     // Check this Doc on an unchanged, completed Doc: the same results, said so.
     if (r.notice) note(r.notice);
+    // ...and a quiet way to run it again (a new review, mostly answered from what Lenz already knows).
+    setAgain(!!(r.notice && r.checkAgain && !running && !stalled));
 
     setText('headline', m ? m.headline : '');
     setText('stopped-line', m ? m.stopped : '');
@@ -691,6 +695,7 @@
 
   function startCheck() {
     note('');
+    setAgain(false);
     resumed = false;
     setCheck(true);
     call('lenzStart', [], function (r) {
@@ -702,6 +707,7 @@
   // runs Check this Doc (unchanged text with a completed review: its results again, no charge).
   function autoStart() {
     note('');
+    setAgain(false);
     resumed = false;
     setCheck(true);
     call('lenzAutoStart', [], function (r) {
@@ -713,6 +719,7 @@
   // A note (nothing selected, …) sends nothing: the panel stays as it was and says why.
   function startSelection() {
     note('');
+    setAgain(false);
     resumed = false;
     setCheck(true);
     call('lenzStartSelection', [], function (r) {
@@ -720,12 +727,35 @@
       if (r && !r.phase) {
         if (last) render(last); else setCheck(false);
         note(r.message);
+        setAgain(false); // the notice it belonged to is gone
         return;
       }
       render(r);
     });
   }
   $('check-selection').addEventListener('click', startSelection);
+  // Check again, under "No changes since the last check.": a new review of the same text. After a selection
+  // check it is the selection that runs again (the model says which: it carries the scope line).
+  function checkAgain() {
+    var selection = !!(last && last.model && last.model.scope);
+    note('');
+    setAgain(false);
+    resumed = false;
+    setCheck(true);
+    // The check on screen: the server starts nothing if the Doc's current check is another one.
+    var shown = last && last.model && last.model.reviewId ? last.model.reviewId : null;
+    call(selection ? 'lenzCheckAgainSelection' : 'lenzCheckAgain', [shown], function (r) {
+      if (r && r.phase === 'needs_file_access') { askAccess(checkAgain); return; }
+      if (r && !r.phase) {
+        if (last) render(last); else setCheck(false);
+        note(r.message);
+        setAgain(false); // the notice it belonged to is gone
+        return;
+      }
+      render(r);
+    });
+  }
+  $('check-again').addEventListener('click', checkAgain);
   // Only the Cancel controls, so a click does not re-render the list (or move the next poll).
   function renderCancel() {
     var running = phase === 'running';

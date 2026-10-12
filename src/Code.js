@@ -234,7 +234,7 @@ function lenzCallbackPage_(r) {
 }
 
 /**
- * The one button, Check this Doc (there is no separate Run again):
+ * Check this Doc (Check again, offered beside "No changes since the last check.", is lenzCheckAgain):
  * - the text changed since the last check: a new review;
  * - unchanged, and the last review completed: its results again, no new
  *   review, no charge, with "No changes since the last check.";
@@ -255,6 +255,41 @@ function lenzStart() {
 function lenzStartSelection() {
   var ctx = lenzContext_();
   return lenzScoped_(function () { return lenzSubmitScoped_(ctx, lenzSubmitSelectionLocked_); });
+}
+
+/**
+ * Check again, offered under "No changes since the last check.": the same as Check this Doc, except that
+ * a completed review of unchanged text is not shown again but checked again (the attempt is bumped, so
+ * it is a new review). Any other record behaves as Check this Doc does: a review still running, or a
+ * request whose answer was lost, is replayed under its own key, never duplicated.
+ */
+function lenzCheckAgain(reviewId) {
+  var ctx = lenzContext_();
+  var again = { shown: lenzShownReview_(reviewId) };
+  return lenzScoped_(function () {
+    return lenzSubmitScoped_(ctx, function (c, client) { return lenzSubmitLocked_(c, client, again); });
+  });
+}
+
+/** Check again after a Check only the selected text: the selection, checked again. */
+function lenzCheckAgainSelection(reviewId) {
+  var ctx = lenzContext_();
+  var again = { shown: lenzShownReview_(reviewId) };
+  return lenzScoped_(function () {
+    return lenzSubmitScoped_(ctx, function (c, client) { return lenzSubmitSelectionLocked_(c, client, again); });
+  });
+}
+
+// `reviewId`: the completed check the sidebar is showing. Checked under the lock against the active tab's
+// record (as Cancel does), so a click on a panel left over from another window, tab or earlier check starts
+// nothing: the reply is the current check, with a line saying so.
+var LENZ_AGAIN_OTHER = 'This panel was showing an earlier check, so nothing was started. Here is the current one.';
+function lenzShownReview_(reviewId) { return typeof reviewId === 'string' && reviewId ? reviewId : null; }
+
+function lenzAgainOther_(ctx, client, rec) {
+  var out = rec && rec.reviewId ? lenzFromPoll_(ctx, rec, client.poll(ctx.docId, ctx.tabId)) : lenzReply_('idle', {});
+  out.notice = LENZ_AGAIN_OTHER;
+  return out;
 }
 
 /** One GET of the review; the sidebar schedules the next. */
@@ -670,11 +705,14 @@ function lenzSubmitScoped_(ctx, locked) {
 // give it back (lost), or it may never have existed (unknown).
 var LENZ_START_OVER = { failed: true, cancelled: true, lost: true, unknown: true };
 
-function lenzSubmitLocked_(ctx, client) {
+// `again` ({ shown }): Check again. Only for the check the panel showed (else nothing is started: see
+// lenzShownReview_); a completed review of unchanged text is then a new review too (the attempt is bumped).
+function lenzSubmitLocked_(ctx, client, again) {
   var rec = client.record(ctx.docId, ctx.tabId);
   if (rec && !rec.reviewId && (rec.state === 'submitting' || rec.state === 'pending_conflict')) {
     return lenzReplayLocked_(ctx, client);
   }
+  if (again && (rec && rec.reviewId ? rec.reviewId : null) !== again.shown) return lenzAgainOther_(ctx, client, rec);
   // A completed review in which a check failed on Lenz's side starts over too: the click retries those checks.
   var incomplete = rec && rec.state === 'completed' && rec.reviewId && lenzIncomplete_(rec.reviewId);
   // The Doc is read before the record moves: a Doc Lenz may not read yet (needs_file_access) leaves
@@ -683,20 +721,25 @@ function lenzSubmitLocked_(ctx, client) {
   if (!read.live.text || !read.live.text.trim()) {
     return lenzReply_('error', { error: { message: 'This tab has no text to check.', retryable: false } });
   }
-  if (rec && (LENZ_START_OVER[rec.state] || incomplete)) client.runAgain({ docId: ctx.docId, tabId: ctx.tabId });
+  if (rec && (LENZ_START_OVER[rec.state] || incomplete || (again && rec.state === 'completed'))) {
+    client.runAgain({ docId: ctx.docId, tabId: ctx.tabId });
+  }
   lenzSaveMeta_(ctx, read.live);
   return lenzSubmitted_(ctx, client, client.submit({ docId: ctx.docId, tabId: ctx.tabId, text: read.live.text, policy: LENZ_POLICY }));
 }
 
-function lenzSubmitSelectionLocked_(ctx, client) {
+function lenzSubmitSelectionLocked_(ctx, client, again) {
   var rec = client.record(ctx.docId, ctx.tabId);
   if (rec && !rec.reviewId && (rec.state === 'submitting' || rec.state === 'pending_conflict')) {
     return lenzReplayLocked_(ctx, client);
   }
+  if (again && (rec && rec.reviewId ? rec.reviewId : null) !== again.shown) return lenzAgainOther_(ctx, client, rec);
   var incomplete = rec && rec.state === 'completed' && rec.reviewId && lenzIncomplete_(rec.reviewId);
   var pick = lenzPickSelection_(ctx);
   if (pick.message) return lenzNote_(pick.message);
-  if (rec && (LENZ_START_OVER[rec.state] || incomplete)) client.runAgain({ docId: ctx.docId, tabId: ctx.tabId });
+  if (rec && (LENZ_START_OVER[rec.state] || incomplete || (again && rec.state === 'completed'))) {
+    client.runAgain({ docId: ctx.docId, tabId: ctx.tabId });
+  }
   lenzSaveMeta_(ctx, { textHash: lenzSha256_(pick.text), notRead: null, truncated: false });
   return lenzSubmitted_(ctx, client, client.submit({
     docId: ctx.docId, tabId: ctx.tabId, text: pick.text, snapshot: pick.snapshot, offset: pick.offset,
@@ -782,7 +825,10 @@ function lenzSubmitted_(ctx, client, res) {
     // when it is complete (no new review, nothing charged).
     if (LenzApi.TERMINAL[res.state]) {
       var again = lenzFromPoll_(ctx, client.record(ctx.docId, ctx.tabId), client.poll(ctx.docId, ctx.tabId));
-      if (res.state === 'completed' && again.phase === 'done') again.notice = LENZ_NO_CHANGES;
+      if (res.state === 'completed' && again.phase === 'done') {
+        again.notice = LENZ_NO_CHANGES;
+        again.checkAgain = true; // the sidebar offers Check again beside the notice
+      }
       return again;
     }
     return lenzReply_('running', { nextPollS: lenzPollDelay_(res.nextPollS) });

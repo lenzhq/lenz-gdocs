@@ -5,7 +5,7 @@
     "done": true,
     "progress": null,
     "stages": null,
-    "headline": "The check did not finish.",
+    "headline": null,
     "failure": "Lenz found no factual claim to check in this tab.",
     "failureLink": null,
     "groups": [],

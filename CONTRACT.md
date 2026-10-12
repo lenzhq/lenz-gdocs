@@ -427,7 +427,7 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   `lenz_score` is null) is an issue (`result.is_issue`; the review reads `outcome: issues_found`,
   counted in `summary.issues`) that is neither a failure nor "false": labelled "No Public
   Record" with a neutral token (`no-record`), state "Needs a closer look", no score, no suggested
-  edit, never a "See sources in Lenz" link (whatever the verification carries), and the line "Lenz found no public record of this. Confirm it or remove it." It is counted in
+  edit, never a "See sources in Lenz" link (whatever the verification carries), and the line "Lenz found no public record of this." It is counted in
   the issue headline. A quick-check row with this verdict reads the same (its reviewers' note and pages
   too, `Quick check`); it is in `issue` when `result.is_issue` says it is the final answer, and in `look`
   while its deep check still runs. The failed-deep-check wording (too few sources and the other classes)
@@ -481,6 +481,7 @@ key in `lenzSaveKey`, reached from Dev tools → Use an API key…, is the one e
 ```
 lenzState() / lenzPoll() / lenzStart() / lenzSignOut() / lenzSaveKey(key) -> Reply
 lenzStartSelection() -> Reply | Note                  // Check only the selected text (below)
+lenzCheckAgain() / lenzCheckAgainSelection() -> Reply // Check again, under "No changes since the last check."
 lenzResume() -> Reply                                 // after `stalled`: polls the saved review again
 lenzCancel(reviewId) -> Reply                         // Cancel: stops the running review shown (below)
 lenzSignInUrl() -> { url|null, message|null }        // opened by the sidebar in a new window
@@ -535,7 +536,14 @@ Note  = { ok, message|null }
   so does a `completed` review whose outcome was `incomplete` (`lenz:incomplete:<reviewId>`, set when
   the glue reads that body; the record does not carry the outcome);
   otherwise the text decides: changed → a new review, unchanged → the same review, and when it is
-  complete the reply carries `notice: "No changes since the last check."` (no request, no charge).
+  complete the reply carries `notice: "No changes since the last check."` (no request, no charge) and
+  `checkAgain: true`.
+- **Check again** (`lenzCheckAgain`, or `lenzCheckAgainSelection` after a selection check): a quiet link the
+  sidebar shows beside that notice only. It is `lenzStart` (or `lenzStartSelection`) except that a `completed`
+  record of unchanged text also gets `client.runAgain()` first, so the click is a NEW review under a new
+  key. Any other record state behaves as Check this Doc does (a running review or a pending request is
+  replayed under its own key, never duplicated). The link names no cost: Lenz answers a repeated claim from
+  what it already has.
 - **Check only the selected text** (`lenzStartSelection`): the whole paragraphs from the first to the
   last the selection in the active tab's body touches (`lenzSelectionParas_`: each range element's
   child-index path from the BODY_SECTION, matched by prefix against the paths of the walk Select
