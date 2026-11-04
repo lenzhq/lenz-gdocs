@@ -22,8 +22,9 @@ tab to Lenz and shows the findings next to the words they are about.
 
 ## Install
 
-The add-on will be listed on the Google Workspace Marketplace; the listing is coming. Until then you
-can build and deploy your own copy (below). Either way you need a Lenz account
+Install **Lenz Fact-Checking** from the
+[Google Workspace Marketplace](https://workspace.google.com/marketplace/app/lenz_factchecking/465409082149),
+or build and deploy your own copy (below). Either way you need a Lenz account
 ([create one](https://lenz.io/auth)); checks use credits from it.
 
 ## What it does
