@@ -455,8 +455,21 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   a service unavailable or stopped on our side, by the same fields; a failed quick check's row says nothing was charged for it.
 - `stages` (running only, else null): `[{key, label, done, total, complete}]`: `reading` ("Finding the
   claims", before the claims are read), `quick` (assessments completed+failed of `claims_selected`),
-  `deep` (verifications completed+failed of `planned`, once planned > 0), `citations`
+  `deep` (verifications completed+failed of `planned`, once planned > 0; while the summary has no plan,
+  the claim rows' own `verification` objects: total = rows that carry one, done = those `completed` or
+  `failed`, so a deep check the rows show is never missing from the block), `citations`
   (checked+unchecked+failed of `citations_selected`, once > 0). No percentage.
+- Sidebar, while a check runs (all in `sidebar.html`; the model is unchanged):
+  - The progress block (elapsed time, Cancel, `stages`) is sticky at the top of the panel, so the stage
+    counts stay in view while the list scrolls.
+  - A claim whose deep check runs (`deepRunning`) carries a "Deep check running" badge with the moving
+    dots beside its verdict; the note about what to wait for is said once, under the first such claim.
+  - Stable order: a claim stays under the group it was first shown in (`data-group`) until the check ends,
+    even when its deep check changes its verdict (the card changes in place). A claim with no verdict yet
+    is not held and joins its group when its verdict arrives. Once the check has ended, or the review
+    changes, the model's own groups show.
+  - Where the lists do settle, the reader's place is kept by the first claim in view that stayed in its
+    group, else the first one still shown, at the same distance from the top of the panel.
 - `row(body, entryId) -> { kind, row } | null` finds an entry's row again in a fresh body;
   `rows(body)` lists every claim and citation row by id. Targets come from `LenzPlace`'s builders.
 
