@@ -109,6 +109,8 @@
   /* The progress block stays at the top while the list scrolls under it. */
   .running { margin: 4px 0 12px; position: sticky; top: 0; z-index: 2; background: var(--cream);
              padding: 6px 0 4px; border-bottom: 1px solid var(--warm-200); }
+  /* No stage row yet: no line of its own (it would sit right above the footer's). */
+  .running:has(#stages:empty) { border-bottom: 0; }
   .run-line { display: flex; align-items: baseline; font-size: 13px; color: var(--warm-800); margin: 0 0 6px; }
   .dots { display: inline-block; letter-spacing: 1px; }
   .dots i { font-style: normal; opacity: 0; animation: lenz-dot 1.4s infinite; }

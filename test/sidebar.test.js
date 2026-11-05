@@ -303,6 +303,12 @@ test('the progress block stays at the top while the list scrolls under it', () =
   assert.match(rule, /background:/, 'opaque, so the cards do not show through');
 });
 
+test('the progress block draws no hairline of its own before any stage row shows', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /\.running:has\(#stages:empty\)\s*\{[^}]*border-bottom:\s*0/,
+    'with nothing under it yet, its line would sit right above the footer line');
+});
+
 test('the progress block lists the deep checks with the others', () => {
   const model = LenzView.build(POLLS[0]);
   const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('running', { model, nextPollS: 15 }), lenzLogOpen: null });
