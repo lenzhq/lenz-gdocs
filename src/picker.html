@@ -25,6 +25,14 @@
   // and Cloud project number, a view showing only this Doc. Picking it grants this script that one
   // file (drive.file). Every string is set with textContent.
   var LOAD_FAILED = 'The Google file picker did not load. Close this window and try again.';
+  // Apps Script runs each call as the browser's first signed-in Google account; for a Doc that belongs
+  // to another one Google refuses it (PERMISSION_DENIED) before any add-on code runs. Same words as the sidebar.
+  var MULTI_ACCOUNT = "Google can't run add-ons for this account in this window, because another Google account is signed in first. Open this Doc in a Chrome profile, or a private window, where this account is the only or first one signed in.";
+  function failText(err) {
+    var m = '';
+    try { m = String(err && err.message ? err.message : err || ''); } catch (e) { m = ''; }
+    return m.indexOf('PERMISSION_DENIED') !== -1 ? MULTI_ACCOUNT : LOAD_FAILED;
+  }
   var config = null;
   var pickerLoaded = false;
 
@@ -38,7 +46,7 @@
 
   google.script.run
     .withSuccessHandler(function (c) { config = c; openPicker(); })
-    .withFailureHandler(function () { say('error', LOAD_FAILED); })
+    .withFailureHandler(function (err) { var t = failText(err); if (t !== LOAD_FAILED) say('status', ''); say('error', t); })
     .lenzPickerConfig();
 
   // Runs when both the Picker library and the config are in, whichever comes last.
@@ -74,7 +82,7 @@
         say('status', '');
         say('error', (r && r.message) || LOAD_FAILED);
       })
-      .withFailureHandler(function () { say('status', ''); say('error', LOAD_FAILED); })
+      .withFailureHandler(function (err) { say('status', ''); say('error', failText(err)); })
       .lenzFileAccessGranted(id);
   }
 </script>

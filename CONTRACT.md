@@ -491,6 +491,12 @@ Reply = { phase: 'signed_out'|'needs_file_access'|'idle'|'running'|'stalled'|'do
 Note  = { ok, message|null }
 ```
 
+- A server call Google refuses before our code runs (the Doc belongs to a Google account other than the
+  browser's first signed-in one: the failure handler gets a message containing `PERMISSION_DENIED`) shows
+  the several-accounts words instead of "The add-on could not finish that. Try again." (`failText(err)`
+  in `sidebar.html` and `picker.html`, the same text in both; in the sign-in error line when signed out,
+  else the error line). Retrying never helps, and an add-on cannot choose the account. Any other failure
+  keeps the old text.
 - `reviewId` in Select and Apply is the review the sidebar shows (`Model.reviewId`); the server
   refuses unless it is the active tab's current record, so a list left over from another tab or an
   earlier check never acts on the current one.
