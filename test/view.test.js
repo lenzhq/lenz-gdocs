@@ -30,8 +30,14 @@ function ids(model, key) {
   const g = model.groups.find((x) => x.key === key);
   return g ? g.entries.map((e) => e.id) : [];
 }
+// A claim's card or a citation, also one shown inside the card of the claim whose words it shares.
 function entry(model, id) {
-  for (const g of model.groups) for (const e of g.entries) if (e.id === id) return e;
+  for (const g of model.groups) {
+    for (const e of g.entries) {
+      if (e.id === id) return e;
+      for (const c of e.citations || []) if (c.id === id) return c;
+    }
+  }
   return null;
 }
 function citation(body, index) {
@@ -40,7 +46,8 @@ function citation(body, index) {
 
 test('draft-a: issues first, in the order of the Doc', () => {
   const m = LenzView.build(review());
-  assert.deepEqual(m.groups.map((g) => g.key), ['issue', 'look', 'none', 'ok']);
+  // Each citation shares its sentence with a claim, so it is in that claim's card: no "Not checked" group.
+  assert.deepEqual(m.groups.map((g) => g.key), ['issue', 'look', 'ok']);
   // Eiffel (34), Great Wall (242), Aldrin (522); not the order of issues[].
   assert.deepEqual(ids(m, 'issue'), ['claim:2', 'claim:0', 'claim:1']);
   assert.equal(m.headline, '3 issues to look at.');
@@ -70,8 +77,9 @@ test('draft-a: a deep check shows its score, rewrite and the Lenz page', () => {
 
 test('draft-a: the unreadable citation is Not checked, the undecided one Needs a closer look', () => {
   const m = LenzView.build(review());
-  assert.deepEqual(ids(m, 'look'), ['citation:1']);
-  assert.deepEqual(ids(m, 'none'), ['citation:0']);
+  // Each in the card of the claim whose sentence it shares (claim:0, claim:3).
+  assert.equal(entry(m, 'citation:1').group, 'look');
+  assert.equal(entry(m, 'citation:0').group, 'none');
   const nasa = entry(m, 'citation:0');
   assert.equal(nasa.label, 'Not checked');
   assert.equal(nasa.lines[0].text, 'The link gave no text that could be read. Open it and check the passage by hand.');
@@ -83,9 +91,10 @@ test('draft-a: rows with no issue are collapsed behind their count', () => {
   const m = LenzView.build(review());
   const ok = m.groups.find((g) => g.key === 'ok');
   assert.equal(ok.collapsed, true);
-  assert.equal(ok.count, 2);
+  // claim:3 checks out, but its citation needs a closer look: its card is there, not here.
+  assert.equal(ok.count, 1);
   assert.equal(ok.title, 'Checks out');
-  assert.deepEqual(ids(m, 'ok'), ['claim:4', 'claim:3']);
+  assert.deepEqual(ids(m, 'ok'), ['claim:4']);
   assert.ok(m.groups.filter((g) => g.key !== 'ok').every((g) => !g.collapsed));
 });
 
@@ -94,9 +103,10 @@ test('draft-a: coverage says the two citations could not be checked', () => {
   assert.deepEqual(m.coverage, ['2 citations could not be checked: the reason is under each one.']);
 });
 
-test('a citation issue sits among the claims, in the order of the Doc', () => {
+test('a citation issue on words no claim shares sits among the claims, in the order of the Doc', () => {
   const body = review((b) => {
     const c = citation(b, 0);
+    c.position = { start: 590, end: 620, text: null }; // after claim:1 (522-589), no claim's words
     c.result = { finding: 'contradicted', source: 'support', is_issue: true };
     c.check.unchecked_reason = null;
     c.check.rationale = 'The page says the opposite.';
@@ -104,7 +114,7 @@ test('a citation issue sits among the claims, in the order of the Doc', () => {
     b.summary.citation_checks = { checked: 1, unchecked: 1, failed: 0 };
   });
   const m = LenzView.build(body);
-  assert.deepEqual(ids(m, 'issue'), ['claim:2', 'claim:0', 'citation:0', 'claim:1']);
+  assert.deepEqual(ids(m, 'issue'), ['claim:2', 'claim:0', 'claim:1', 'citation:0']);
   const e = entry(m, 'citation:0');
   assert.equal(e.label, 'Contradicted');
   assert.equal(e.check, 'Citation check');
@@ -204,7 +214,12 @@ test('a quick check shows confidence, the reviewers\' note, never a dissent', ()
 });
 
 test('no footnote when every quick verdict shown is collapsed', () => {
-  assert.equal(LenzView.build(review()).footnote, null);
+  // draft-a's quick True (claim:3) shows, in a card its citation put under "Needs a closer look".
+  assert.match(LenzView.build(review()).footnote, /^A quick verdict is a first read/);
+  const supported = review((b) => {
+    citation(b, 1).result = { finding: 'supported', source: 'support', is_issue: false };
+  });
+  assert.equal(LenzView.build(supported).footnote, null);
 });
 
 test('a low-confidence True is drawn Needs a closer look (the Workbench rule)', () => {
@@ -299,7 +314,7 @@ test('pending suggested edits say they are coming', () => {
 test('entry ids are stable across polls and builds', () => {
   const running = LenzView.build(POLLS[0]);
   const done = LenzView.build(POLLS[POLLS.length - 1]);
-  const all = (m) => m.groups.flatMap((g) => g.entries.map((e) => e.id)).sort();
+  const all = (m) => m.groups.flatMap((g) => g.entries.flatMap((e) => [e.id].concat((e.citations || []).map((c) => c.id)))).sort();
   assert.deepEqual(all(running), all(done));
   assert.deepEqual(all(done), all(LenzView.build(POLLS[POLLS.length - 1])));
   assert.deepEqual(all(done), ['citation:0', 'citation:1', 'claim:0', 'claim:1', 'claim:2', 'claim:3', 'claim:4']);
@@ -478,18 +493,18 @@ test('a claim whose quick check is still pending or running says Checking, never
 
 test('a claim says "could not be checked" only when its check failed, or the review ended without it', () => {
   const failed = LenzView.build(running((b) => {
-    const r = b.claims.find((c) => c.index === 3);
+    const r = b.claims.find((c) => c.index === 4);
     r.assessment = { status: 'failed', hint: null };
     r.result = null;
   }));
-  assert.equal(entry(failed, 'claim:3').lines[0].text, 'Could not be checked this time. Nothing was charged for it.');
+  assert.equal(entry(failed, 'claim:4').lines[0].text, 'Could not be checked this time. Nothing was charged for it.');
   const ended = LenzView.build(review((b) => {
-    const r = b.claims.find((c) => c.index === 3);
+    const r = b.claims.find((c) => c.index === 4);
     r.assessment = { status: 'running', hint: null };
     r.result = null;
   }));
-  assert.equal(entry(ended, 'claim:3').lines[0].text, 'Could not be checked this time.');
-  assert.equal(entry(ended, 'claim:3').group, 'none');
+  assert.equal(entry(ended, 'claim:4').lines[0].text, 'Could not be checked this time.');
+  assert.equal(entry(ended, 'claim:4').group, 'none');
 });
 
 test('a citation still being checked (pending, running or no status yet) is in Checking, not Not checked', () => {
@@ -879,7 +894,8 @@ test('failed quick check: the row says it could not be checked and nothing was c
   const m = LenzView.build(QUICK_FAILED);
   const e = entry(m, 'claim:3');
   assert.equal(QUICK_FAILED.claims.find((c) => c.index === 3).assessment.error_code, 'internal');
-  assert.equal(e.group, 'none');
+  // Its card needs a closer look: its citation (citation:1) does.
+  assert.equal(e.group, 'look');
   assert.equal(e.label, 'Not checked');
   assert.deepEqual(e.lines, [{ lead: null, text: 'Could not be checked this time. Nothing was charged for it.' }]);
   assert.ok(m.coverage.includes('1 claim could not be checked this time.'));
@@ -1213,4 +1229,155 @@ test('searched pages: a row from issues[] takes them from the claim of the same 
   // With no claims[] to join (the issues view) there are no pages, and the entry has none.
   const issuesOnly = review((b) => { delete b.claims; });
   for (const g of LenzView.build(issuesOnly).groups) for (const e of g.entries) assert.ok(!('pages' in e), e.id);
+});
+
+// ── one card per sentence: a citation on the words of a claim is shown inside that claim's card ──
+// The rule: a citation belongs to the claim whose positions share the most characters with the
+// citation's `position` (half-open spans, overlap > 0); ties go to the claim that starts first in the
+// Doc, then the lower index. A citation that shares no character with any claim keeps its own card.
+const cards = (m) => m.groups.flatMap((g) => g.entries);
+const cardOf = (m, id) => cards(m).find((e) => e.id === id) || null;
+function citationsIn(m, claimId) {
+  const e = cardOf(m, claimId);
+  return e && e.citations ? e.citations.map((c) => c.id) : [];
+}
+
+test('one card: a citation on the words of a claim is shown in that claim\'s card, not as a card of its own', () => {
+  const m = LenzView.build(review());
+  const shown = cards(m).map((e) => e.id).sort();
+  assert.deepEqual(shown, ['claim:0', 'claim:1', 'claim:2', 'claim:3', 'claim:4']);
+  assert.deepEqual(citationsIn(m, 'claim:0'), ['citation:0']);
+  assert.deepEqual(citationsIn(m, 'claim:3'), ['citation:1']);
+  const nasa = cardOf(m, 'claim:0').citations[0];
+  // The citation keeps everything its own card showed: label, check, lines, source, its own state.
+  assert.equal(nasa.kind, 'citation');
+  assert.equal(nasa.label, 'Not checked');
+  assert.equal(nasa.check, 'Citation check');
+  assert.equal(nasa.group, 'none');
+  assert.deepEqual(nasa.source, { href: 'https://www.nasa.gov/image-article/great-wall-of-china/', words: 'nasa.gov' });
+  assert.equal(nasa.lines[0].text, 'The link gave no text that could be read. Open it and check the passage by hand.');
+  // Same words as the claim: no second way to select them.
+  assert.equal(nasa.ownWords, false);
+  // The claim's own content is what it was.
+  const card = cardOf(m, 'claim:0');
+  assert.equal(card.label, 'False');
+  assert.equal(card.title, 'The Great Wall of China is visible to the naked eye from the Moon, according to NASA.');
+});
+
+test('one card: a claim with no citation and a citation with no claim are what they were (no citations key)', () => {
+  const m = LenzView.build(review((b) => {
+    citation(b, 1).position = { start: 600, end: 640, text: null }; // shares no character with any claim
+  }));
+  assert.equal('citations' in cardOf(m, 'claim:4'), false);
+  assert.equal('citations' in cardOf(m, 'claim:3'), false);
+  assert.ok(cardOf(m, 'citation:1'), 'its own card');
+  assert.equal(cardOf(m, 'citation:1').group, 'look');
+});
+
+test('one card: the card sits in the more serious group of its claim and its citations (issue, then look)', () => {
+  // draft-a: claim:3 checks out, its citation needs a closer look: the card needs a closer look.
+  const m = LenzView.build(review());
+  assert.deepEqual(ids(m, 'look'), ['claim:3']);
+  assert.deepEqual(ids(m, 'ok'), ['claim:4']);
+  // claim:0 is an issue, its citation not checked: an issue, and no "Not checked" group is left.
+  assert.ok(ids(m, 'issue').includes('claim:0'));
+  assert.deepEqual(ids(m, 'none'), []);
+  // A contradicted citation on a claim that checks out makes the card an issue.
+  const bad = LenzView.build(review((b) => {
+    const c = citation(b, 1);
+    c.result = { finding: 'contradicted', source: 'support', is_issue: true };
+  }));
+  assert.ok(ids(bad, 'issue').includes('claim:3'));
+  assert.equal(cardOf(bad, 'claim:3').label, 'True', 'the claim\'s verdict stays the card\'s verdict');
+  assert.equal(cardOf(bad, 'claim:3').citations[0].group, 'issue');
+  // A citation that is not checked never pulls a claim that checks out into "Not checked".
+  const quiet = LenzView.build(review((b) => {
+    const c = citation(b, 1);
+    c.result = { finding: 'unchecked', source: null, is_issue: false };
+    c.check.unchecked_reason = 'no_text';
+  }));
+  assert.deepEqual(ids(quiet, 'ok'), ['claim:4', 'claim:3']);
+});
+
+test('one card: counts are cards; the headline counts the cards to look at, coverage still counts checks', () => {
+  const m = LenzView.build(review((b) => {
+    citation(b, 0).result = { finding: 'contradicted', source: 'support', is_issue: true };
+    b.summary.citation_checks = { checked: 1, unchecked: 1, failed: 0 };
+  }));
+  // claim:0 and citation:0 are one sentence: one card to look at.
+  assert.equal(m.groups.find((g) => g.key === 'issue').count, 3);
+  assert.equal(m.headline, '3 issues to look at.');
+  assert.deepEqual(m.coverage, ['1 citation could not be checked: the reason is under each one.']);
+});
+
+test('one card: the largest overlap wins, ties go to the claim first in the Doc; touching is not sharing', () => {
+  const body = review((b) => {
+    // citation:0 spans 242-394 (claim:0). Give claim:3 a passage that shares 4 characters with it.
+    b.claims.find((c) => c.index === 3).positions.push({ start: 390, end: 395, text: null });
+    // citation:1 (396-520): claim:3 at 396-520 and claim:4 given the same span: a tie.
+    b.claims.find((c) => c.index === 4).positions = [{ start: 396, end: 520, text: null }];
+  });
+  const m = LenzView.build(body);
+  assert.deepEqual(citationsIn(m, 'claim:0'), ['citation:0']);
+  // claim:4 now starts at 396, claim:3 at 396 too: the lower index.
+  assert.deepEqual(citationsIn(m, 'claim:3'), ['citation:1']);
+  const touching = LenzView.build(review((b) => {
+    citation(b, 1).position = { start: 394, end: 396, text: null }; // ends where claim:3 starts, starts where claim:0 ends
+  }));
+  assert.ok(cardOf(touching, 'citation:1'), 'touching spans share no character');
+});
+
+test('one card: a citation on part of the claim\'s words (or wider) can select its own words', () => {
+  const m = LenzView.build(review((b) => {
+    citation(b, 1).position = { start: 450, end: 520, text: null };
+  }));
+  const c = cardOf(m, 'claim:3').citations[0];
+  assert.equal(c.id, 'citation:1');
+  assert.equal(c.ownWords, true);
+  assert.equal(c.start, 450);
+});
+
+test('one card: two citations in one claim\'s sentence are both in its card, in the order of the Doc', () => {
+  const body = review((b) => {
+    const extra = JSON.parse(JSON.stringify(citation(b, 0)));
+    extra.index = 2;
+    extra.position = { start: 300, end: 394, text: null };
+    b.citations.push(extra);
+    citation(b, 0).position = { start: 242, end: 394, text: null };
+  });
+  const m = LenzView.build(body);
+  assert.deepEqual(citationsIn(m, 'claim:0'), ['citation:0', 'citation:2']);
+});
+
+test('one card: no positions (the compact view, a citation with none) means no merge', () => {
+  const m = LenzView.build(review((b) => {
+    citation(b, 0).position = null;
+  }));
+  assert.ok(cardOf(m, 'citation:0'));
+  assert.equal(cardOf(m, 'citation:0').placed, false);
+});
+
+test('one card: the same citations sit in the same cards in every poll, and a citation still checking never moves its card', () => {
+  for (const body of POLLS) {
+    const m = LenzView.build(body);
+    assert.deepEqual(citationsIn(m, 'claim:0'), ['citation:0']);
+    assert.deepEqual(citationsIn(m, 'claim:3'), ['citation:1']);
+  }
+  // Poll 0: both citations still checking; claim:3 checks out, so its card is in Checks out.
+  const first = LenzView.build(POLLS[0]);
+  assert.equal(cardOf(first, 'claim:3').citations[0].group, 'pending');
+  assert.equal(cardOf(first, 'claim:3').group, 'ok');
+  assert.equal(cardOf(first, 'claim:3').citations[0].label, 'Checking');
+});
+
+test('one card: findings not in the Doc are counted per finding, the merged citation included', () => {
+  const m = LenzView.build(review(), { unplaced: { 'claim:0': 'changed', 'citation:0': 'changed' } });
+  assert.ok(m.coverage.includes('2 findings are not in the Doc as it is now, so they cannot be selected.'));
+  assert.equal(cardOf(m, 'claim:0').citations[0].placed, false);
+});
+
+test('one card: row() and rows() still find the citation by its own id', () => {
+  const b = review();
+  assert.equal(LenzView.row(b, 'citation:0').kind, 'citation');
+  assert.ok(LenzView.rows(b).some((r) => r.id === 'citation:1'));
 });

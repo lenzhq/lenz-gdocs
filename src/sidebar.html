@@ -134,6 +134,10 @@
                 font-weight: 500; color: var(--warm-800); background: #fff; border: 1px solid var(--warm-300);
                 border-radius: var(--radius-full); padding: 0 8px; white-space: nowrap; }
   .deep-run-note { font-size: 12px; color: var(--warm-500); margin: 0 0 6px; }
+  /* A citation on the claim's own words: a section of the claim's card, set in on a hairline. */
+  .cite { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--warm-200); }
+  .cite .head { margin-bottom: 2px; }
+  .cite p.line:last-child { margin-bottom: 0; }
   .foot { margin-top: 24px; border-top: 1px solid var(--warm-200); padding-top: 12px; }
   .foot .home-link { float: right; }
 </style>
@@ -564,7 +568,39 @@
     e.edits.forEach(function (x) { li.appendChild(editRow(x)); });
     if (e.editsNote) li.appendChild(el('p', 'line muted', e.editsNote));
     if (e.link) li.appendChild(link(e.link.href, e.link.words));
+    // The citations on the claim's words (view.js: one card per sentence), each under the claim.
+    var titled = e.placed && e.occurrences > 0; // the card's title selects the claim's words
+    (e.citations || []).forEach(function (c) { li.appendChild(citeBox(c, titled)); });
     return li;
+  }
+
+  // A citation inside its claim's card: its finding and check as its own card would show them, its
+  // source, and a way to select its words when they are not the claim's, or when the claim's cannot be
+  // selected (`titled` false: the claim is not in the Doc as it is now; the citation may still be).
+  function citeBox(c, titled) {
+    var box = el('div', 'cite');
+    box.setAttribute('data-citation', c.id);
+    var head = el('div', 'head');
+    head.appendChild(el('span', 'stamp' + (c.token ? ' v-' + c.token : ''), c.label));
+    if (c.check) head.appendChild(el('span', 'meta', c.check));
+    box.appendChild(head);
+    if (c.placeNote) box.appendChild(el('p', 'line muted', c.placeNote));
+    c.lines.forEach(function (l) { box.appendChild(line(l.lead, l.text)); });
+    if (c.source) {
+      var src = link(c.source.href, 'Source: ' + c.source.words);
+      src.firstChild.setAttribute('data-focus', 'cite:' + c.id + ':link');
+      box.appendChild(src);
+    }
+    if ((c.ownWords || !titled) && c.placed && c.occurrences > 0) {
+      var b = el('button', 'quiet', 'Select the citation in the Doc');
+      b.type = 'button';
+      b.setAttribute('data-focus', 'cite:' + c.id);
+      b.addEventListener('click', function () { select(c.id, 0); });
+      var p = el('p', 'line');
+      p.appendChild(b);
+      box.appendChild(p);
+    }
+    return box;
   }
 
   // The three dots of the running state (decorative: the words say it).

@@ -440,17 +440,17 @@ test('stable order: a new review, or a finished one, shows the model as it is', 
 
 test('when the lists settle, the reader keeps the claim that stayed put', () => {
   // claim:1 is the last issue and the one in view; its deep check ends as the check does, so it moves
-  // to "Needs a closer look", which shows. The reader stays on the claim that did not move (citation:1,
-  // below it), not carried down to wherever claim:1 went.
+  // to "Needs a closer look", which shows. The reader stays on the claim that did not move (claim:3,
+  // whose card its citation put under "Needs a closer look", below it), not carried down to wherever claim:1 went.
   const final = deepEnded(POLLS[5], 1, 'Mixed');
   const s = polling([POLLS[3]], final);
   const entry = (id) => s.entries().find((n) => n.getAttribute('data-id') === id);
   s.window.scrollBy(0, entry('claim:1').getBoundingClientRect().top - 40);
-  const held = entry('citation:1').getBoundingClientRect().top;
+  const held = entry('claim:3').getBoundingClientRect().top;
   assert.ok(held > 40);
   s.poll();
   assert.match(groupsShown(s)['claim:1'], /^Needs a closer look/);
-  assert.equal(entry('citation:1').getBoundingClientRect().top, held, 'citation:1 has not moved on screen');
+  assert.equal(entry('claim:3').getBoundingClientRect().top, held, 'claim:3 has not moved on screen');
 });
 
 test('a folded group the reader opened stays open across polls', () => {
@@ -854,4 +854,93 @@ test('check again: gone when the panel moves on (a plain Check this Doc)', () =>
   });
   s.ids.check.click();
   assert.equal(s.ids['check-again'].hidden, true);
+});
+
+// ── one card per sentence ──
+const cite = (li) => walk(li).filter((n) => n.className === 'cite');
+const byId = (s, id) => s.entries().find((n) => n.getAttribute('data-id') === id);
+
+test('one card: a citation on a claim\'s words is a Citation section in that claim\'s card, under the claim', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model: LenzView.build(POLLS[5]) }), lenzLogOpen: null });
+  const ids = s.entries().map((n) => n.getAttribute('data-id'));
+  assert.ok(!ids.some((id) => /^citation:/.test(id)), 'no card of its own');
+  const li = byId(s, 'claim:0');
+  const sections = cite(li);
+  assert.equal(sections.length, 1);
+  const sec = sections[0];
+  // After everything the claim shows: the last thing in the card.
+  assert.equal(li.children[li.children.length - 1], sec);
+  assert.equal(sec.getAttribute('data-citation'), 'citation:0');
+  const stamp = walk(sec).find((n) => /stamp/.test(n.className));
+  assert.equal(stamp.textContent, 'Not checked');
+  assert.ok(walk(sec).some((n) => n.className === 'meta' && n.textContent === 'Citation check'));
+  assert.ok(walk(sec).some((n) => n.className === 'line' && /no text that could be read/.test(n.textContent)));
+  const a = walk(sec).find((n) => n.tag === 'a');
+  assert.equal(a.textContent, 'Source: nasa.gov');
+  assert.equal(a.href, 'https://www.nasa.gov/image-article/great-wall-of-china/');
+  // Same words as the claim: the card's title selects them; no second control.
+  assert.ok(!walk(sec).some((n) => n.tag === 'button'));
+  // The card's title still selects the claim.
+  const t = walk(li).find((n) => n.tag === 'button' && n.className === 'title');
+  t.click();
+  assert.deepEqual(s.calls.filter((c) => c.name === 'lenzSelect').map((c) => c.args[1]), ['claim:0']);
+});
+
+test('one card: a citation on other words than the claim\'s selects its own words, by its own id', () => {
+  const body = JSON.parse(JSON.stringify(POLLS[5]));
+  body.citations.find((c) => c.index === 1).position = { start: 450, end: 520, text: null };
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model: LenzView.build(body) }), lenzLogOpen: null, lenzSelect: { ok: true } });
+  const sec = cite(byId(s, 'claim:3'))[0];
+  const b = walk(sec).find((n) => n.tag === 'button');
+  assert.equal(b.textContent, 'Select the citation in the Doc');
+  assert.equal(b.getAttribute('data-focus'), 'cite:citation:1');
+  b.click();
+  const sel = s.calls.filter((c) => c.name === 'lenzSelect').pop();
+  assert.equal(sel.args[1], 'citation:1');
+  assert.equal(sel.args[2], 0);
+});
+
+test('one card: the card does not move while the check runs when its citation\'s result arrives, and settles when it ends', () => {
+  // Poll 0: claim:3 checks out, its citation still checking: the card is under Checks out.
+  const first = POLLS[0];
+  const later = JSON.parse(JSON.stringify(POLLS[1]));
+  const c = later.citations.find((x) => x.index === 1);
+  c.result = { finding: 'contradicted', source: 'support', is_issue: true };
+  const final = JSON.parse(JSON.stringify(POLLS[5]));
+  final.citations.find((x) => x.index === 1).result = { finding: 'contradicted', source: 'support', is_issue: true };
+  const s = polling([first, later], final);
+  assert.match(groupsShown(s)['claim:3'], /^Checks out/);
+  assert.equal(walk(cite(byId(s, 'claim:3'))[0]).find((n) => /stamp/.test(n.className)).textContent, 'Checking');
+  s.poll();
+  assert.match(groupsShown(s)['claim:3'], /^Checks out/, 'held where it was first shown');
+  assert.equal(walk(cite(byId(s, 'claim:3'))[0]).find((n) => /stamp/.test(n.className)).textContent, 'Contradicted', 'changed in place');
+  s.poll(); // the check ended
+  assert.match(groupsShown(s)['claim:3'], /^Issues/);
+});
+
+test('one card: focus on the citation\'s source link comes back to it after a poll', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: LenzView.build(POLLS[3]), nextPollS: 15 }),
+    lenzPoll: reply('running', { model: LenzView.build(POLLS[4]), nextPollS: 15 }),
+    lenzLogOpen: null,
+  });
+  const a = walk(cite(byId(s, 'claim:0'))[0]).find((n) => n.tag === 'a');
+  assert.equal(a.getAttribute('data-focus'), 'cite:citation:0:link');
+  a.focus();
+  s.timeouts.filter((t) => t.ms === 15000).pop().fn();
+  const again = walk(cite(byId(s, 'claim:0'))[0]).find((n) => n.tag === 'a');
+  assert.notEqual(again, a, 'a new node');
+  assert.equal(s.document.activeElement, again);
+});
+
+test('one card: a claim that cannot be selected leaves its citation selectable, even on the same words', () => {
+  const model = LenzView.build(POLLS[5], { unplaced: { 'claim:0': 'changed' } });
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model }), lenzLogOpen: null, lenzSelect: { ok: true } });
+  const li = byId(s, 'claim:0');
+  assert.ok(!walk(li).some((n) => n.tag === 'button' && n.className === 'title'), 'the claim is not in the Doc');
+  const b = walk(cite(li)[0]).find((n) => n.tag === 'button');
+  assert.ok(b, 'the citation, still in the Doc, can be selected');
+  b.click();
+  assert.equal(s.calls.filter((c) => c.name === 'lenzSelect').pop().args[1], 'citation:0');
 });

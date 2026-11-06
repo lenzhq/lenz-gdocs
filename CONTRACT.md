@@ -384,6 +384,8 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
           lines: [{ lead|null, text }], link: {href, words}|null, source: {href, words}|null,
           edits: [{ id: '<ci>:<ei>', claimIndex, editIndex, from, to, applied }], editsNote|null,
           start|null, occurrences, placed, placeNote|null,
+          citations?,                 // claims only, and only when a citation shares the claim's words (absent
+                                      // otherwise): see "One card per sentence" below
           pages? }                    // claims only, and only when the row has pages and its deep check has not
                                       // completed (absent otherwise,
                                       // so every other entry is unchanged): see below
@@ -409,6 +411,23 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   opened, and Show all, is kept per review and entry across the sidebar's polls; focus on the
   summary or a link comes back to the same control.
 
+- One card per sentence: a citation whose `position` shares at least one character with a claim's
+  `positions` (half-open spans `[start, end)`; spans that only touch share nothing; a citation with no
+  position, or an empty one, shares nothing) is not an entry of its own: it is in that claim's card,
+  `citations: [Entry]` (the citation's entry as it would be on its own, plus `ownWords`), in the Doc's
+  order. A citation that shares characters with several claims belongs to the one that shares the most,
+  then the one whose card comes first in the Doc (its first position), then the lower index. The match
+  reads only the review's own offsets, so it is the same in every poll. `ownWords` is true when none of
+  the claim's positions is exactly the citation's span: the sidebar then offers "Select the citation in
+  the Doc" (`lenzSelect` with `citation:<index>`), and so it does when the claim itself cannot be
+  selected (not in the Doc as it is now) while the citation can; otherwise the card's title selects
+  the same words.
+  The card's group is the claim's, unless a citation's group is `issue`, or `look` on a claim that is not
+  an issue (a citation still checking, not checked or supported never moves the card). Group counts and
+  the headline count cards; coverage lines (citations not checked, findings not in the Doc) and
+  `stages` count every claim and citation, as before. A claim with no citation on its words, and a
+  citation with none, are what they were. The sidebar shows the citations under everything the claim
+  shows, each as a section set in on a hairline: its label, "Citation check", its lines, its source.
 - Groups, in order, each in the Doc's order (then claim before citation): `issue` (`result.is_issue`,
   claims and citations interleaved), `look` ("Needs a closer look": `partly_supported`, a citation
   whose check could not decide, a claim the Workbench draws amber), `none` ("Not checked"), `ok`
@@ -466,7 +485,8 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
     dots beside its verdict; the note about what to wait for is said once, under the first such claim.
   - Stable order: a claim stays under the group it was first shown in (`data-group`) until the check ends,
     even when its deep check changes its verdict (the card changes in place). A claim with no verdict yet
-    is not held and joins its group when its verdict arrives. Once the check has ended, or the review
+    is not held and joins its group when its verdict arrives. A card that holds a citation is held the
+    same way: a citation result that arrives later changes the card in place, never its group. Once the check has ended, or the review
     changes, the model's own groups show.
   - Where the lists do settle, the reader's place is kept by the first claim in view that stayed in its
     group, else the first one still shown, at the same distance from the top of the panel.
