@@ -48,7 +48,7 @@
   "claims": [],
   "citations": [],
   "failure": {
-    "failure_reason": "no_claim",
+    "code": "no_checkable_claim",
     "failure_class": "invalid_input",
     "retryable": false,
     "hint": "The input is a greeting, not a statement that can be checked. Send one factual claim, or run the text through /extract to enumerate its claims.",

@@ -142,7 +142,7 @@
     ],
     "citations": [],
     "failure": {
-      "code": "assessment_failed",
+      "code": "upstream_unavailable",
       "detail": "No claim could be assessed.",
       "hint": "Retry the review with a new Idempotency-Key; nothing was charged.",
       "failure_class": "upstream_unavailable",

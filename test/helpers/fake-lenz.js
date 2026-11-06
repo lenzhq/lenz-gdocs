@@ -73,7 +73,7 @@ function createFakeLenz(opts) {
     return Object.assign(body, {
       status: 'failed', outcome: null, poll_after_seconds: null,
       failure: {
-        failure_reason: 'pipeline_error', failure_class: 'upstream_unavailable', retryable: true,
+        code: 'pipeline_error', failure_class: 'upstream_unavailable', retryable: true,
         hint: null, docs_url: 'https://lenz.io/docs/errors#upstream_unavailable',
       },
     });
@@ -211,7 +211,7 @@ function createFakeLenz(opts) {
     inFlight() {
       queue.push({ match: isPost, answer: () => error(429,
         'This account already has 3 reviews running. Retry when one completes.', 'review_in_flight',
-        { retry_after_seconds: 60 }, { 'Retry-After': '60' }) });
+        { retry_after: 60 }, { 'Retry-After': '60' }) });
     },
     // Cloud Armor answers before the app: an HTML body, no JSON.
     armor(which) {

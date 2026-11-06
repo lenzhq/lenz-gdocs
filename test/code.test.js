@@ -18,7 +18,6 @@ const TEXT = fs.readFileSync(path.join(FIX, 'draft-a.txt'), 'utf8').replace(/\n$
 const ACCEPT = require('./fixtures/reviews/draft-a.accept.json');
 const POLLS = require('./fixtures/reviews/draft-a.polls.json');
 const CANCELLED = require('./fixtures/reviews/cancelled-midway.review.json');
-const CANCELLED_LEGACY = require('./fixtures/reviews/cancelled-midway.legacy.review.json');
 const KEY = 'lenz_' + 'a'.repeat(32);
 const RID = ACCEPT.body.review_id;
 const REDIRECT = 'https://script.google.com/macros/d/SCRIPT/usercallback';
@@ -814,15 +813,6 @@ test('cancel: one POST to the review\'s cancel, then the cancelled review with w
   assert.equal(entry(r.model, 'claim:0').check, 'Deep check');
 });
 
-test('cancel: the older shape (failed with a cancelled failure) is the same cancelled state', () => {
-  const w = started();
-  w.state.cancelReply = { code: 200, body: CANCELLED_LEGACY };
-  const r = w.ctx.lenzCancel(RID);
-  assert.equal(r.phase, 'done');
-  assert.equal(r.model.headline, 'Check cancelled.');
-  assert.equal(r.model.failure, null);
-});
-
 test('cancel vs complete: a review that finished first shows its results, never "cancelled"', () => {
   const w = started();
   w.state.cancelReply = { code: 200, body: POLLS[POLLS.length - 1] };
@@ -1048,7 +1038,7 @@ test('Check this Doc: after a failed review the click starts a new one (the fail
   const failed = JSON.parse(JSON.stringify(POLLS[POLLS.length - 1]));
   failed.status = 'failed';
   failed.outcome = 'unchecked';
-  failed.failure = { failure_reason: 'upstream_unavailable', failure_class: 'upstream_unavailable', retryable: true, hint: null };
+  failed.failure = { code: 'upstream_unavailable', failure_class: 'upstream_unavailable', retryable: true, hint: null };
   w.state.polls = [failed];
   assert.equal(w.ctx.lenzPoll().phase, 'done');
   w.state.polls = POLLS.slice();
@@ -1763,24 +1753,9 @@ test('Check this Doc: a completed but incomplete review starts over (a new revie
   assert.equal(posts(w)[0].o.payload, posts(w)[1].o.payload);
 });
 
-test('Check this Doc: an incomplete review whose deep checks all found too few sources shows its results, no charge', () => {
+test('Check this Doc: a marker left on a review that is not incomplete is cleared, no charge', () => {
   const w = started();
-  const body = JSON.parse(JSON.stringify(POLLS[POLLS.length - 1]));
-  Object.assign(body, JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'reviews', 'deep-failed-thin.review.json'), 'utf8')), { review_id: body.review_id });
-  w.state.polls = [body];
-  const done = w.ctx.lenzPoll();
-  assert.equal(done.phase, 'done');
-  assert.ok(!done.model.coverage.includes('Choose Check this Doc to check it again; the new check is charged.'));
-  const r = w.ctx.lenzStart();
-  assert.equal(r.phase, 'done');
-  assert.equal(r.notice, 'No changes since the last check.');
-  assert.equal(posts(w).length, 1);
-});
-
-test('Check this Doc: a marker an older add-on left on a too-few-sources review is cleared, no charge', () => {
-  const w = started();
-  const body = JSON.parse(JSON.stringify(POLLS[POLLS.length - 1]));
-  Object.assign(body, JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'reviews', 'deep-failed-thin.review.json'), 'utf8')), { review_id: body.review_id });
+  const body = completedWith('clean');
   w.state.props.set('lenz:incomplete:' + body.review_id, '1');
   w.state.polls = [body];
   assert.equal(w.ctx.lenzPoll().phase, 'done');

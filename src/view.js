@@ -110,12 +110,11 @@ var LenzView = (function () {
   var NOT_CHECKED = 'Could not be checked this time.';
   var QUICK_FAILED = NOT_CHECKED + ' Nothing was charged for it.';
   var RUN_AGAIN = 'Choose Check this Doc to check it again; the new check is charged.';
-  // A review the user stopped (status `cancelled`; LenzApi reads the older shape's cancelled failure as it).
+  // A review the user stopped (status `cancelled`).
   var STOPPED = 'Not checked: you stopped the check.';
 
-  // A review that failed as a whole, by what Lenz says failed (failure.code, or failure_reason as older
-  // answers name it, and failure_class where the
-  // reason alone does not tell). Never the API's `hint`: it is written for integrators and names endpoints
+  // A review that failed as a whole, by what Lenz says failed (failure.code, and failure_class where the
+  // code alone does not tell). Never the API's `hint`: it is written for integrators and names endpoints
   // and request headers. The sidebar adds a link for `credits`.
   var FAILED_WORDS = {
     no_claim: 'Lenz found no factual claim to check in this tab.',
@@ -125,39 +124,29 @@ var LenzView = (function () {
     ours: 'Something went wrong on our side. Checks that did not finish were not charged.',
   };
   var NO_CLAIM_IN_SELECTION = 'Lenz found no factual claim to check in the text you selected.';
-  // By the failure's code. The current shape's codes: no_checkable_claim (read as no_claim, below),
-  // page_unreadable, upstream_unavailable, internal, insufficient_credits (cancelled and no_citations are
-  // not reasons a Doc review fails). A code not listed reads by the failure's class: an outage says so,
-  // anything else is on our side. assessment_failed and invalid_input are the older shape's words for
-  // "every quick check failed" and "the link could not be read".
+  // By the failure's code: no_checkable_claim, page_unreadable, upstream_unavailable, internal,
+  // insufficient_credits (cancelled and no_citations are not reasons a Doc review fails). A code not
+  // listed reads by the failure's class: an outage says so, anything else is on our side.
   var FAILED_KEYS = {
-    no_claim: 'no_claim',
+    no_checkable_claim: 'no_claim',
     page_unreadable: 'unreadable',
     insufficient_credits: 'credits',
     upstream_unavailable: 'unavailable',
     internal: 'ours',
-    assessment_failed: 'unavailable',
-    invalid_input: 'unreadable',
   };
 
-  // What failed, as the older answer's word for it. The current shape names it `code`, and says
-  // `no_checkable_claim` where the older one said `no_claim` on a review and `not_a_claim` on a deep
-  // check (`nothingWord`); the older shape names it `failure_reason`. Everything after reads the older word.
-  function failureCode(f, nothingWord) {
-    if (!isObj(f)) return null;
-    if (has(f, 'code') && str(f.code)) return f.code === 'no_checkable_claim' ? nothingWord : f.code;
-    return str(f.failure_reason);
+  // What failed: the failure block's `code`.
+  function failureCode(f) {
+    return isObj(f) ? str(f.code) : null;
   }
 
-  // A quick check's own hint: the row's `hint` in the older answer, its `failure.hint` in the current one
-  // (which has no row `hint`). Read only where the older answer's row hint was read.
+  // A quick check's own hint, from its failure block.
   function rowHint(assessment) {
-    if (has(assessment, 'hint')) return assessment.hint;
     return isObj(assessment.failure) ? assessment.failure.hint : null;
   }
 
   function failedKey(f) {
-    var reason = failureCode(f, 'no_claim') || '';
+    var reason = failureCode(f) || '';
     if (has(FAILED_KEYS, reason)) return FAILED_KEYS[reason];
     return f.failure_class === 'upstream_unavailable' ? 'unavailable' : 'ours';
   }
@@ -195,9 +184,9 @@ var LenzView = (function () {
   }
 
   // lenz-check-states.js forClaim.
-  // A row with no verdict: `verdict` null (current shape; the row says `status: failed`) or "Error" (older).
+  // A row with no verdict (`verdict` null) has no state.
   function claimState(verdict, confidence) {
-    if (!verdict || verdict === 'Error') return 'none';
+    if (!verdict) return 'none';
     // Checked, and neither a pass nor a "false" whatever its confidence: the reader confirms it or removes it.
     if (verdict === NO_RECORD) return 'look';
     if (confidence === 'low') return 'look';
@@ -359,25 +348,19 @@ var LenzView = (function () {
 
 
   // The classes the API names (failure_class); any other value is a class this add-on does not know.
-  var KNOWN_CLASSES = { upstream_unavailable: true, insufficient_evidence: true, invalid_input: true, cancelled: true, internal: true };
+  var KNOWN_CLASSES = { upstream_unavailable: true, invalid_input: true, cancelled: true, internal: true };
 
   // Why a row's deep check failed, by the failure's class; a failure without one keeps the plain line.
-  // Search is named only where the check stopped looking for sources (a `research_` reason): an outage
-  // at another stage was not search. A failure on Lenz's side (or of a kind this add-on does not know)
-  // says so; an input problem or a stop by the user keeps the plain line.
+  // A failure on Lenz's side (or of a kind this add-on does not know) says so; an input problem keeps
+  // the plain line. A deep check that finds nothing public is not a failure: it completes as the
+  // No Public Record result (claimEntry).
   // `stopped`: the review was cancelled, so what did not finish stopped there.
   function deepFailureText(verification, stopped) {
     var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
     var cls = str(f.failure_class);
-    var research = (failureCode(f, 'not_a_claim') || '').indexOf('research_') === 0;
     if (stopped && cls === 'cancelled') return 'You stopped the check before the deep check finished, so this is the quick verdict.';
-    if (cls === 'insufficient_evidence') {
-      return 'The deep check found too few public sources to give a verdict, so this is the quick verdict.';
-    }
     if (cls === 'upstream_unavailable') {
-      return research
-        ? 'The deep check could not run because search was unavailable, so this is the quick verdict.'
-        : 'The deep check could not run because a service Lenz relies on was unavailable, so this is the quick verdict.';
+      return 'The deep check could not run because a service Lenz relies on was unavailable, so this is the quick verdict.';
     }
     if (cls === 'internal' || (cls !== null && !has(KNOWN_CLASSES, cls))) {
       return 'The deep check stopped on our side, so this is the quick verdict.';
@@ -385,36 +368,9 @@ var LenzView = (function () {
     return 'The deep check did not finish, so this is the quick verdict.';
   }
 
-  // The failed deep checks no rerun can change: too few public sources, and not marked retryable. Only
-  // an older answer fails a deep check this way; in the current shape a deep check that finds nothing
-  // public completes as the No Public Record result (claimEntry), which is not a failure, so nothing
-  // here counts it. Kept as a fallback for older answers.
-  function tooFewSources(verification) {
-    var f = isObj(verification) && isObj(verification.failure) ? verification.failure : {};
-    return isObj(verification) && verification.status === 'failed' && f.failure_class === 'insufficient_evidence' && f.retryable !== true;
-  }
-
-  function countTooFewSources(body) {
-    var n = 0;
-    if (Array.isArray(body.claims)) {
-      body.claims.forEach(function (r) {
-        if (isObj(r) && tooFewSources(r.verification)) n++;
-      });
-    }
-    return n;
-  }
-
-  // Whether choosing Check this Doc again can help an incomplete review: false only when every check
-  // that did not finish is a deep check that found too few sources. Anything unknown counts as retryable.
+  // Whether choosing Check this Doc again can help: only an incomplete review.
   function retryHelps(body) {
-    body = isObj(body) ? body : {};
-    if (body.outcome !== 'incomplete') return false;
-    var s = isObj(body.summary) ? body.summary : {};
-    var a = isObj(s.assessments) ? s.assessments : {};
-    var v = isObj(s.verifications) ? s.verifications : {};
-    var c = isObj(s.citation_checks) ? s.citation_checks : {};
-    var thin = countTooFewSources(body);
-    return !(thin > 0 && thin >= (v.failed || 0) && !(a.failed > 0) && !(c.failed > 0));
+    return isObj(body) && body.outcome === 'incomplete';
   }
 
   function claimEntry(row, opts) {
@@ -438,9 +394,9 @@ var LenzView = (function () {
       state: state,
       stateWords: STATE_WORDS[state],
       title: str(row.claim) || '',
-      label: noRecord ? NO_RECORD_LABEL : verdict && verdict !== 'Error' ? verdict : checking ? 'Checking' : 'Not checked',
+      label: noRecord ? NO_RECORD_LABEL : verdict ? verdict : checking ? 'Checking' : 'Not checked',
       token: VERDICT_TOKENS[verdict] || null,
-      check: deep ? 'Deep check' : verdict && verdict !== 'Error' ? 'Quick check' : null,
+      check: deep ? 'Deep check' : verdict ? 'Quick check' : null,
       // A quick verdict shown while its deep check runs is a first read, not the answer. Never once the
       // review has ended (stopped, failed or completed): a deep check that is not done then is not running.
       deepRunning: !opts.done && !deep && verification !== null && verification.status !== 'completed' && verification.status !== 'failed',
@@ -463,7 +419,7 @@ var LenzView = (function () {
       e.link = !noRecord && lenzPage(verification.url) ? { href: verification.url, words: 'See sources in Lenz' } : null;
     } else if (checking) {
       lines.push({ lead: null, text: 'Checking.' });
-    } else if (!verdict || verdict === 'Error') {
+    } else if (!verdict) {
       // A failed quick check was refunded (never the API's hint: that is written for integrators).
       var stopped = assessment.status === 'failed' && opts.cancelled;
       lines.push({
@@ -626,11 +582,7 @@ var LenzView = (function () {
       return out.concat(placeAndReadLines(entries, opts));
     }
     if (a.failed > 0) out.push(plural(a.failed, 'claim', 'claims') + ' could not be checked this time.');
-    var thin = Math.min(countTooFewSources(body), v.failed > 0 ? v.failed : 0);
-    if (thin > 0) {
-      out.push(plural(thin, 'claim', 'claims') + ' had too few public sources for a deep check; ' + (thin === 1 ? 'it shows' : 'they show') + ' the quick verdict.');
-    }
-    var rest = v.failed > 0 ? v.failed - thin : 0;
+    var rest = v.failed > 0 ? v.failed : 0;
     if (rest > 0) {
       out.push(plural(rest, 'deep check', 'deep checks') + ' did not finish; ' + (rest === 1 ? 'that claim shows its' : 'those claims show their') + ' quick verdict.');
     }
