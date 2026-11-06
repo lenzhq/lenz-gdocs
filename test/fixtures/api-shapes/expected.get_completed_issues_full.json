@@ -59,7 +59,7 @@
             "lines": [
               {
                 "lead": null,
-                "text": "The deep check found too few public sources to give a verdict, so this is the quick verdict."
+                "text": "The deep check stopped on our side, so this is the quick verdict."
               }
             ],
             "link": null,
@@ -145,7 +145,7 @@
     ],
     "coverage": [
       "1 claim could not be checked this time.",
-      "1 claim had too few public sources for a deep check; it shows the quick verdict.",
+      "1 deep check did not finish; that claim shows its quick verdict.",
       "4 findings are not in the Doc as it is now, so they cannot be selected.",
       "Choose Check this Doc to check it again; the new check is charged."
     ],

@@ -96,12 +96,12 @@
         "rationale": null,
         "suggested_rewrite": null,
         "failure": {
-          "code": "research_empty",
+          "code": "internal",
           "detail": "No sources about the claim were found.",
           "hint": null,
-          "failure_class": "insufficient_evidence",
+          "failure_class": "internal",
           "retryable": false,
-          "docs_url": "https://lenz.io/docs/errors#insufficient-evidence"
+          "docs_url": "https://lenz.io/docs/errors#internal"
         },
         "suggested_edits": null
       }
@@ -257,7 +257,7 @@
           "verification_url": null,
           "url": null,
           "failure": {
-            "code": "research_unavailable",
+            "code": "upstream_unavailable",
             "detail": "Search was unavailable.",
             "hint": null,
             "failure_class": "upstream_unavailable",

@@ -192,7 +192,7 @@
   ],
   "citations": [],
   "failure": {
-    "failure_reason": "insufficient_credits",
+    "code": "insufficient_credits",
     "failure_class": "invalid_input",
     "retryable": false,
     "hint": "This review needs 5 credits to assess its claims. Nothing was charged.",

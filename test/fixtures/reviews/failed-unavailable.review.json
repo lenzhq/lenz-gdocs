@@ -48,7 +48,7 @@
   "claims": [],
   "citations": [],
   "failure": {
-    "failure_reason": "upstream_unavailable",
+    "code": "upstream_unavailable",
     "failure_class": "upstream_unavailable",
     "retryable": true,
     "hint": null,

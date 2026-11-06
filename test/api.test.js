@@ -106,14 +106,22 @@ test('submit POSTs the contract body with the key, the bearer and the user agent
 });
 
 // The add-on names the version of the API it was written against on every request, so what it
-// reads does not change under it. The date is the one its answers are read in (both shapes are read).
-test('every request names the API version: the POST, a replay, the poll, a rotated retry', () => {
+// reads does not change under it. It reads only that version's answer shape.
+test('every request names the API version: the POST, a replay, the poll, a cancel, a rotated retry', () => {
   assert.equal(LenzApi.API_VERSION, '2026-10-11');
   // The POST, then the poll.
   const w = world({ replies: [accepted('r1'), json(200, POLLS[0])] });
   sub(w, DRAFT);
   w.client.poll(DOC.docId, DOC.tabId);
   assert.deepEqual(w.calls.map((c) => c.req.headers['X-Lenz-API-Version']), ['2026-10-11', '2026-10-11']);
+  // A cancel, then the GET that reads a review already ended.
+  const stopped = JSON.parse(fs.readFileSync(path.join(FIX, 'cancelled-midway.review.json'), 'utf8'));
+  const c = world({ replies: [accepted('r4'), json(200, stopped), json(200, stopped)] });
+  sub(c, DRAFT);
+  c.client.cancel(DOC.docId, DOC.tabId);
+  c.client.cancel(DOC.docId, DOC.tabId);
+  assert.deepEqual(c.calls.map((x) => x.req.method + ' ' + x.req.headers['X-Lenz-API-Version']),
+    ['post 2026-10-11', 'post 2026-10-11', 'get 2026-10-11']);
   // A replay of a POST whose answer was lost.
   const r = world({ replies: [transportFail(), accepted('r2')] });
   sub(r, DRAFT);
@@ -388,7 +396,7 @@ test('422 idempotency_body_mismatch is not retryable and asks for a new check', 
 const REJECTIONS = [
   ['401', json(401, { detail: 'Unauthorized' })],
   ['402', json(402, { detail: 'No remaining credits to assess the draft.', code: 'no_credits' })],
-  ['429 review_in_flight', json(429, { detail: 'x', code: 'review_in_flight', retry_after_seconds: 60 }, { 'Retry-After': '60' })],
+  ['429 review_in_flight', json(429, { detail: 'x', code: 'review_in_flight', retry_after: 60 }, { 'Retry-After': '60' })],
   ['429 Cloud Armor', { code: 429, headers: {}, text: 'Too Many Requests' }],
   ['503 capacity', json(503, { detail: 'x', code: 'capacity', retry_after: 30 }, { 'Retry-After': '30' })],
 ];
@@ -631,8 +639,8 @@ test('describeError: 403 / 404 / 410 on a read are final and say to run the chec
 });
 
 test('describeError: 429 review_in_flight honours Retry-After (header, then body, then 60)', () => {
-  assert.equal(d(429, { 'Retry-After': '45' }, { code: 'review_in_flight', retry_after_seconds: 60 }).retryAfterS, 45);
-  assert.equal(d(429, {}, { code: 'review_in_flight', retry_after_seconds: 50 }).retryAfterS, 50);
+  assert.equal(d(429, { 'Retry-After': '45' }, { code: 'review_in_flight', retry_after: 60 }).retryAfterS, 45);
+  assert.equal(d(429, {}, { code: 'review_in_flight', retry_after: 50 }).retryAfterS, 50);
   const e = d(429, {}, { code: 'review_in_flight' });
   assert.equal(e.retryAfterS, 60);
   assert.equal(e.retryable, true);
@@ -707,7 +715,7 @@ test('poll walks the captured states to completed', () => {
 });
 
 test('poll: a failed review is terminal and recorded as failed', () => {
-  const body = Object.assign({}, REVIEW, { status: 'failed', outcome: null, poll_after_seconds: null, failure: { failure_reason: 'x', failure_class: 'upstream_unavailable', retryable: true, docs_url: 'u' } });
+  const body = Object.assign({}, REVIEW, { status: 'failed', outcome: null, poll_after_seconds: null, failure: { code: 'x', failure_class: 'upstream_unavailable', retryable: true, docs_url: 'u' } });
   const w = accepted_world([json(200, body)]);
   const p = w.client.poll(DOC.docId, DOC.tabId);
   assert.equal(p.terminal, true);
@@ -1113,7 +1121,6 @@ test('selection: once accepted, the whole tab is the review snapshot and the pen
 // ── cancel ──────────────────────────────────────────────────
 
 const CANCELLED = JSON.parse(fs.readFileSync(path.join(FIX, 'cancelled-midway.review.json'), 'utf8'));
-const CANCELLED_LEGACY = JSON.parse(fs.readFileSync(path.join(FIX, 'cancelled-midway.legacy.review.json'), 'utf8'));
 
 function runningReview(replies) {
   const w = world({ replies: [accepted()].concat(replies || []) });
@@ -1135,23 +1142,6 @@ test('cancel: POST /reviews/{id}/cancel with no body, the record settles cancell
   assert.equal(r.status, 'cancelled');
   assert.equal(rec(w).state, 'cancelled');
   assert.equal(rec(w).reviewId, ACCEPT.body.review_id);
-});
-
-test('cancel: the older answer (failed, a cancelled failure) reads as cancelled', () => {
-  const w = runningReview([json(200, CANCELLED_LEGACY)]);
-  const r = w.client.cancel(DOC.docId, DOC.tabId);
-  assert.equal(r.status, 'cancelled');
-  assert.equal(r.body.status, 'cancelled');
-  assert.equal(rec(w).state, 'cancelled');
-});
-
-test('readCancelled: only a cancelled failure turns failed into cancelled', () => {
-  const read = (b) => LenzApi.readCancelled(b).status;
-  assert.equal(read({ status: 'failed', failure: { failure_reason: 'cancelled' } }), 'cancelled');
-  assert.equal(read({ status: 'failed', failure: { code: 'cancelled', failure_class: 'cancelled' } }), 'cancelled');
-  assert.equal(read({ status: 'failed', failure: { failure_reason: 'upstream_unavailable', failure_class: 'upstream_unavailable' } }), 'failed');
-  assert.equal(read({ status: 'failed', failure: null }), 'failed');
-  assert.equal(read({ status: 'completed' }), 'completed');
 });
 
 test('cancel vs complete: a review that ended first is recorded as it ended', () => {

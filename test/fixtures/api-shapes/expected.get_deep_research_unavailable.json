@@ -59,7 +59,7 @@
             "lines": [
               {
                 "lead": null,
-                "text": "The deep check could not run because search was unavailable, so this is the quick verdict."
+                "text": "The deep check could not run because a service Lenz relies on was unavailable, so this is the quick verdict."
               }
             ],
             "link": null,

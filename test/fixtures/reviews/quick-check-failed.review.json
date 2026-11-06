@@ -146,7 +146,7 @@
       "claim": "Water boils at 100 degrees Celsius at sea level, according to Britannica.",
       "stage": "assessment",
       "failure": {
-        "failure_reason": "internal",
+        "code": "internal",
         "failure_class": "internal",
         "retryable": false,
         "hint": "This item could not be processed; retrying it as-is will not help. Send it rephrased as one factual statement; nothing was charged.",
@@ -427,7 +427,7 @@
         "hint": null,
         "suggested_rewrite": null,
         "failure": {
-          "failure_reason": "internal",
+          "code": "internal",
           "failure_class": "internal",
           "retryable": false,
           "hint": "This item could not be processed; retrying it as-is will not help. Send it rephrased as one factual statement; nothing was charged.",

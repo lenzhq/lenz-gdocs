@@ -225,7 +225,6 @@ client.record(docId, tabId) -> Record|null
 client.snapshot(reviewId) -> string|null            // the text that review was run on (user cache, 6 h);
                                                     // a selection check's: the whole tab at submit
 LenzApi.shiftBody(body, offset) -> body             // every draft position moved by offset, in place
-LenzApi.readCancelled(body) -> body                 // the older cancelled shape read as `cancelled`, in place
 LenzApi.TERMINAL = { completed, failed, cancelled } // the review states after which nothing more happens
 client.edit(reviewBody, claimIndex, editIndex) -> Edit|null   // server-side source of truth for Apply
 describeError(code, headers, body) -> ApiError
@@ -280,7 +279,7 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
   holds the user lock around submit, runAgain and poll.
 - `cancel`: `POST /reviews/{reviewId}/cancel`, no body, no Idempotency-Key (Lenz takes a
   repeat as a no-op and answers with the review either way). A 200 is settled like a poll's: shifted,
-  `readCancelled`, the record's state from its `status` — `cancelled`, or `completed` / `failed` when
+  the record's state from its `status` — `cancelled`, or `completed` / `failed` when
   the review ended before the cancel reached it (that answer is the result; nothing calls it
   cancelled). A record already terminal sends no cancel: it is a poll. No review id yet → no request,
   `MESSAGES.cancel_not_started`. 403/404/410 → `lost`, as on a poll. Anything else (no answer, a 5xx, a
@@ -289,25 +288,18 @@ Edit         = { claimIndex, editIndex, start, end, text, replacement, position,
 - `describeError` covers 401, 402, 403, 404, 409, 410, 422 (`idempotency_body_mismatch` and the rest),
   429 (`review_in_flight`, `extract_daily_limit`, the Cloud Armor non-JSON body), 503 `capacity`,
   other 5xx, transport failure. Messages live in `LenzApi.MESSAGES`: plain, short, no blame, say
-  what to do. The wait: the `Retry-After` header first, then the body's `retry_after`, then the older
-  names (`retry_after_seconds` on `review_in_flight`, `reset_in_seconds` on `extract_daily_limit`).
-- Every request to `/review` (the POST and each poll) sends `X-Lenz-API-Version: 2026-10-11`
+  what to do. The wait: the `Retry-After` header first, then the body's `retry_after`.
+- Every request to `/review` (the POST, each poll and a cancel) sends `X-Lenz-API-Version: 2026-10-11`
   (`LenzApi.API_VERSION`), also when sent again with a rotated token or as a replay of a lost POST.
   The header is not part of the Idempotency-Key or the body, so a replay across an add-on update is
   still the same request. The sign-in calls (`src/oauth.js`) are the OAuth endpoints and carry none.
-- Both answer shapes of the API are read, whichever the header selects. Of the fields read,
-  these differ: what failed is `failure.code` (current) or `failure.failure_reason` (older), on the
-  review and on a deep check; the current `no_checkable_claim` reads as the older word for that place
-  (`no_claim` on a review, `not_a_claim` on a deep check); a quick check with no verdict has `verdict`
-  null (current) or `"Error"` (older); an unfinished quick check's own hint is the row's `hint` (older)
-  or its `failure.hint` (current), shown only where the older answer's was; a 429's wait is named as above. `more_claims` on the review body
-  is the same in both. A cancelled review is `status: cancelled` (current) or `failed` with a `cancelled`
-  failure (`failure_class`, or `failure_reason` / `code`; older): `readCancelled` turns the older one
-  into the current one as the body arrives (poll and cancel), so the glue and the view know one word.
-  `test/api-shapes.test.js` runs both shapes of each answer in
-  `test/fixtures/api-shapes/` against `expected.*.json`, what the add-on produced from the older answer
-  before it read the current one (written by `test/helpers/api-shapes-oracle.js` from commit
-  cea222bcc01170a5abfec085584bd62d6897f957 only).
+- Only the answer shape of `2026-10-11` is read: it is the minimum supported Lenz API version, and the
+  add-on no longer reads `2026-05-13`. What failed is `failure.code` (`no_checkable_claim` when there
+  was nothing to check), on the review and on a deep check; a quick check with no verdict has
+  `verdict` null; an unfinished quick check's own hint is its `failure.hint`; a cancelled review is
+  `status: cancelled`. `test/api-shapes.test.js` runs each answer in `test/fixtures/api-shapes/`
+  against `expected.*.json`, what the sidebar shows for it; a change to what it shows updates the
+  expected file in the same change.
 - `edit` finds the claim by its `index` field (`issues[].claim_index` on `view=issues`), and returns
   null for anything not a settled, well-formed edit; it never trusts client text.
 - Body sent: `{text, webhook_url: '', visibility: 'private', language: 'auto', escalate:
@@ -400,7 +392,7 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
 ```
 
 - Pages the reviewers looked at: each claim row's `assessment.searched_pages` (`[{title, url}]`, on
-  every quick-check row of the current answer; the older answer has none). The issues view carries
+  every quick-check row). The issues view carries
   none on an issue; `claimRowsFromIssues` reads them from the `claims[]` row of the same `claim_index`
   when the body has one. An entry is kept only when it is an object with a non-empty string `title`
   and a string `url` that starts with `http://` or `https://` (any case), has a host, and carries no
@@ -430,9 +422,8 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   edit, never a "See sources in Lenz" link (whatever the verification carries), and the line "Lenz found no public record of this." It is counted in
   the issue headline. A quick-check row with this verdict reads the same (its reviewers' note and pages
   too, `Quick check`); it is in `issue` when `result.is_issue` says it is the final answer, and in `look`
-  while its deep check still runs. The failed-deep-check wording (too few sources and the other classes)
-  stays only as a fallback for older answers; the current shape has no too-few-sources failure, a
-  deep check that finds nothing public completes with this verdict instead of failing.
+  while its deep check still runs. A deep check that finds nothing public completes with this verdict;
+  it is not a failure.
 - While the review runs, a row with no result yet whose check has not failed is in `pending`
   ("Checking", between `look` and `none`), with "Checking."; "Could not be checked this time." only
   for a terminal `failed` status or a finished review with no result for the row. While edits are
@@ -455,16 +446,13 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
 - No claim and an unreadable page accuse nothing and are the reader's to fix, so the model carries
   `failureTone: 'neutral'` for them and the sidebar shows the words as a note, not the red error line;
   no other failure carries the field.
-- A failed review's `failure` is Docs words chosen by what failed (`failure.code`, or `failure.failure_reason` in the older shape) / `failure_class`, never
+- A failed review's `failure` is Docs words chosen by what failed (`failure.code`) / `failure_class`, never
   the API's `hint` (written for integrators): no claim, not enough credits, Lenz could not read the
-  page (`page_unreadable`; the older `invalid_input`; "Lenz couldn't read that page. Paste its text
-  instead."), Lenz could not check just now
-  (an outage, or every quick check failed), else "on our side". The current codes are
-  `no_checkable_claim`, `page_unreadable`, `upstream_unavailable`, `internal`, `cancelled`,
-  `no_citations`, `insufficient_credits`; `assessment_failed` is the older word and stays read. A code
-  not listed reads by `failure_class`. A failed deep check's row says
-  too few sources, search unavailable, a service unavailable, or stopped on our side, by the same
-  fields; a failed quick check's row says nothing was charged for it.
+  page (`page_unreadable`; "Lenz couldn't read that page. Paste its text instead."), Lenz could not
+  check just now (an outage), else "on our side". The codes are `no_checkable_claim`,
+  `page_unreadable`, `upstream_unavailable`, `internal`, `cancelled`, `no_citations`,
+  `insufficient_credits`. A code not listed reads by `failure_class`. A failed deep check's row says
+  a service unavailable or stopped on our side, by the same fields; a failed quick check's row says nothing was charged for it.
 - `stages` (running only, else null): `[{key, label, done, total, complete}]`: `reading` ("Finding the
   claims", before the claims are read), `quick` (assessments completed+failed of `claims_selected`),
   `deep` (verifications completed+failed of `planned`, once planned > 0), `citations`

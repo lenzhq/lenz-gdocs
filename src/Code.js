@@ -871,8 +871,8 @@ function lenzReplyFromBody_(ctx, rec, poll, body, known) {
   var done = LenzApi.TERMINAL[body.status] === true;
   if (body.status === 'completed') {
     if (LenzView.retryHelps(body)) lenzMarkIncomplete_(ctx, rec.reviewId);
-    // A marker an older add-on left on a review no rerun can help (every unfinished check found
-    // too few sources) would still start a new, charged review on unchanged text: clear it.
+    // A marker left on a review that is no longer incomplete would still start a new, charged
+    // review on unchanged text: clear it.
     else lenzClearIncomplete_(ctx, rec.reviewId);
   }
   if (body.status === 'completed' && !(poll && poll.cached)) lenzKeepDoneBody_(rec.reviewId, body);
