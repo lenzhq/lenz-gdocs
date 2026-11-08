@@ -130,6 +130,41 @@ test('partly supported is Needs a closer look, not an issue', () => {
   assert.deepEqual(e.lines, [{ lead: 'The source says: ', text: 'boils at 100 °C at sea level' }]);
 });
 
+test('a partial-read unchecked row shows its excerpt under the part-read lead, hint first', () => {
+  const hint =
+    'Lenz could read only the abstract, so this citation is not checked. The excerpt is from the abstract; the full paper may add limits or conditions that change it.';
+  const m = LenzView.build(
+    review((b) => {
+      const c = citation(b, 0);
+      c.result = { finding: 'unchecked', source: null, is_issue: false };
+      c.check.unchecked_reason = 'partial_text';
+      c.check.hint = hint;
+      c.check.snippet = 'The trial enrolled 120 adults.';
+    })
+  );
+  assert.deepEqual(entry(m, 'citation:0').lines, [
+    { lead: null, text: hint },
+    { lead: 'The part Lenz could read says: ', text: 'The trial enrolled 120 adults.' },
+  ]);
+});
+
+test('a partial-read unchecked row with no excerpt, and other unchecked reasons, show no excerpt', () => {
+  const m = LenzView.build(
+    review((b) => {
+      const c = citation(b, 0);
+      c.result = { finding: 'unchecked', source: null, is_issue: false };
+      c.check.unchecked_reason = 'partial_text';
+      c.check.snippet = '';
+      const d = citation(b, 1);
+      d.result = { finding: 'unchecked', source: null, is_issue: false };
+      d.check.unchecked_reason = 'other_version';
+      d.check.snippet = 'A stray excerpt.';
+    })
+  );
+  assert.ok(entry(m, 'citation:0').lines.every((l) => l.lead === null));
+  assert.ok(entry(m, 'citation:1').lines.every((l) => l.lead === null));
+});
+
 test('quote not in the source and page not found carry their fixed lines', () => {
   const m = LenzView.build(
     review((b) => {
