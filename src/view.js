@@ -504,6 +504,10 @@ var LenzView = (function () {
     }
     if (result.finding && result.finding !== 'unchecked' && str(check.snippet)) {
       lines.push({ lead: 'The source says: ', text: check.snippet });
+    } else if (result.finding === 'unchecked' && check.unchecked_reason === 'partial_text' && str(check.snippet)) {
+      // A partial read the server withheld: its hint speaks of "the excerpt", so show it, as context and
+      // never as "The source says" (that lead is for a checked finding).
+      lines.push({ lead: 'The part Lenz could read says: ', text: check.snippet });
     }
     if (str(check.rationale)) lines.push({ lead: "Reviewer's note: ", text: check.rationale });
     if (e.occurrences === 0) {
