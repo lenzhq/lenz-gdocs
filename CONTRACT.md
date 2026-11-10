@@ -417,8 +417,9 @@ Entry = { id,                         // 'claim:<index>' | 'citation:<index>' (t
   `citations: [Entry]` (the citation's entry as it would be on its own, plus `ownWords`), in the Doc's
   order. A citation that shares characters with several claims belongs to the one that shares the most,
   then the one whose card comes first in the Doc (its first position), then the lower index. The match
-  reads only the review's own offsets, so it is the same in every poll. `ownWords` is true when none of
-  the claim's positions is exactly the citation's span: the sidebar then offers "Select the citation in
+  reads only the review's own offsets, so it is the same in every poll. `ownWords` is false only when
+  the claim has one position and it is exactly the citation's span (a claim found in several passages
+  selects the one its card shows, which may not be the citation's): otherwise the sidebar then offers "Select the citation in
   the Doc" (`lenzSelect` with `citation:<index>`), and so it does when the claim itself cannot be
   selected (not in the Doc as it is now) while the citation can; otherwise the card's title selects
   the same words.

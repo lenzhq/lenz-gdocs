@@ -605,10 +605,12 @@ var LenzView = (function () {
       if (!into) return out.push(e);
       var cs = row.position.start;
       var ce = row.position.end;
-      // Words of its own to select: none of the claim's passages is exactly the citation's span.
-      e.ownWords = !spans[into.id].some(function (p) {
-        return isObj(p) && p.start === cs && p.end === ce;
+      // Words of its own to select, unless the claim's one passage is exactly the citation's span. A claim
+      // found in several passages selects the one its card shows, which may not be the citation's.
+      var passages = spans[into.id].filter(function (p) {
+        return isObj(p) && typeof p.start === 'number' && typeof p.end === 'number';
       });
+      e.ownWords = !(passages.length === 1 && passages[0].start === cs && passages[0].end === ce);
       (into.citations = into.citations || []).push(e);
     });
     out.forEach(function (e) {

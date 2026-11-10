@@ -1337,6 +1337,21 @@ test('one card: a citation on part of the claim\'s words (or wider) can select i
   assert.equal(c.start, 450);
 });
 
+test('one card: a claim found in several passages leaves its citation selectable, even on one of them', () => {
+  for (const at of [0, 1]) {
+    const m = LenzView.build(review((b) => {
+      const claim = b.claims.find((r) => r.index === 0);
+      const first = claim.positions[0];
+      const other = { start: 2000, end: 2000 + (first.end - first.start), text: first.text };
+      claim.positions = at === 0 ? [first, other] : [other, first];
+    }));
+    const c = cardOf(m, 'claim:0').citations[0];
+    assert.equal(c.id, 'citation:0');
+    // The card's title selects the occurrence it shows, which may not be the citation's.
+    assert.equal(c.ownWords, true);
+  }
+});
+
 test('one card: two citations in one claim\'s sentence are both in its card, in the order of the Doc', () => {
   const body = review((b) => {
     const extra = JSON.parse(JSON.stringify(citation(b, 0)));
