@@ -8,6 +8,9 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const LenzView = require('../src/view.js');
+const { createFakeDocs } = require('./helpers/fake-docs.js');
+const { createFakeLenz } = require('./helpers/fake-lenz.js');
+const { createRuntime } = require('./helpers/fake-appsscript.js');
 
 const HTML = fs.readFileSync(path.join(__dirname, '..', 'src', 'sidebar.html'), 'utf8');
 const SCRIPT = [...HTML.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])[0];
@@ -507,6 +510,73 @@ test('a cancel Lenz did not answer: still running with the error, and Cancel can
   assert.equal(s.ids.cancel.hidden, false);
   assert.equal(s.ids['cancel-confirm'].hidden, true);
   assert.equal(s.ids['cancel-go'].disabled, false);
+});
+
+// A running reply that carries no list yet (the answer to Check this Doc before the first poll, a poll
+// that failed, a busy lock) still names the check it is about in `reviewId`. Cancel sends that id.
+const cancelArgs = (s) => s.calls.filter((c) => c.name === 'lenzCancel').map((c) => c.args);
+const clickStop = (s) => { s.ids.cancel.click(); s.ids['cancel-go'].click(); };
+const nextPoll = (s) => s.timeouts.filter((t) => t.ms === 15000).pop().fn();
+const OFFLINE = "Couldn't reach Lenz. Check your connection and try again.";
+
+test('Cancel before the first poll answers: the check is named by the reply that started it', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: reply('idle'), lenzLogOpen: null,
+    lenzStart: reply('running', { nextPollS: 20, reviewId: POLLS[0].review_id, startedAt: Date.now() - 8000 }),
+    lenzCancel: reply('done', { model: LenzView.build(CANCELLED) }),
+  });
+  s.ids.check.click();
+  assert.equal(s.ids.cancel.hidden, false);
+  clickStop(s);
+  assert.deepEqual(cancelArgs(s), [[POLLS[0].review_id]]);
+});
+
+test('Cancel after a poll that failed keeps naming the check the list showed', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzLogOpen: null,
+    lenzOpenState: runningReply(),
+    lenzPoll: reply('running', { nextPollS: 15, reviewId: POLLS[0].review_id,
+      error: { code: 0, message: OFFLINE, retryable: true } }),
+    lenzCancel: reply('done', { model: LenzView.build(CANCELLED) }),
+  });
+  nextPoll(s);
+  assert.equal(s.ids.error.textContent, OFFLINE);
+  clickStop(s);
+  assert.deepEqual(cancelArgs(s), [[POLLS[0].review_id]]);
+});
+
+test('Cancel while the request is still unconfirmed names no check (the server replays it first)', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzLogOpen: null,
+    lenzOpenState: reply('running', { nextPollS: 5, error: { code: 502, message: 'x', retryable: true } }),
+    lenzCancel: reply('running', { nextPollS: 5 }),
+  });
+  clickStop(s);
+  assert.deepEqual(cancelArgs(s), [[null]]);
+});
+
+// The panel and the real server functions together (Code.js on the fake Doc and the fake Lenz): the
+// first Cancel on a check that has just started is sent for the check the server has, and is not
+// refused as "another check".
+test('first Cancel on the panel\'s own running check is not refused (sidebar + Code.js together)', () => {
+  const clock = 1.9e12;
+  const now = () => clock;
+  const docs = createFakeDocs();
+  const lenz = createFakeLenz({ apiKey: 'lenz_test_key', now });
+  const docId = docs.create({ documentId: 'doc-draft-b', text: lenz.fixture('draft-b').text });
+  const rt = createRuntime({ docs, lenz, docId, tabId: 't.0', now });
+  rt.ctx.lenzSaveKey('lenz_test_key');
+  const g = rt.ctx;
+  const s = sidebar({
+    lenzOpen: () => g.lenzOpen(), lenzOpenState: () => g.lenzOpenState(), lenzLogOpen: null,
+    lenzStart: () => g.lenzStart(), lenzCancel: (id) => g.lenzCancel(id),
+  });
+  s.ids.check.click(); // Check this Doc; Lenz's first poll is 20 s away
+  assert.equal(s.ids.cancel.hidden, false);
+  clickStop(s);
+  const posts = lenz.requests.filter((r) => r.method === 'POST' && /\/cancel$/.test(r.url));
+  assert.equal(posts.length, 1, 'the first click reached Lenz');
+  assert.doesNotMatch(s.ids.error.textContent, /another check/);
 });
 
 // ── Pages the reviewers looked at ───────────────────────────

@@ -887,6 +887,89 @@ test('cancel names the check it means: a panel showing another review stops noth
   assert.equal(cancels(w).length, 0);
 });
 
+// What the sidebar sends as the check it shows: the list's review, else the one the reply names.
+const panelShows = (r) => (r.model && r.model.reviewId) || r.reviewId || null;
+const STALE_PANEL = 'This panel was showing another check, so nothing was stopped. Here is the current one.';
+
+test('the first Cancel on the panel\'s own check, before any poll answered, stops it', () => {
+  const w = world();
+  w.ctx.lenzSaveKey(KEY);
+  const started = w.ctx.lenzStart();
+  assert.equal(started.phase, 'running');
+  assert.equal(started.model, null, 'no list yet: Lenz has not been asked how the check is going');
+  assert.equal(started.reviewId, RID, 'the reply still names the check');
+  const r = w.ctx.lenzCancel(panelShows(started));
+  assert.equal(cancels(w).length, 1);
+  assert.notEqual(r.error && r.error.message, STALE_PANEL);
+  assert.equal(r.phase, 'done');
+});
+
+test('a running reply with no list names the check in every case the record has one', () => {
+  // A poll Lenz did not answer.
+  let w = started();
+  w.state.down = true;
+  let r = w.ctx.lenzPoll();
+  w.state.down = false;
+  assert.equal(r.phase, 'running');
+  assert.equal(r.model, null);
+  assert.equal(r.reviewId, RID);
+  // The lock is busy: a placeholder.
+  w = started();
+  w.state.lockFree = false;
+  r = w.ctx.lenzPoll();
+  w.state.lockFree = true;
+  assert.equal(r.phase, 'running');
+  assert.equal(r.model, null);
+  assert.equal(r.reviewId, RID);
+  // A cancel that Lenz did not answer: still running, still this check.
+  w = started();
+  w.state.cancelReply = { code: 0, body: '' };
+  w.state.down = true;
+  r = w.ctx.lenzCancel(RID);
+  w.state.down = false;
+  assert.equal(r.phase, 'running');
+  assert.equal(r.reviewId, RID);
+});
+
+test('a running reply with a list is unchanged, and a request not yet confirmed names no check', () => {
+  const w = started();
+  const polled = w.ctx.lenzPoll();
+  assert.equal(polled.model.reviewId, RID);
+  assert.equal(panelShows(polled), RID);
+  const x = world();
+  x.ctx.lenzSaveKey(KEY);
+  x.state.postReply = { code: 502, body: '' };
+  const r = x.ctx.lenzStart();
+  assert.equal(r.phase, 'running');
+  assert.equal(r.model, null);
+  assert.equal(r.reviewId == null, true);
+  assert.equal(panelShows(r), null);
+});
+
+test('a panel that really shows an older check is still refused, and a newer check is not stopped', () => {
+  const w = started(); // check A
+  w.ctx.lenzCancel(RID);
+  w.state.getReply = { code: 200, body: CANCELLED };
+  const panelA = w.ctx.lenzState(); // the panel shows A, cancelled
+  assert.equal(panelShows(panelA), RID);
+  const B = '0000b0b0';
+  w.state.postReply = { code: ACCEPT.status, body: Object.assign({}, ACCEPT.body, { review_id: B }) };
+  w.state.getReply = { code: 200, body: Object.assign({}, POLLS[0], { review_id: B }) };
+  const b = w.ctx.lenzStart(); // another window starts check B on the same tab
+  assert.equal(b.phase, 'running');
+  assert.equal(b.reviewId, B);
+  const before = cancels(w).length;
+  const r = w.ctx.lenzCancel(panelShows(panelA)); // the first panel's Cancel names A
+  assert.equal(cancels(w).length, before, 'nothing sent for B');
+  assert.equal(r.phase, 'running');
+  assert.equal(r.error.message, STALE_PANEL);
+  assert.equal(r.reviewId, b.reviewId, 'the reply shows B, so the panel catches up');
+  // Now the panel names B and its Cancel works.
+  const again = w.ctx.lenzCancel(panelShows(r));
+  assert.equal(cancels(w).length, before + 1);
+  assert.notEqual(again.error && again.error.message, STALE_PANEL);
+});
+
 test('cancel before Lenz confirmed the check started: the request is replayed first, then stopped', () => {
   const w = world();
   w.ctx.lenzSaveKey(KEY);

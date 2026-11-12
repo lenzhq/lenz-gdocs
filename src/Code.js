@@ -400,9 +400,15 @@ function lenzPollIn_(ctx, opts) {
 
 // A running check's start (the record's submittedAt, ms), so the sidebar can
 // show "Running for 1:42" and tick it itself between polls.
+// A running reply with no list (the answer to Check this Doc before the first poll, a poll Lenz did not
+// answer, a busy lock) names the check it is about in `reviewId`: the sidebar sends that id with
+// Cancel, and lenzCancelIn_ refuses an id that is not the record's. Without it the panel would
+// have named no check, and the first Cancel on its own check was refused as "another check".
+// A request not yet confirmed has no review id, and none is named.
 function lenzWithStart_(ctx, client, reply) {
   if (reply && reply.phase === 'running') {
     var rec = client.record(ctx.docId, ctx.tabId);
+    if (!reply.model && !reply.reviewId && rec && rec.reviewId) reply.reviewId = rec.reviewId;
     reply.startedAt = rec && typeof rec.submittedAt === 'number' ? rec.submittedAt : null;
     // A selection check says so while it runs.
     reply.selection = lenzIsSelection_(rec);
