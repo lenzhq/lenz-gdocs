@@ -2,7 +2,7 @@
   "name": "lenz-gdocs",
   "version": "0.0.0",
   "private": true,
-  "description": "Lenz Fact-Checking for Google Docs: check the factual claims and citations in a Google Doc against independent sources (Apps Script add-on)",
+  "description": "Lenz Fact-Checking for Google Docs: check the facts, figures, and citations in a Google Doc against primary and authoritative sources (Apps Script add-on)",
   "scripts": {
     "test": "node --test \"test/**/*.test.js\""
   },

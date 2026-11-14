@@ -5,7 +5,7 @@
 <h1 align="center">Lenz Fact-Checking for Google Docs</h1>
 
 <p align="center">
-  Check the factual claims and citations in a Google Doc against independent sources, from a sidebar.
+  Check the facts, figures, and citations in a Google Doc against primary and authoritative sources, from a sidebar.
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 
 ---
 
-[Lenz](https://lenz.io) checks factual claims against evidence from multiple independent sources.
+[Lenz](https://lenz.io) checks the facts, figures, and citations in your work so you can sign off or publish with confidence.
 This repository is the source of its Google Docs add-on: an Apps Script sidebar that sends the open
 tab to Lenz and shows the findings next to the words they are about.
 
