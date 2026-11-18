@@ -676,7 +676,21 @@ var LenzView = (function () {
     var a = isObj(s.assessments) ? s.assessments : {};
     if (s.claims_selected > 0) out.push(stage('quick', 'Quick checks', n(a.completed) + n(a.failed), s.claims_selected));
     var v = isObj(s.verifications) ? s.verifications : null;
-    if (v && v.planned > 0) out.push(stage('deep', 'Deep checks', n(v.completed) + n(v.failed), v.planned));
+    if (v && v.planned > 0) {
+      out.push(stage('deep', 'Deep checks', n(v.completed) + n(v.failed), v.planned));
+    } else {
+      // The summary's counters can trail the rows, which are the same answer: a row that carries a
+      // deep check is one, and it is done once that check completed or failed.
+      var total = 0;
+      var ended = 0;
+      arr(body.claims).forEach(function (r) {
+        var d = isObj(r) && isObj(r.verification) ? r.verification : null;
+        if (!d) return;
+        total++;
+        if (d.status === 'completed' || d.status === 'failed') ended++;
+      });
+      if (total > 0) out.push(stage('deep', 'Deep checks', ended, total));
+    }
     var c = isObj(s.citation_checks) ? s.citation_checks : {};
     if (typeof s.citations_selected === 'number' && s.citations_selected > 0) {
       out.push(stage('citations', 'Citation checks', n(c.checked) + n(c.unchecked) + n(c.failed), s.citations_selected));

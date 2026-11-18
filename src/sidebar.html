@@ -106,7 +106,11 @@
   ul.coverage { margin: 0; padding-left: 18px; font-size: 13px; }
   ul.coverage li { margin-bottom: 4px; }
   /* The running state: the Workbench's three dots, still under reduced motion. */
-  .running { margin: 4px 0 12px; }
+  /* The progress block stays at the top while the list scrolls under it. */
+  .running { margin: 4px 0 12px; position: sticky; top: 0; z-index: 2; background: var(--cream);
+             padding: 6px 0 4px; border-bottom: 1px solid var(--warm-200); }
+  /* No stage row yet: no line of its own (it would sit right above the footer's). */
+  .running:has(#stages:empty) { border-bottom: 0; }
   .run-line { display: flex; align-items: baseline; font-size: 13px; color: var(--warm-800); margin: 0 0 6px; }
   .dots { display: inline-block; letter-spacing: 1px; }
   .dots i { font-style: normal; opacity: 0; animation: lenz-dot 1.4s infinite; }
@@ -124,10 +128,11 @@
   ul.stages li:first-child { border-top: 0; }
   .stage-count { font-family: var(--font-mono); font-size: 12px; color: var(--warm-400); font-variant-numeric: tabular-nums; }
   .stage-done { color: var(--true); }
-  /* A quick verdict whose deep check runs says so in body text, with the same dots: in the meta line
-     it was read as nothing happening (and no corrections coming). Ink, not blue: it is not a link. */
-  .deep-run { display: flex; align-items: baseline; font-size: 13px; font-weight: 500; color: var(--warm-800);
-              margin: 2px 0 4px; }
+  /* A quick verdict whose deep check runs says so in a badge beside the verdict, with the same dots: in the
+     meta line it was read as nothing happening (and no corrections coming). Ink, not blue: it is not a link. */
+  .deep-badge { display: inline-flex; align-items: baseline; font-family: var(--font-mono); font-size: 11px;
+                font-weight: 500; color: var(--warm-800); background: #fff; border: 1px solid var(--warm-300);
+                border-radius: var(--radius-full); padding: 0 8px; white-space: nowrap; }
   .deep-run-note { font-size: 12px; color: var(--warm-500); margin: 0 0 6px; }
   .foot { margin-top: 24px; border-top: 1px solid var(--warm-200); padding-top: 12px; }
   .foot .home-link { float: right; }
@@ -222,6 +227,8 @@
   var steps = {}; // entry id -> occurrence shown ("1 of N")
   var folds = {}; // group key -> open, once the reader opened or closed that group
   var pageFolds = {}; // review id + entry id -> { open, all }: a pages disclosure as the reader left it
+  var pins = {}; // entry id -> the group it was first shown under, while the check runs (see pinned)
+  var looks = {}; // group key -> { title, collapsed } as the model last gave them, for a pinned group it no longer lists
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -292,7 +299,7 @@
     last = r;
     phase = r.phase;
     var id = r.model && r.model.reviewId ? r.model.reviewId : null;
-    if (id !== shown) { steps = {}; folds = {}; pageFolds = {}; place = null; } // entry ids repeat across reviews
+    if (id !== shown) { steps = {}; folds = {}; pageFolds = {}; pins = {}; looks = {}; place = null; } // entry ids repeat across reviews
     shown = id;
     var signedOut = r.phase === 'signed_out';
     show($('signin'), signedOut);
@@ -348,6 +355,8 @@
     var fl = $('failure-link');
     clear(fl);
     if (m && m.failureLink) fl.appendChild(link(m.failureLink.href, m.failureLink.words));
+    // The lists settle only once the check has ended (or is not running any more).
+    if (!running && !stalled) pins = {};
     renderGroups(m);
     var cov = $('coverage');
     clear(cov);
@@ -382,7 +391,7 @@
     var h = window.innerHeight;
     Array.prototype.forEach.call(document.querySelectorAll('#groups li.entry'), function (n) {
       var box = n.getBoundingClientRect();
-      if (box.height && box.bottom > 0 && box.top < h) place.at.push({ id: n.getAttribute('data-id'), top: box.top });
+      if (box.height && box.bottom > 0 && box.top < h) place.at.push({ id: n.getAttribute('data-id'), top: box.top, group: n.getAttribute('data-group') });
     });
     function rank(x) { return place.focus && x.id === place.focus.id ? 0 : x.top >= 0 ? 1 : 2; }
     place.at.sort(function (x, y) { return rank(x) - rank(y); }); // stable: document order within a rank
@@ -391,12 +400,17 @@
 
   function keepPlace(place) {
     if (!place) return;
-    // The first one still shown (an entry may have moved into a closed group).
+    // The first one still shown (an entry may have moved into a closed group), and preferably one that
+    // stayed in its group: holding a claim that moved would carry the reader to wherever it went.
+    var held = null;
     for (var i = 0; i < place.at.length; i++) {
       var n = entryNode(place.at[i].id);
       var box = n && n.getBoundingClientRect();
-      if (box && box.height) { window.scrollBy(0, box.top - place.at[i].top); break; }
+      if (!box || !box.height) continue;
+      if (!held) held = { box: box, top: place.at[i].top };
+      if (n.getAttribute('data-group') === place.at[i].group) { held = { box: box, top: place.at[i].top }; break; }
     }
+    if (held) window.scrollBy(0, held.box.top - held.top);
     // By what the control is, never by where it sits: a poll can add an edit above the focused one,
     // and Enter must not then apply a different correction.
     var li = place.focus && entryNode(place.focus.id);
@@ -439,15 +453,43 @@
     show(ul, !!(stages && stages.length));
   }
 
+  // The groups as shown. While the check runs, a claim stays under the group it was first shown in: a
+  // deep check that ends changes the claim's verdict (the card says so, in place), but the claim does not
+  // move, so the list does not re-sort under the reader. A claim with no verdict yet is not held; it
+  // joins its group when its verdict arrives. The model's own groups show once the check has ended.
+  var GROUP_ORDER = ['issue', 'look', 'pending', 'none', 'ok']; // the order the model lists them in
+  function pinned(m) {
+    m.groups.forEach(function (g) { looks[g.key] = { title: g.title, collapsed: g.collapsed }; });
+    if (phase !== 'running' && phase !== 'stalled') return m.groups;
+    var by = {};
+    m.groups.forEach(function (g) {
+      g.entries.forEach(function (e) {
+        if (g.key !== 'pending' && !pins[e.id]) pins[e.id] = g.key;
+        var key = g.key === 'pending' ? 'pending' : pins[e.id];
+        (by[key] = by[key] || []).push(e);
+      });
+    });
+    function start(e) { return e.start === null ? Infinity : e.start; }
+    function before(a, b) {
+      if (start(a) !== start(b)) return start(a) < start(b) ? -1 : 1;
+      if (a.kind !== b.kind) return a.kind === 'claim' ? -1 : 1;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    }
+    return GROUP_ORDER.filter(function (k) { return by[k] && looks[k]; }).map(function (k) {
+      by[k].sort(before);
+      return { key: k, title: looks[k].title, collapsed: looks[k].collapsed, count: by[k].length, entries: by[k] };
+    });
+  }
+
   function renderGroups(m) {
     var box = $('groups');
     clear(box);
     if (!m) return;
     var noted = false; // the deep check's note goes under the first claim whose deep check runs
-    m.groups.forEach(function (g) {
+    pinned(m).forEach(function (g) {
       var list = el('ol', 'entries');
       g.entries.forEach(function (e) {
-        list.appendChild(renderEntry(e, e.deepRunning && !noted));
+        list.appendChild(renderEntry(e, e.deepRunning && !noted, g.key));
         if (e.deepRunning) noted = true;
       });
       if (g.collapsed) {
@@ -465,9 +507,10 @@
     });
   }
 
-  function renderEntry(e, note) {
+  function renderEntry(e, note, group) {
     var li = el('li', 'entry');
     li.setAttribute('data-id', e.id);
+    li.setAttribute('data-group', group);
     var head = el('div', 'head');
     head.appendChild(el('span', 'stamp' + (e.token ? ' v-' + e.token : ''), e.label));
     var meta = [];
@@ -482,6 +525,12 @@
         mt.appendChild(el('span', 'seg', m));
       });
       head.appendChild(mt);
+    }
+    if (e.deepRunning) {
+      var badge = el('span', 'deep-badge');
+      badge.appendChild(el('span', null, 'Deep check running'));
+      badge.appendChild(dots());
+      head.appendChild(badge);
     }
     li.appendChild(head);
 
@@ -499,13 +548,7 @@
     }
     if (e.placed && e.occurrences > 1) li.appendChild(stepper(e, occ));
     if (e.placeNote) li.appendChild(el('p', 'line muted', e.placeNote));
-    if (e.deepRunning) {
-      var run = el('p', 'deep-run');
-      run.appendChild(el('span', null, 'Deep check running'));
-      run.appendChild(dots());
-      li.appendChild(run);
-      if (note) li.appendChild(el('p', 'deep-run-note', 'Sources and any corrections appear here when it finishes.'));
-    }
+    if (e.deepRunning && note) li.appendChild(el('p', 'deep-run-note', 'Sources and any corrections appear here when it finishes.'));
 
     if (e.rewrite) li.appendChild(line('Suggested rewrite: ', e.rewrite));
     // The pages sit under the reviewers' note; a row with pages and no note puts them after its lines.

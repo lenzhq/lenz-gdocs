@@ -401,6 +401,7 @@ test('stages: the running snapshots of draft-a, stage by stage', () => {
 
 test('stages: only the stages that apply; failures count as done; before the claims are read', () => {
   const b = JSON.parse(JSON.stringify(POLLS[0]));
+  b.claims.forEach((c) => { c.verification = null; }); // no row has a deep check either
   b.summary.verifications = { planned: 0, completed: 0, failed: 0 };
   b.summary.citations_selected = 0;
   b.summary.assessments = { completed: 3, failed: 1 };
@@ -412,6 +413,25 @@ test('stages: only the stages that apply; failures count as done; before the cla
   q.status = 'queued';
   q.summary = { claims_selected: null, assessments: null, verifications: null, citations_selected: null, citation_checks: null };
   assert.deepEqual(LenzView.build(q).stages, [{ key: 'reading', label: 'Finding the claims', done: null, total: null, complete: false }]);
+});
+
+test('stages: a deep check the rows show running is a stage even when the summary has not planned it', () => {
+  // The summary's counters can trail the rows; the rows are the same answer, so they fill the gap.
+  const b = JSON.parse(JSON.stringify(POLLS[0]));
+  b.summary.verifications = null;
+  assert.deepEqual(LenzView.build(b).stages[1], { key: 'deep', label: 'Deep checks', done: 0, total: 3, complete: false });
+  b.summary.verifications = { planned: 0, completed: 0, failed: 0 };
+  assert.deepEqual(LenzView.build(b).stages[1], { key: 'deep', label: 'Deep checks', done: 0, total: 3, complete: false });
+  // Rows whose deep check ended count as done, failed ones too.
+  b.claims[0].verification.status = 'completed';
+  b.claims[1].verification.status = 'failed';
+  assert.deepEqual(LenzView.build(b).stages[1], { key: 'deep', label: 'Deep checks', done: 2, total: 3, complete: false });
+  // The summary's plan, when it has one, is the answer.
+  b.summary.verifications = { planned: 4, completed: 1, failed: 0 };
+  assert.deepEqual(LenzView.build(b).stages[1], { key: 'deep', label: 'Deep checks', done: 1, total: 4, complete: false });
+  // A finished review has no stages at all.
+  b.status = 'completed';
+  assert.equal(LenzView.build(b).stages, null);
 });
 
 test('a quick verdict whose deep check is still running is marked as such', () => {

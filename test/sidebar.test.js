@@ -269,25 +269,51 @@ function walk(n, out) {
   return out;
 }
 
-test('a deep check still running is a line of its own with moving dots, not a grey meta segment', () => {
+test('a deep check still running is a badge on its card with moving dots, not a grey meta segment', () => {
   const model = LenzView.build(POLLS[0]);
   const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('running', { model, nextPollS: 15 }), lenzLogOpen: null });
   const nodes = walk(s.ids.groups);
-  const lines = nodes.filter((n) => n.className === 'deep-run');
+  const badges = nodes.filter((n) => n.className === 'deep-badge');
   const running = model.groups.flatMap((g) => g.entries).filter((e) => e.deepRunning).length;
   assert.ok(running > 0, 'the fixture has a deep check running');
-  assert.equal(lines.length, running, 'one line per claim whose deep check runs');
-  const line = lines[0];
-  assert.match(line.textContent, /^Deep check running/);
-  assert.ok(walk(line).some((n) => n.className === 'dots'), 'the line carries the animated dots');
+  assert.equal(badges.length, running, 'one badge per claim whose deep check runs');
+  const badge = badges[0];
+  assert.match(badge.textContent, /^Deep check running/);
+  assert.ok(walk(badge).some((n) => n.className === 'dots'), 'the badge carries the animated dots');
+  // It sits in the card's head, beside the verdict, where it is seen without reading the card.
+  assert.equal(badge.parent.className, 'head');
   // What to wait for is said once, under the first such claim, not under every one.
   const notes = nodes.filter((n) => n.className === 'deep-run-note');
   assert.equal(notes.length, 1, 'the note once, however many deep checks run');
   assert.match(notes[0].textContent, /corrections/);
-  const first = nodes.find((n) => n.className === 'entry' && walk(n).includes(line));
+  const first = nodes.find((n) => n.className === 'entry' && walk(n).includes(badge));
   assert.ok(walk(first).includes(notes[0]), 'under the first claim whose deep check runs');
   // The meta line no longer carries it.
   assert.ok(!nodes.some((n) => n.className === 'meta' && /deep check running/.test(n.textContent)));
+  // A card whose deep check is not running has no badge.
+  const idle = nodes.filter((n) => n.className === 'entry' && !walk(n).some((c) => c.className === 'deep-badge'));
+  assert.equal(idle.length, nodes.filter((n) => n.className === 'entry').length - running);
+});
+
+test('the progress block stays at the top while the list scrolls under it', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  const rule = css.match(/\.running\s*\{([^}]*)\}/)[1];
+  assert.match(rule, /position:\s*sticky/);
+  assert.match(rule, /top:\s*0/);
+  assert.match(rule, /background:/, 'opaque, so the cards do not show through');
+});
+
+test('the progress block draws no hairline of its own before any stage row shows', () => {
+  const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /\.running:has\(#stages:empty\)\s*\{[^}]*border-bottom:\s*0/,
+    'with nothing under it yet, its line would sit right above the footer line');
+});
+
+test('the progress block lists the deep checks with the others', () => {
+  const model = LenzView.build(POLLS[0]);
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('running', { model, nextPollS: 15 }), lenzLogOpen: null });
+  const rows = s.ids.stages.children.map((li) => li.textContent);
+  assert.deepEqual(rows, ['Quick checks\u2713 5 of 5', 'Deep checks0 of 3', 'Citation checks0 of 2']);
 });
 
 // Reading one claim while the others update (a user's report: the content jumped). Poll 3 of the
@@ -333,6 +359,100 @@ test('at the top of the panel nothing is held, so new results show', () => {
   assert.equal(s.window.scrollY, 0);
 });
 
+// A deep check that ends can change its claim's verdict, and with it the group the claim sorts into.
+// While the check runs a claim stays where the reader first saw it; the lists settle once it ends.
+function deepEnded(body, index, verdict = 'True') {
+  const b = JSON.parse(JSON.stringify(body));
+  for (const i of [index]) {
+    const c = b.claims[i];
+    c.result = { verdict, confidence: 'high', source: 'verification', is_issue: false };
+    c.verification.status = 'completed';
+    c.verification.lenz_score = 9;
+  }
+  return b;
+}
+// The group (heading text) each entry shows under, in the fake DOM.
+function groupsShown(s) {
+  const out = {};
+  let heading = null;
+  for (const n of s.ids.groups.children) {
+    if (n.tag === 'h2') heading = n.textContent;
+    const summary = n.tag === 'details' ? n.children.find((c) => c.tag === 'summary') : null;
+    if (summary) heading = summary.textContent;
+    for (const li of walk(n).filter((x) => x.tag === 'li' && x.className === 'entry')) out[li.getAttribute('data-id')] = heading;
+  }
+  return out;
+}
+function polling(bodies, final) {
+  const queue = bodies.slice(1).map((b) => reply('running', { model: LenzView.build(b), nextPollS: 15 }));
+  queue.push(reply('done', { model: LenzView.build(final) }));
+  const s = sidebar({
+    lenzOpen: reply('idle'),
+    lenzOpenState: reply('running', { model: LenzView.build(bodies[0]), nextPollS: 15 }),
+    lenzPoll: () => queue.shift(),
+    lenzLogOpen: null,
+  });
+  s.poll = () => s.timeouts.filter((t) => t.ms === 15000).pop().fn();
+  return s;
+}
+
+test('a claim whose deep check ends stays in its group while the check runs, and settles when it ends', () => {
+  const running = POLLS[3];
+  const changed = deepEnded(running, 1); // claim:1 was an issue; its deep check says True
+  assert.equal(LenzView.build(changed).groups.find((g) => g.entries.some((e) => e.id === 'claim:1')).key, 'ok');
+  const final = deepEnded(POLLS[5], 1);
+  const s = polling([running, changed], final);
+  const before = groupsShown(s);
+  assert.match(before['claim:1'], /^Issues/);
+  s.poll();
+  assert.deepEqual(groupsShown(s), Object.assign({}, before, {}), 'nothing moved');
+  // The card itself did change in place: its stamp now carries the deep verdict.
+  const stamp = (id) => walk(s.entries().find((n) => n.getAttribute('data-id') === id)).find((n) => /stamp/.test(n.className)).textContent;
+  assert.equal(stamp('claim:1'), 'True');
+  s.poll(); // the check ended
+  assert.match(groupsShown(s)['claim:1'], /^Checks out/);
+});
+
+test('stable order: a group is counted by what it shows, and a claim that arrives joins its group', () => {
+  const running = POLLS[3];
+  const changed = deepEnded(running, 1);
+  const s = polling([running, changed], deepEnded(POLLS[5], 1));
+  s.poll();
+  const heads = s.ids.groups.children.filter((n) => n.tag === 'h2').map((n) => n.textContent);
+  assert.equal(heads[0], 'Issues (3)', 'the claim that now says True is still counted under Issues');
+  // With nothing changed the pinned lists are exactly the model's own order, group by group.
+  const m = LenzView.build(running);
+  const flat = m.groups.flatMap((g) => g.entries.map((e) => e.id));
+  const shown = walk(s.ids.groups).filter((n) => n.tag === 'li' && n.className === 'entry').map((n) => n.getAttribute('data-id'));
+  assert.deepEqual(shown, flat);
+});
+
+test('stable order: a new review, or a finished one, shows the model as it is', () => {
+  const changed = deepEnded(POLLS[3], 1);
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('done', { model: LenzView.build(deepEnded(POLLS[5], 1)) }), lenzLogOpen: null });
+  assert.match(groupsShown(s)['claim:1'], /^Checks out/);
+  const t = polling([POLLS[3], changed], changed);
+  t.poll();
+  assert.match(groupsShown(t)['claim:1'], /^Issues/, 'still held while it runs');
+  t.poll();
+  assert.match(groupsShown(t)['claim:1'], /^Checks out/, 'a check that ended is never held back');
+});
+
+test('when the lists settle, the reader keeps the claim that stayed put', () => {
+  // claim:1 is the last issue and the one in view; its deep check ends as the check does, so it moves
+  // to "Needs a closer look", which shows. The reader stays on the claim that did not move (citation:1,
+  // below it), not carried down to wherever claim:1 went.
+  const final = deepEnded(POLLS[5], 1, 'Mixed');
+  const s = polling([POLLS[3]], final);
+  const entry = (id) => s.entries().find((n) => n.getAttribute('data-id') === id);
+  s.window.scrollBy(0, entry('claim:1').getBoundingClientRect().top - 40);
+  const held = entry('citation:1').getBoundingClientRect().top;
+  assert.ok(held > 40);
+  s.poll();
+  assert.match(groupsShown(s)['claim:1'], /^Needs a closer look/);
+  assert.equal(entry('citation:1').getBoundingClientRect().top, held, 'citation:1 has not moved on screen');
+});
+
 test('a folded group the reader opened stays open across polls', () => {
   const { s } = readingAcrossAPoll((s) => {
     const d = walk(s.ids.groups).find((n) => n.tag === 'details');
@@ -370,7 +490,7 @@ test('the access prompt takes Updating… away: the real state has answered', ()
 // as on every Lenz page that shows them (DESIGN.md § Motion). A flex gap on their line is a space.
 test('the animated dots follow their words with no gap', () => {
   const css = HTML.match(/<style>([\s\S]*?)<\/style>/)[1];
-  for (const cls of ['run-line', 'deep-run']) {
+  for (const cls of ['run-line', 'deep-badge']) {
     const rule = css.match(new RegExp('\\.' + cls + '\\s*\\{([^}]*)\\}'))[1];
     assert.doesNotMatch(rule, /(^|[;\s])gap\s*:/, '.' + cls + ' puts no gap before the dots');
   }
