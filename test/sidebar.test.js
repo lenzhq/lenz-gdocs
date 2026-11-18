@@ -61,6 +61,10 @@ class Node {
   getBoundingClientRect() { return Node.page.box(this); }
 }
 
+// A server call that fails before our code runs (what Apps Script hands the failure handler).
+class Failure { constructor(err) { this.err = err; } }
+const failure = (message, name) => new Failure(Object.assign(new Error(message), { name: name || 'ScriptError' }));
+
 // Loads the sidebar's script. `replies`: server function name -> reply (a function gets the arguments).
 function sidebar(replies) {
   const ids = {};
@@ -100,16 +104,19 @@ function sidebar(replies) {
     return found || { top: 0, bottom: 0, height: 0 };
   }
   Node.page = { document, box };
-  function runner(ok) {
+  function runner(ok, fail) {
     return new Proxy({}, {
       get(_, name) {
-        if (name === 'withSuccessHandler') return (f) => runner(f);
-        if (name === 'withFailureHandler') return () => runner(ok);
+        if (name === 'withSuccessHandler') return (f) => runner(f, fail);
+        if (name === 'withFailureHandler') return (f) => runner(ok, f);
         return function () {
           const args = Array.from(arguments);
           calls.push({ name, args });
           const r = replies[name];
-          ok(typeof r === 'function' ? r.apply(null, args) : r === undefined ? null : r);
+          const v = typeof r === 'function' ? r.apply(null, args) : r === undefined ? null : r;
+          // A reply made with failure(): Apps Script calls the failure handler with the error.
+          if (v instanceof Failure) { if (fail) fail(v.err); return; }
+          ok(v);
         };
       },
     });
@@ -117,7 +124,7 @@ function sidebar(replies) {
   const ctx = vm.createContext({
     document,
     window: win,
-    google: { script: { run: runner(function () {}) } },
+    google: { script: { run: runner(function () {}, null) } },
     setTimeout: (fn, ms) => { timeouts.push({ fn, ms }); return timeouts.length; },
     clearTimeout: () => {},
     setInterval: () => 0,
@@ -734,4 +741,113 @@ test('check again: gone when the panel moves on (a plain Check this Doc)', () =>
   });
   s.ids.check.click();
   assert.equal(s.ids['check-again'].hidden, true);
+});
+
+// ── A Doc opened under another signed-in Google account ─────
+// Apps Script runs the call as the browser's first Google account and refuses it before any of our
+// code runs. Retrying never helps, so the panel says what to do instead of "Try again".
+
+const MULTI_ACCOUNT = "Google can't run add-ons for this account in this window, because another Google account is signed in first. Open this Doc in a Chrome profile, or a private window, where this account is the only or first one signed in.";
+const GLUE_FAILED = 'The add-on could not finish that. Try again.';
+const DENIED = "We're sorry, a server error occurred while reading from storage. Error code PERMISSION_DENIED.";
+
+test('a refused first call (PERMISSION_DENIED) names the several-accounts cause, not "Try again"', () => {
+  const s = sidebar({ lenzOpen: () => failure(DENIED), lenzLogOpen: null });
+  assert.equal(s.ids.main.hidden, false);
+  assert.equal(s.ids.error.hidden, false);
+  assert.equal(s.ids.error.textContent, MULTI_ACCOUNT);
+});
+
+test('the several-accounts message shows on the sign-in screen when the panel was signed out', () => {
+  const s = sidebar({
+    lenzOpen: reply('signed_out', { auth: { mode: 'oauth', signedIn: false } }),
+    lenzOpenState: () => failure(DENIED),
+    lenzSignInUrl: () => failure(DENIED),
+    lenzLogOpen: null,
+  });
+  assert.equal(s.ids['signin-error'].textContent, MULTI_ACCOUNT);
+  assert.equal(s.ids['signin-error'].hidden, false);
+  assert.equal(s.ids.signin.hidden, false);
+});
+
+test('a refused call that is only a string (no Error object) still gets the message', () => {
+  const s = sidebar({ lenzOpen: () => new Failure('Error code PERMISSION_DENIED'), lenzLogOpen: null });
+  assert.equal(s.ids.error.textContent, MULTI_ACCOUNT);
+});
+
+test('a refused poll, Check and Select keep the list and show the message; repeats do not change it', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: reply('running', { model: LenzView.build(POLLS[3]), nextPollS: 15 }),
+    lenzPoll: () => failure(DENIED), lenzLogOpen: null,
+  });
+  poll(s);
+  assert.equal(s.ids.error.textContent, MULTI_ACCOUNT);
+  assert.ok(s.entries().length > 0, 'the kept list stays');
+  poll(s);
+  assert.equal(s.ids.error.textContent, MULTI_ACCOUNT);
+  assert.equal(s.ids.error.hidden, false);
+});
+
+test('a refused Check this Doc shows the message and Check comes back', () => {
+  const s = sidebar({ lenzOpen: reply('idle'), lenzOpenState: reply('idle'), lenzStart: () => failure(DENIED), lenzLogOpen: null });
+  s.ids.check.click();
+  assert.equal(s.ids.error.textContent, MULTI_ACCOUNT);
+  assert.equal(s.ids.check.disabled, false);
+});
+
+test('any other failure keeps "Try again"', () => {
+  for (const f of [failure('We are sorry, a server error occurred. Please wait a bit and try again.'),
+    failure('Exceeded maximum execution time', 'Error'), new Failure(null), new Failure(undefined), new Failure('')]) {
+    const s = sidebar({ lenzOpen: () => f, lenzLogOpen: null });
+    assert.equal(s.ids.error.textContent, GLUE_FAILED);
+  }
+});
+
+test('the several-accounts words sit on the Allow-access screen too (the picker call is refused)', () => {
+  const s = sidebar({
+    lenzOpen: reply('idle'), lenzOpenState: reply('needs_file_access', { ok: false, message: null }),
+    lenzShowPicker: () => failure(DENIED), lenzLogOpen: null,
+  });
+  s.ids['access-go'].click();
+  assert.equal(s.ids.error.textContent, MULTI_ACCOUNT);
+  assert.equal(s.ids.error.hidden, false);
+  assert.equal(s.ids.main.hidden, false);
+});
+
+// picker.html: the same words when its two server calls are refused.
+test('picker.html: a refused config or save call names the several-accounts cause; other failures keep their line', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'picker.html'), 'utf8');
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1])[0];
+  const LOAD_FAILED = 'The Google file picker did not load. Close this window and try again.';
+  function run(err, saveToo) {
+    const els = {};
+    for (const id of ['status', 'error']) els[id] = { textContent: '', hidden: false };
+    const handlers = {};
+    const chain = {
+      withSuccessHandler(f) { handlers.ok = f; return chain; },
+      withFailureHandler(f) { handlers.fail = f; return chain; },
+      lenzPickerConfig() { if (!saveToo) handlers.fail(err); else handlers.ok({ token: 't', docId: 'd', apiKey: 'k', appId: 'a' }); },
+      lenzFileAccessGranted() { handlers.fail(err); },
+    };
+    const picker = { addView() { return picker; }, enableFeature() { return picker; }, hideTitleBar() { return picker; },
+      setOAuthToken() { return picker; }, setDeveloperKey() { return picker; }, setAppId() { return picker; },
+      setOrigin() { return picker; }, setCallback(f) { picker.cb = f; return picker; }, build() { return picker; }, setVisible() {} };
+    const google = { script: { run: chain, host: { origin: 'o', close() {} } },
+      picker: { DocsView: function () { this.setFileIds = () => this; }, ViewId: { DOCUMENTS: 'D' }, Feature: { NAV_HIDDEN: 'N' },
+        PickerBuilder: function () { return picker; }, Response: { ACTION: 'a', DOCUMENTS: 'docs' }, Action: { PICKED: 'P', CANCEL: 'C' },
+        Document: { ID: 'id' } } };
+    const ctx = vm.createContext({ document: { getElementById: (id) => els[id] }, google,
+      gapi: { load: (_, o) => o.callback() }, console });
+    vm.runInContext(script, ctx);
+    if (saveToo) {
+      ctx.onApiLoad();
+      picker.cb({ a: 'P', docs: [{ id: 'd' }] });
+    }
+    return els;
+  }
+  const denied = new Error(DENIED);
+  assert.equal(run(denied, false).error.textContent, MULTI_ACCOUNT);
+  assert.equal(run(denied, true).error.textContent, MULTI_ACCOUNT);
+  assert.equal(run(new Error('Exceeded maximum execution time'), false).error.textContent, LOAD_FAILED);
+  assert.equal(run(new Error('Exceeded maximum execution time'), true).error.textContent, LOAD_FAILED);
 });

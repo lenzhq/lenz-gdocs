@@ -53,6 +53,14 @@ file picker asks you to allow Lenz to read that Doc, and nothing is sent before 
 the tab's text to check it and keeps the check in your Lenz account; deleting your account deletes
 it. Details: [lenz.io/privacy#google-docs](https://lenz.io/privacy#google-docs).
 
+## Troubleshooting
+
+**"Google can't run add-ons for this account in this window."** Google runs an add-on as the first
+Google account signed in to the browser. If you have several accounts signed in and the Doc belongs
+to another one, Google refuses every call from the sidebar, and trying again does not help. An
+add-on cannot choose the account. Open the Doc in a Chrome profile, or a private window, where the
+account that owns it is the only one signed in, or the first.
+
 ## How it works
 
 ```
