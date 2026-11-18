@@ -389,6 +389,8 @@ function entry(model, id) {
   for (const g of model.groups) for (const e of g.entries) if (e.id === id) return e;
   return null;
 }
+// Every finding a model shows: each card, and each citation inside a claim's card.
+const findings = (m) => m.groups.flatMap((g) => g.entries).flatMap((e) => [e].concat(e.citations || []));
 
 // ── loading ─────────────────────────────────────────────────────────
 
@@ -777,7 +779,7 @@ test('poll until done: progress, then the model, placed on the unchanged Doc', (
   assert.equal(r.phase, 'done');
   assert.equal(r.model.headline, '3 issues to look at.');
   assert.deepEqual(plain(r.model.coverage), ['2 citations could not be checked: the reason is under each one.']);
-  assert.equal(r.model.groups.flatMap((g) => g.entries).every((e) => e.placed), true);
+  assert.equal(findings(r.model).every((e) => e.placed), true);
   // Reopening the sidebar reads the same state.
   assert.equal(w.ctx.lenzState().phase, 'done');
 });
@@ -1000,7 +1002,7 @@ test('drift: typing elsewhere keeps findings placed; a deleted passage is not in
   r = w.ctx.lenzState();
   assert.equal(entry(r.model, 'claim:1').placed, false);
   // The paragraph before it lost its right-hand context (40 cp), so its two findings go too.
-  const unplaced = plain(r.model.groups.flatMap((g) => g.entries).filter((e) => !e.placed).map((e) => e.id)).sort();
+  const unplaced = plain(findings(r.model).filter((e) => !e.placed).map((e) => e.id)).sort();
   assert.deepEqual(unplaced, ['citation:1', 'claim:1', 'claim:3']);
   assert.ok(r.model.coverage.includes('3 findings are not in the Doc as it is now, so they cannot be selected.'));
   assert.equal(w.ctx.lenzSelect(RID, 'claim:1', 0).ok, false);

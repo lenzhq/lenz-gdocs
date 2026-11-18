@@ -11,6 +11,8 @@
  *          with no public record is an issue drawn in this state
  *   none   "Not checked": citations with no text, failed checks, failed claims
  *   ok     "Checks out", collapsed behind its count
+ * One card per sentence: a citation on a claim's words is shown inside that
+ * claim's card (cardsOf), which then sits in the more serious group of the two.
  * The group of a row is the state Lenz's Workbench gives it, except that an
  * issue is an issue whatever its colour. Words: the ones Lenz uses for findings
  * elsewhere (editor register).
@@ -537,6 +539,94 @@ var LenzView = (function () {
       });
   }
 
+  // One card per sentence. A citation's `position` is the span of the statement that cites; a claim's
+  // `positions` are the passages it was found in. A citation belongs to the claim whose positions share
+  // the most characters with it (half-open spans, an overlap of at least one character: spans that only
+  // touch share nothing); a tie goes to the claim whose card comes first in the Doc (its first position),
+  // then to the lower index. Offsets are the review's own, so the match never changes between polls.
+  // -> { citationIndex: claimIndex }
+  function hosts(claimRows, citationRows) {
+    var out = {};
+    arr(citationRows).forEach(function (c) {
+      if (!isObj(c) || typeof c.index !== 'number' || !isObj(c.position)) return;
+      var cs = c.position.start;
+      var ce = c.position.end;
+      if (typeof cs !== 'number' || typeof ce !== 'number' || ce <= cs) return;
+      var best = null;
+      arr(claimRows).forEach(function (r) {
+        if (!isObj(r) || typeof r.index !== 'number') return;
+        var shared = 0;
+        arr(r.positions).forEach(function (p) {
+          if (!isObj(p) || typeof p.start !== 'number' || typeof p.end !== 'number') return;
+          shared = Math.max(shared, Math.min(p.end, ce) - Math.max(p.start, cs));
+        });
+        if (shared <= 0) return;
+        var start = firstStart(r.positions);
+        start = start === null ? Infinity : start;
+        if (
+          !best ||
+          shared > best.shared ||
+          (shared === best.shared && (start < best.start || (start === best.start && r.index < best.index)))
+        ) {
+          best = { index: r.index, shared: shared, start: start };
+        }
+      });
+      if (best) out[c.index] = best.index;
+    });
+    return out;
+  }
+
+  // Only an issue or a closer look in a citation moves its claim's card; a citation still checking, not
+  // checked or supported leaves the card where the claim's verdict puts it.
+  var PULL = { issue: 0, look: 1 };
+
+  // Entries -> cards: each citation that belongs to a claim goes into that claim's card (`citations`, in
+  // the Doc's order), the card in the more serious group of the two. Only a card that holds a citation
+  // gets the key, so every other entry is exactly what it was.
+  function cardsOf(entries, claimRows, citationRows) {
+    var host = hosts(claimRows, citationRows);
+    var claims = {};
+    var spans = {};
+    entries.forEach(function (e) {
+      if (e.kind === 'claim') claims[e.id] = e;
+    });
+    arr(claimRows).forEach(function (r) {
+      if (isObj(r) && typeof r.index === 'number') spans['claim:' + r.index] = arr(r.positions);
+    });
+    var cits = {};
+    arr(citationRows).forEach(function (r) {
+      if (isObj(r) && typeof r.index === 'number') cits['citation:' + r.index] = r;
+    });
+    var out = [];
+    entries.forEach(function (e) {
+      if (e.kind !== 'citation') return out.push(e);
+      var row = cits[e.id];
+      var into = row && host[row.index] !== undefined ? claims['claim:' + host[row.index]] : null;
+      if (!into) return out.push(e);
+      var cs = row.position.start;
+      var ce = row.position.end;
+      // Words of its own to select, unless the claim's one passage is exactly the citation's span. A claim
+      // found in several passages selects the one its card shows, which may not be the citation's.
+      var passages = spans[into.id].filter(function (p) {
+        return isObj(p) && typeof p.start === 'number' && typeof p.end === 'number';
+      });
+      e.ownWords = !(passages.length === 1 && passages[0].start === cs && passages[0].end === ce);
+      (into.citations = into.citations || []).push(e);
+    });
+    out.forEach(function (e) {
+      if (!e.citations) return;
+      e.citations.sort(function (a, b) {
+        var sa = a.start === null ? Infinity : a.start;
+        var sb = b.start === null ? Infinity : b.start;
+        return sa !== sb ? sa - sb : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+      e.citations.forEach(function (c) {
+        if (PULL[c.group] !== undefined && (PULL[e.group] === undefined || PULL[c.group] < PULL[e.group])) e.group = c.group;
+      });
+    });
+    return out;
+  }
+
   function compare(a, b) {
     var ga = GROUPS.indexOf(a.group);
     var gb = GROUPS.indexOf(b.group);
@@ -759,16 +849,19 @@ var LenzView = (function () {
         e.placeNote = 'The words changed since the check.';
       }
     });
-    entries.sort(compare);
+    // Coverage and what a cancelled review delivered count findings (every claim and citation); the
+    // groups list cards (one per sentence: a claim with the citations on its words).
+    var cards = cardsOf(entries, claimRows, body.citations);
+    cards.sort(compare);
     var groups = { issue: [], look: [], pending: [], none: [], ok: [] };
-    entries.forEach(function (e) {
+    cards.forEach(function (e) {
       groups[e.group].push(e);
     });
     var coverage = coverageLines(body, entries, o);
     // Stopped before anything came in: no list of rows that all say "not checked", as if no check ran.
     var empty = o.cancelled && !delivered(entries);
     if (empty) coverage = [];
-    var quick = entries.some(function (e) {
+    var quick = cards.some(function (e) {
       return e.group !== 'ok' && e.check === 'Quick check';
     });
     var failed = failureView(body, scope);
