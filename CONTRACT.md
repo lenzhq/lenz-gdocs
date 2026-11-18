@@ -487,7 +487,7 @@ lenzApply(reviewId, claimIndex, editIndex) -> Note | Reply & { ok: true, message
 lenzUndo(reviewId, claimIndex, editIndex)  -> Note | Reply & { ok: true, message }
 Reply = { phase: 'signed_out'|'needs_file_access'|'idle'|'running'|'stalled'|'done'|'error', auth: { mode: 'oauth'|'key', signedIn },
           model: Model|null, nextPollS|null, error: {code, message, retryable, retryAfterS}|null,
-          startedAt|null, selection?, notice? }  // selection (running): a selection check;  // notice: "No changes since the last check."   // running only: the record's submittedAt (ms); the sidebar ticks the elapsed time
+          startedAt|null, reviewId?, selection?, notice? }  // reviewId (running, no list yet): the record's review, so Cancel can name it  // selection (running): a selection check;  // notice: "No changes since the last check."   // running only: the record's submittedAt (ms); the sidebar ticks the elapsed time
 Note  = { ok, message|null }
 ```
 
@@ -503,7 +503,9 @@ Note  = { ok, message|null }
   It asks inline first ("Stop this check? Findings already shown stay. Checks that have not finished
   are not charged." · Stop the check · Keep checking; no browser dialog), then calls `lenzCancel` once
   ("Stopping…", both buttons off; a second click does nothing) with the review id it shows
-  (`Model.reviewId`, null while the request is unconfirmed). Under the user lock that id must be the
+  (`Model.reviewId`; a `running` reply with no list yet, such as the answer to Check this Doc before
+  the first poll or a poll that failed, carries the record's id as `Reply.reviewId` and the panel
+  takes it from there; null only while the request is unconfirmed). Under the user lock that id must be the
   active tab's record's, else nothing is sent but a read of the current check, with "This panel was
   showing another check, so nothing was stopped." (a panel left over from another tab, or a check
   another sidebar replaced). Then: a pending request

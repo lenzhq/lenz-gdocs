@@ -291,7 +291,9 @@
     stopAccessWait();
     last = r;
     phase = r.phase;
-    var id = r.model && r.model.reviewId ? r.model.reviewId : null;
+    // The check this panel shows: its list's review, else (a running reply with no list yet) the one the
+    // reply names. Cancel sends it, so it must not be lost while the list is still empty.
+    var id = r.model && r.model.reviewId ? r.model.reviewId : typeof r.reviewId === 'string' && r.reviewId ? r.reviewId : null;
     if (id !== shown) { steps = {}; folds = {}; pageFolds = {}; place = null; } // entry ids repeat across reviews
     shown = id;
     var signedOut = r.phase === 'signed_out';
